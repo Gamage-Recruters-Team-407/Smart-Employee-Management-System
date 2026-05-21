@@ -1,7 +1,8 @@
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
-import mongoose from "mongoose";
+import { connectDB } from "./config/db.js";
+import employeeRoutes from "./routes/employeeRoutes.js";
 
 dotenv.config();
 
@@ -10,10 +11,11 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => console.log("MongoDB Connected"))
-  .catch((err) => console.log(err));
+// Connect to MongoDB (Atlas with automatic local fallback)
+connectDB();
+
+// Routes
+app.use("/api/employees", employeeRoutes);
 
 app.get("/", (req, res) => {
   res.send("Backend Running");
