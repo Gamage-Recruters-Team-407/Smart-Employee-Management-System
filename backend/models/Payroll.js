@@ -13,6 +13,12 @@ const payrollSchema = new mongoose.Schema(
     loans: Number,
     netSalary: Number,
     month: String,
+    status: {
+      type: String,
+      enum: ["Pending", "Paid"],
+      default: "Pending",
+    },
+    paymentDate: Date,
   },
   {
     timestamps: true,

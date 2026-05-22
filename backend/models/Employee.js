@@ -23,7 +23,13 @@ const employeeSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
   }
 );
+
+employeeSchema.virtual("name").get(function() {
+  return `${this.firstName} ${this.lastName}`;
+});
 
 export default mongoose.model("Employee", employeeSchema);

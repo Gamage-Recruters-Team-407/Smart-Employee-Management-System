@@ -3,6 +3,9 @@ import dotenv from "dotenv";
 import cors from "cors";
 import mongoose from "mongoose";
 
+import employeeRoutes from "./routes/employeeRoutes.js";
+import payrollRoutes from "./routes/payrollRoutes.js";
+
 dotenv.config();
 
 const app = express();
@@ -14,6 +17,9 @@ mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("MongoDB Connected"))
   .catch((err) => console.log(err));
+
+app.use("/api/employees", employeeRoutes);
+app.use("/api/payroll", payrollRoutes);
 
 app.get("/", (req, res) => {
   res.send("Backend Running");
