@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import cors from "cors";
 import mongoose from "mongoose";
 import attendanceRoutes from "./routes/attendanceRoutes.js";
+import employeeRoutes from "./routes/employeeRoutes.js";
 
 dotenv.config();
 
@@ -17,6 +18,7 @@ mongoose
   .catch((err) => console.log(err));
 
 app.use("/api/attendance", attendanceRoutes);
+app.use("/api/employees", employeeRoutes);
 
 app.get("/", (req, res) => {
   res.send("Backend Running");

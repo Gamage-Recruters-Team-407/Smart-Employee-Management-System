@@ -56,8 +56,8 @@ export const markAttendance = async (req, res) => {
       return res.status(400).json({ message: "Employee ID, date, and status are required." });
     }
 
-    // Verify employee exists
-    const employeeExists = await Employee.findById(employee);
+    // Verify employee exists using custom employeeId
+    const employeeExists = await Employee.findOne({ employeeId: employee });
     if (!employeeExists) {
       return res.status(404).json({ message: "Employee not found" });
     }
@@ -81,9 +81,9 @@ export const markAttendance = async (req, res) => {
       updateData.logoutTime = logoutDate;
     }
 
-    // Upsert attendance record for employee + date
+    // Upsert attendance record for employee + date using DB ObjectId
     const record = await Attendance.findOneAndUpdate(
-      { employee, date },
+      { employee: employeeExists._id, date },
       { $set: updateData },
       { new: true, upsert: true }
     ).populate("employee", "employeeId firstName lastName email department designation");
@@ -100,13 +100,15 @@ export const markAttendance = async (req, res) => {
  */
 export const checkIn = async (req, res) => {
   try {
-    const { employeeId, location } = req.body;
+    const { location } = req.body;
+    // Retrieve employeeId from logged-in session context or fallback to body
+    const employeeId = req.employee?.employeeId || req.body.employeeId;
 
     if (!employeeId) {
-      return res.status(400).json({ message: "Employee ID (DB _id) is required." });
+      return res.status(400).json({ message: "Employee ID (employeeId) is required." });
     }
 
-    const employee = await Employee.findById(employeeId);
+    const employee = await Employee.findOne({ employeeId });
     if (!employee) {
       return res.status(404).json({ message: "Employee not found." });
     }
@@ -122,12 +124,12 @@ export const checkIn = async (req, res) => {
       status = "Late";
     }
 
-    // Create or update check-in record
+    // Create or update check-in record using DB ObjectId
     const attendance = await Attendance.findOneAndUpdate(
-      { employee: employeeId, date: todayStr },
+      { employee: employee._id, date: todayStr },
       {
         $setOnInsert: {
-          employee: employeeId,
+          employee: employee._id,
           date: todayStr,
           location: location || "Office",
         },
@@ -152,18 +154,24 @@ export const checkIn = async (req, res) => {
  */
 export const checkOut = async (req, res) => {
   try {
-    const { employeeId } = req.body;
+    // Retrieve employeeId from logged-in session context or fallback to body
+    const employeeId = req.employee?.employeeId || req.body.employeeId;
 
     if (!employeeId) {
-      return res.status(400).json({ message: "Employee ID (DB _id) is required." });
+      return res.status(400).json({ message: "Employee ID (employeeId) is required." });
+    }
+
+    const employee = await Employee.findOne({ employeeId });
+    if (!employee) {
+      return res.status(404).json({ message: "Employee not found." });
     }
 
     const todayStr = getLocalDateString();
     const now = new Date();
     const timeStr = formatTime(now);
 
-    // Find attendance record for today
-    const attendance = await Attendance.findOne({ employee: employeeId, date: todayStr });
+    // Find attendance record for today using DB ObjectId
+    const attendance = await Attendance.findOne({ employee: employee._id, date: todayStr });
     if (!attendance) {
       return res.status(404).json({ message: "No check-in record found for today." });
     }
@@ -184,9 +192,23 @@ export const checkOut = async (req, res) => {
  */
 export const getEmployeeAttendanceHistory = async (req, res) => {
   try {
-    const { employeeId } = req.params;
+    let { employeeId } = req.params;
+    
+    // Support fetching own history using 'me' or when route doesn't specify ID
+    if (employeeId === "me" || !employeeId) {
+      employeeId = req.employee?.employeeId;
+    }
 
-    const history = await Attendance.find({ employee: employeeId }).sort({ date: -1 });
+    if (!employeeId) {
+      return res.status(400).json({ message: "Employee ID is required." });
+    }
+
+    const employee = await Employee.findOne({ employeeId });
+    if (!employee) {
+      return res.status(404).json({ message: "Employee not found." });
+    }
+
+    const history = await Attendance.find({ employee: employee._id }).sort({ date: -1 });
     res.status(200).json(history);
   } catch (error) {
     res.status(500).json({ message: "Error fetching attendance history", error: error.message });
