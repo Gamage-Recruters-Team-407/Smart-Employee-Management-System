@@ -6,6 +6,7 @@ import Performance from "./pages/Performance";
 import Attendance from "./pages/Attendance";
 import Leave from "./pages/Leave";
 import Payroll from "./pages/Payroll";
+import Notifications from "./pages/Notifications";
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
         <Route path="leaves" element={<Leave />} />
         <Route path="payroll" element={<Payroll />} />
         <Route path="performance" element={<Performance />} />
+        <Route path="notifications" element={<Notifications />} />
       </Route>
     </Routes>
   );

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Users, Clock, Calendar, DollarSign, Award, Settings } from 'lucide-react';
+import { Home, Users, Clock, Calendar, DollarSign, Award, Bell } from 'lucide-react';
 
 const Sidebar = ({ isOpen, toggle }) => {
   const location = useLocation();
@@ -12,6 +12,7 @@ const Sidebar = ({ isOpen, toggle }) => {
     { icon: Calendar, label: 'Leaves', path: '/leaves' },
     { icon: DollarSign, label: 'Payroll', path: '/payroll' },
     { icon: Award, label: 'Performance', path: '/performance' },
+    { icon: Bell, label: 'Notifications', path: '/notifications' },
   ];
 
   return (
