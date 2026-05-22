@@ -1,80 +1,98 @@
 import mongoose from "mongoose";
 import dotenv from "dotenv";
+import { MongoMemoryServer } from "mongodb-memory-server";
 import User from "../models/User.js";
 import Performance from "../models/Performance.js";
-import { MongoMemoryServer } from "mongodb-memory-server";
 
 dotenv.config();
 
-let mongodInstance = null;
-const MONGO = process.env.MONGO_URI || "";
-
 const sampleUsers = [
-  { name: "Alice", email: "alice@example.com", password: "password", role: "Employee" },
-  { name: "Bob", email: "bob@example.com", password: "password", role: "Employee" },
-  { name: "Carol", email: "carol@example.com", password: "password", role: "Employee" },
-  { name: "Dave", email: "dave@example.com", password: "password", role: "Manager" },
-  { name: "Eve", email: "eve@example.com", password: "password", role: "HR" },
+  { name: "Alice Johnson", email: "alice.employee@example.com", password: "password", role: "Employee" },
+  { name: "Bob Smith", email: "bob.employee@example.com", password: "password", role: "Employee" },
+  { name: "Carol Williams", email: "carol.employee@example.com", password: "password", role: "Employee" },
+  { name: "Daniel Brown", email: "daniel.employee@example.com", password: "password", role: "Employee" },
+  { name: "Emma Davis", email: "emma.employee@example.com", password: "password", role: "Employee" },
+  { name: "Michael Manager", email: "manager@example.com", password: "password", role: "Manager" },
+  { name: "Hannah HR", email: "hr@example.com", password: "password", role: "HR" }
 ];
 
-const samplePerformances = async (users) => {
-  const [alice, bob, carol] = users.filter(u => u.role === "Employee");
-  // create simple entries
-  return [
-    { employee: users[0]._id, attendancePercent: 95, tasksCompleted: 18, tasksAssigned: 20, qualityScore: 88 },
-    { employee: users[1]._id, attendancePercent: 80, tasksCompleted: 15, tasksAssigned: 20, qualityScore: 75 },
-    { employee: users[2]._id, attendancePercent: 100, tasksCompleted: 20, tasksAssigned: 20, qualityScore: 92 },
+const buildPerformanceDocs = (employees, managerId) => {
+  const template = [
+    { attendanceScore: 96, tasksCompleted: 22, tasksAssigned: 24, qualityScore: 91, notes: "Consistent top performer." },
+    { attendanceScore: 88, tasksCompleted: 17, tasksAssigned: 20, qualityScore: 84, notes: "Strong progress in delivery speed." },
+    { attendanceScore: 78, tasksCompleted: 14, tasksAssigned: 20, qualityScore: 76, notes: "Needs support on deadline management." },
+    { attendanceScore: 92, tasksCompleted: 18, tasksAssigned: 19, qualityScore: 89, notes: "Reliable and detail-focused." },
+    { attendanceScore: 85, tasksCompleted: 16, tasksAssigned: 21, qualityScore: 81, notes: "Good quality, target higher closure rate." }
   ];
+
+  return employees.map((employee, index) => ({
+    employee: employee._id,
+    ...template[index],
+    managerFeedback: [
+      {
+        manager: managerId,
+        feedback: `Quarterly review submitted for ${employee.name}.`,
+        rating: 4
+      }
+    ]
+  }));
 };
 
-const run = async () => {
+const connectMongo = async () => {
+  const mongoUri = process.env.MONGO_URI || "";
+  let mongodInstance = null;
+
   try {
-    if (MONGO) {
-      try {
-        await mongoose.connect(MONGO);
-        console.log("Connected for seeding (primary)");
-      } catch (err) {
-        console.warn("Primary Mongo connection failed, falling back to in-memory:", err.message);
-        // ensure mongoose has no lingering connection
-        try {
-          await mongoose.disconnect();
-        } catch (e) {}
-        mongodInstance = await MongoMemoryServer.create();
-        const uri = mongodInstance.getUri();
-        await mongoose.connect(uri);
-        console.log("Connected to in-memory MongoDB for seeding");
+    if (!mongoUri) {
+      throw new Error("Missing MONGO_URI");
+    }
+    await mongoose.connect(mongoUri);
+    console.log("Connected to primary MongoDB for seed.");
+  } catch (error) {
+    console.warn("Primary Mongo connection failed. Using in-memory MongoDB:", error.message);
+    mongodInstance = await MongoMemoryServer.create();
+    await mongoose.connect(mongodInstance.getUri());
+    console.log("Connected to in-memory MongoDB for seed.");
+  }
+
+  return mongodInstance;
+};
+
+const seed = async () => {
+  let mongod = null;
+  try {
+    mongod = await connectMongo();
+
+    const users = [];
+    for (const user of sampleUsers) {
+      let existing = await User.findOne({ email: user.email });
+      if (!existing) {
+        existing = await User.create(user);
       }
-    } else {
-      console.log("No MONGO_URI set — starting in-memory MongoDB for seeding");
-      mongodInstance = await MongoMemoryServer.create();
-      const uri = mongodInstance.getUri();
-      await mongoose.connect(uri);
-      console.log("Connected to in-memory MongoDB for seeding");
+      users.push(existing);
     }
 
-    // create users if not exists
-    const createdUsers = [];
-    for (const u of sampleUsers) {
-      let existing = await User.findOne({ email: u.email });
-      if (!existing) existing = await User.create(u);
-      createdUsers.push(existing);
+    const employees = users.filter((user) => user.role === "Employee").slice(0, 5);
+    const manager = users.find((user) => user.role === "Manager");
+
+    const performanceDocs = buildPerformanceDocs(employees, manager._id);
+    for (const doc of performanceDocs) {
+      const existing = await Performance.findOne({ employee: doc.employee });
+      if (!existing) {
+        await Performance.create(doc);
+      }
     }
 
-    // create performances
-    const perfDocs = await samplePerformances(createdUsers);
-    for (const p of perfDocs) {
-      const exists = await Performance.findOne({ employee: p.employee });
-      if (!exists) await Performance.create(p);
-    }
-
-    console.log("Seeding completed.");
-    if (mongodInstance) await mongodInstance.stop();
+    console.log("Performance seed complete with 5 employee records.");
     process.exit(0);
   } catch (error) {
-    console.error(error);
-    if (mongodInstance) await mongodInstance.stop();
+    console.error("Performance seed failed:", error);
     process.exit(1);
+  } finally {
+    if (mongod) {
+      await mongod.stop();
+    }
   }
 };
 
-run();
+seed();
