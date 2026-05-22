@@ -2,6 +2,7 @@ import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
 import mongoose from "mongoose";
+import notificationRoutes from "./routes/notificationRoutes.js";
 
 dotenv.config();
 
@@ -18,6 +19,8 @@ mongoose
 app.get("/", (req, res) => {
   res.send("Backend Running");
 });
+
+app.use("/api/notifications", notificationRoutes);
 
 const PORT = process.env.PORT || 5000;
 

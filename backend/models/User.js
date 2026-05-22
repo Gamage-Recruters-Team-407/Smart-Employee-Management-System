@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 const userSchema=new mongoose.Schema(
     {
         name:{
-            name:String,
+            type:String,
             required:true,
         },
         email:{
@@ -16,7 +16,7 @@ const userSchema=new mongoose.Schema(
             required:true,
         },
         role:{
-            String,
+            type:String,
             enum:["Admin","HR","Manager","Employee"],
             default:"Employee",
         },
