@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import API from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import { format } from 'date-fns';
 import AttendanceTable from '../components/AttendanceTable';
 import { 
@@ -17,7 +18,8 @@ import {
 } from 'lucide-react';
 
 const Attendance = () => {
-  const [viewMode, setViewMode] = useState('employee'); // default to 'employee'
+  const { user } = useAuth();
+  const [viewMode, setViewMode] = useState(user?.role === 'Employee' ? 'employee' : 'admin');
   const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
   const [attendanceData, setAttendanceData] = useState([]);
   const [employees, setEmployees] = useState([]);
@@ -36,6 +38,13 @@ const Attendance = () => {
     return () => clearInterval(timer);
   }, []);
 
+  // Set the view mode dynamically when user role is retrieved
+  useEffect(() => {
+    if (user) {
+      setViewMode(user.role === 'Employee' ? 'employee' : 'admin');
+    }
+  }, [user]);
+
   // Show temporary feedback toast/notification
   const showNotification = (message, type = 'success') => {
     setNotification({ message, type });
@@ -51,7 +60,17 @@ const Attendance = () => {
       try {
         const res = await API.get('/employees');
         setEmployees(res.data);
-        if (res.data.length > 0) {
+        
+        if (user && user.role === 'Employee') {
+          const loggedInEmp = res.data.find(
+            (emp) => emp.email?.toLowerCase() === user.email?.toLowerCase()
+          );
+          if (loggedInEmp) {
+            setSelectedEmployeeId(loggedInEmp.employeeId);
+          } else if (res.data.length > 0) {
+            setSelectedEmployeeId(res.data[0].employeeId);
+          }
+        } else if (res.data.length > 0) {
           setSelectedEmployeeId(res.data[0].employeeId);
         }
       } catch (err) {
@@ -61,8 +80,10 @@ const Attendance = () => {
         setEmployeesLoading(false);
       }
     };
-    fetchEmployees();
-  }, []);
+    if (user) {
+      fetchEmployees();
+    }
+  }, [user]);
 
   // Fetch Attendance for selected date
   const fetchAttendance = async () => {
@@ -130,41 +151,6 @@ const Attendance = () => {
     }
   };
 
-  const handleCheckIn = async () => {
-    try {
-      setLoading(true);
-      await API.post('/attendance/check-in', {
-        employeeId: selectedEmployeeId,
-        location: 'Office'
-      });
-      showNotification('Checked in successfully!');
-      fetchAttendance();
-      fetchEmployeeHistory();
-    } catch (err) {
-      console.error(err);
-      showNotification(err.response?.data?.message || 'Failed to check in', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCheckOut = async () => {
-    try {
-      setLoading(true);
-      await API.post('/attendance/check-out', {
-        employeeId: selectedEmployeeId
-      });
-      showNotification('Checked out successfully!');
-      fetchAttendance();
-      fetchEmployeeHistory();
-    } catch (err) {
-      console.error(err);
-      showNotification(err.response?.data?.message || 'Failed to check out', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // Calculate statistics based on fetched employees and daily records
   const getStats = () => {
     let present = 0;
@@ -223,54 +209,61 @@ const Attendance = () => {
 
   return (
     <div className="space-y-6 w-full pb-10">
-      {/* Role and Testing Switcher */}
-      <div className="flex flex-col md:flex-row items-center justify-between gap-4 bg-indigo-900 text-white p-6 rounded-2xl shadow-sm">
-        <div>
-          <h2 className="text-xl font-bold tracking-tight">Smart Attendance Portal</h2>
-          <p className="text-indigo-200 text-xs mt-1">Simulate employee actions or manage daily attendance logs</p>
+      {/* Role and Testing Switcher / Profile Header */}
+      {user?.role === 'Employee' ? (
+        <div className="bg-gradient-to-r from-indigo-700 to-indigo-900 text-white p-6 rounded-2xl shadow-md">
+          <h2 className="text-xl font-bold tracking-tight">My Attendance Status</h2>
+          <p className="text-indigo-200 text-xs mt-1">View your daily logs, check-in, and check-out times</p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex bg-indigo-950/40 p-1 rounded-xl border border-indigo-700/50">
-            <button
-              onClick={() => setViewMode('employee')}
-              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                viewMode === 'employee' 
-                  ? 'bg-indigo-600 text-white shadow-sm' 
-                  : 'text-indigo-300 hover:text-white'
-              }`}
-            >
-              Employee View
-            </button>
-            <button
-              onClick={() => setViewMode('admin')}
-              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                viewMode === 'admin' 
-                  ? 'bg-indigo-600 text-white shadow-sm' 
-                  : 'text-indigo-300 hover:text-white'
-              }`}
-            >
-              Admin View
-            </button>
+      ) : (
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4 bg-indigo-900 text-white p-6 rounded-2xl shadow-sm">
+          <div>
+            <h2 className="text-xl font-bold tracking-tight">Smart Attendance Portal</h2>
+            <p className="text-indigo-200 text-xs mt-1">Simulate employee actions or manage daily attendance logs</p>
           </div>
-
-          {viewMode === 'employee' && employees.length > 0 && (
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-indigo-200 font-semibold">Test As:</span>
-              <select
-                value={selectedEmployeeId}
-                onChange={(e) => setSelectedEmployeeId(e.target.value)}
-                className="bg-indigo-800 border border-indigo-700 text-white text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-semibold"
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex bg-indigo-950/40 p-1 rounded-xl border border-indigo-700/50">
+              <button
+                onClick={() => setViewMode('employee')}
+                className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  viewMode === 'employee' 
+                    ? 'bg-indigo-600 text-white shadow-sm' 
+                    : 'text-indigo-300 hover:text-white'
+                }`}
               >
-                {employees.map((emp) => (
-                  <option key={emp.employeeId} value={emp.employeeId}>
-                    {emp.name} ({emp.employeeId})
-                  </option>
-                ))}
-              </select>
+                Employee View
+              </button>
+              <button
+                onClick={() => setViewMode('admin')}
+                className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  viewMode === 'admin' 
+                    ? 'bg-indigo-600 text-white shadow-sm' 
+                    : 'text-indigo-300 hover:text-white'
+                }`}
+              >
+                Admin View
+              </button>
             </div>
-          )}
+
+            {viewMode === 'employee' && employees.length > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-indigo-200 font-semibold">Test As:</span>
+                <select
+                  value={selectedEmployeeId}
+                  onChange={(e) => setSelectedEmployeeId(e.target.value)}
+                  className="bg-indigo-800 border border-indigo-700 text-white text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-semibold"
+                >
+                  {employees.map((emp) => (
+                    <option key={emp.employeeId} value={emp.employeeId}>
+                      {emp.name} ({emp.employeeId})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Notification Banner */}
       {notification && (
@@ -293,10 +286,10 @@ const Attendance = () => {
       {/* ==================== EMPLOYEE VIEW ==================== */}
       {viewMode === 'employee' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Check-In/Out Dashboard Card */}
+          {/* Daily Attendance Card */}
           <div className="lg:col-span-1 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between space-y-6">
             <div>
-              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider block">Smart Attendance Terminal</span>
+              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider block">Today's Attendance</span>
               <h2 className="text-2xl font-bold text-gray-800 mt-2">
                 {activeEmployee ? `Hi, ${activeEmployee.firstName}!` : 'Welcome!'}
               </h2>
@@ -332,32 +325,12 @@ const Attendance = () => {
               </div>
             </div>
 
-            {/* Check-In/Out Buttons */}
-            <div className="grid grid-cols-2 gap-3 pt-2">
-              <button
-                onClick={handleCheckIn}
-                disabled={todayRecord?.checkInTime || loading}
-                className={`flex flex-col items-center justify-center gap-2 py-4 rounded-xl font-bold text-xs shadow-sm active:scale-95 transition-all ${
-                  todayRecord?.checkInTime
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200 shadow-none'
-                    : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm'
-                }`}
-              >
-                <LogIn size={20} />
-                Check In
-              </button>
-              <button
-                onClick={handleCheckOut}
-                disabled={!todayRecord?.checkInTime || todayRecord?.checkOutTime || loading}
-                className={`flex flex-col items-center justify-center gap-2 py-4 rounded-xl font-bold text-xs shadow-sm active:scale-95 transition-all ${
-                  !todayRecord?.checkInTime || todayRecord?.checkOutTime
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200 shadow-none'
-                    : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm'
-                }`}
-              >
-                <LogOut size={20} />
-                Check Out
-              </button>
+            {/* Attendance terminal auto message */}
+            <div className="bg-indigo-50/60 border border-indigo-100 p-4 rounded-xl flex items-start gap-2.5">
+              <Info size={18} className="text-indigo-600 mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-indigo-700 leading-normal">
+                Your attendance is recorded automatically. Log in to record your check-in time, and log out of the system to save your check-out time.
+              </p>
             </div>
           </div>
 

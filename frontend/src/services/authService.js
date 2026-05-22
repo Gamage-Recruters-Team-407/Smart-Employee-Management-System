@@ -52,6 +52,30 @@ export const authService = {
     const { data } = await API.get("/auth/me");
     return data;
   },
+
+  /**
+   * POST /api/auth/logout - invalidate token and check out employee
+   */
+  logout: async () => {
+    const { data } = await API.post("/auth/logout");
+    return data;
+  },
+
+  /**
+   * POST /api/attendance/check-in - record check-in
+   */
+  checkIn: async (payload) => {
+    const { data } = await API.post("/attendance/check-in", payload);
+    return data;
+  },
+
+  /**
+   * POST /api/attendance/check-out - record check-out
+   */
+  checkOut: async (payload) => {
+    const { data } = await API.post("/attendance/check-out", payload);
+    return data;
+  },
 };
 
 export default API;

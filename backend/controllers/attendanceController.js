@@ -100,9 +100,14 @@ export const markAttendance = async (req, res) => {
  */
 export const checkIn = async (req, res) => {
   try {
-    const { location } = req.body;
-    // Retrieve employeeId from logged-in session context or fallback to body
-    const employeeId = req.employee?.employeeId || req.body.employeeId;
+    const { location, checkInTime, date } = req.body;
+    // Retrieve employeeId from logged-in session context, req.user or fallback to body
+    let employeeId = req.employee?.employeeId || req.body.employeeId;
+
+    if (!employeeId && req.user) {
+      const emp = await Employee.findOne({ email: { $regex: new RegExp("^" + req.user.email + "$", "i") } });
+      employeeId = emp?.employeeId;
+    }
 
     if (!employeeId) {
       return res.status(400).json({ message: "Employee ID (employeeId) is required." });
@@ -113,9 +118,16 @@ export const checkIn = async (req, res) => {
       return res.status(404).json({ message: "Employee not found." });
     }
 
-    const todayStr = getLocalDateString();
+    const todayStr = date || getLocalDateString();
     const now = new Date();
-    const timeStr = formatTime(now);
+    const timeStr = checkInTime || formatTime(now);
+
+    let loginDate = now;
+    if (date && checkInTime) {
+      const [hours, minutes] = checkInTime.split(":");
+      loginDate = new Date(date);
+      loginDate.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0);
+    }
 
     // Define late threshold (e.g., 09:00 AM)
     const lateThreshold = "09:00";
@@ -132,9 +144,7 @@ export const checkIn = async (req, res) => {
           employee: employee._id,
           date: todayStr,
           location: location || "Office",
-        },
-        $set: {
-          loginTime: now,
+          loginTime: loginDate,
           checkInTime: timeStr,
           status: status,
         },
@@ -154,8 +164,14 @@ export const checkIn = async (req, res) => {
  */
 export const checkOut = async (req, res) => {
   try {
-    // Retrieve employeeId from logged-in session context or fallback to body
-    const employeeId = req.employee?.employeeId || req.body.employeeId;
+    const { checkOutTime, date } = req.body;
+    // Retrieve employeeId from logged-in session context, req.user or fallback to body
+    let employeeId = req.employee?.employeeId || req.body.employeeId;
+
+    if (!employeeId && req.user) {
+      const emp = await Employee.findOne({ email: { $regex: new RegExp("^" + req.user.email + "$", "i") } });
+      employeeId = emp?.employeeId;
+    }
 
     if (!employeeId) {
       return res.status(400).json({ message: "Employee ID (employeeId) is required." });
@@ -166,9 +182,9 @@ export const checkOut = async (req, res) => {
       return res.status(404).json({ message: "Employee not found." });
     }
 
-    const todayStr = getLocalDateString();
+    const todayStr = date || getLocalDateString();
     const now = new Date();
-    const timeStr = formatTime(now);
+    const timeStr = checkOutTime || formatTime(now);
 
     // Find attendance record for today using DB ObjectId
     const attendance = await Attendance.findOne({ employee: employee._id, date: todayStr });
@@ -176,7 +192,14 @@ export const checkOut = async (req, res) => {
       return res.status(404).json({ message: "No check-in record found for today." });
     }
 
-    attendance.logoutTime = now;
+    let logoutDate = now;
+    if (date && checkOutTime) {
+      const [hours, minutes] = checkOutTime.split(":");
+      logoutDate = new Date(date);
+      logoutDate.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0);
+    }
+
+    attendance.logoutTime = logoutDate;
     attendance.checkOutTime = timeStr;
     await attendance.save();
 
@@ -194,9 +217,37 @@ export const getEmployeeAttendanceHistory = async (req, res) => {
   try {
     let { employeeId } = req.params;
     
-    // Support fetching own history using 'me' or when route doesn't specify ID
-    if (employeeId === "me" || !employeeId) {
-      employeeId = req.employee?.employeeId;
+    // Support fetching own history and enforce role-based access controls
+    if (req.user && req.user.role === "Employee") {
+      let selfEmployee = await Employee.findOne({ email: { $regex: new RegExp("^" + req.user.email + "$", "i") } });
+      if (!selfEmployee) {
+        const count = await Employee.countDocuments();
+        const nextEmpNum = String(count + 1).padStart(3, "0");
+        const nameParts = req.user.name ? req.user.name.split(" ") : ["Employee"];
+        const firstName = nameParts[0];
+        const lastName = nameParts.slice(1).join(" ") || "User";
+        
+        selfEmployee = await Employee.create({
+          employeeId: `emp-${nextEmpNum}`,
+          firstName,
+          lastName,
+          email: req.user.email.toLowerCase(),
+          department: "General",
+          designation: "Staff",
+          status: "Active"
+        });
+      }
+      
+      if (employeeId === "me" || !employeeId) {
+        employeeId = selfEmployee.employeeId;
+      } else if (employeeId !== selfEmployee.employeeId) {
+        return res.status(403).json({ message: "Access denied. You can only view your own attendance history." });
+      }
+    } else {
+      if (employeeId === "me" || !employeeId) {
+        const selfEmployee = req.user ? await Employee.findOne({ email: { $regex: new RegExp("^" + req.user.email + "$", "i") } }) : null;
+        employeeId = selfEmployee?.employeeId || req.employee?.employeeId;
+      }
     }
 
     if (!employeeId) {

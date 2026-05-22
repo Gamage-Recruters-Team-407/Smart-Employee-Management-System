@@ -49,6 +49,20 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, [clearSession]);
 
+  const getBrowserDateTime = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    const dateStr = `${year}-${month}-${day}`;
+
+    const hours = String(now.getHours()).padStart(2, "0");
+    const minutes = String(now.getMinutes()).padStart(2, "0");
+    const timeStr = `${hours}:${minutes}`;
+
+    return { date: dateStr, time: timeStr };
+  };
+
   // Login
   const login = async (
     email,
@@ -75,6 +89,20 @@ export const AuthProvider = ({ children }) => {
 
       setToken(data.token);
       setUser(data.user);
+
+      // Record check-in automatically for Employee role using local browser time
+      if (data.user && data.user.role === "Employee") {
+        try {
+          const { date, time } = getBrowserDateTime();
+          await authService.checkIn({
+            date,
+            checkInTime: time,
+            location: "Office"
+          });
+        } catch (checkInErr) {
+          console.error("Auto check-in failed during login:", checkInErr);
+        }
+      }
 
       return data;
     } catch (err) {
@@ -116,6 +144,20 @@ export const AuthProvider = ({ children }) => {
       setToken(data.token);
       setUser(data.user);
 
+      // Record check-in automatically for Employee role using local browser time
+      if (data.user && data.user.role === "Employee") {
+        try {
+          const { date, time } = getBrowserDateTime();
+          await authService.checkIn({
+            date,
+            checkInTime: time,
+            location: "Office"
+          });
+        } catch (checkInErr) {
+          console.error("Auto check-in failed during signup:", checkInErr);
+        }
+      }
+
       return data;
     } catch (err) {
       const message =
@@ -128,9 +170,27 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Logout
-  const logout = useCallback(() => {
-    clearSession();
-  }, [clearSession]);
+  const logout = useCallback(async () => {
+    try {
+      // Record check-out automatically for Employee role using local browser time
+      if (user && user.role === "Employee") {
+        try {
+          const { date, time } = getBrowserDateTime();
+          await authService.checkOut({
+            date,
+            checkOutTime: time
+          });
+        } catch (checkOutErr) {
+          console.error("Auto check-out failed during logout:", checkOutErr);
+        }
+      }
+      await authService.logout();
+    } catch (err) {
+      console.error("Logout request failed:", err);
+    } finally {
+      clearSession();
+    }
+  }, [clearSession, user]);
 
   // Clear error
   const clearError = () => {

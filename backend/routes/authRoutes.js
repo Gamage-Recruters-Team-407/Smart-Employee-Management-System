@@ -63,6 +63,33 @@ router.post("/login", async (req, res) => {
 
     const token = signToken(user._id);
 
+    // Auto-create Employee profile if it doesn't exist yet
+    if (user.role === "Employee") {
+      try {
+        const Employee = (await import("../models/Employee.js")).default;
+        let employee = await Employee.findOne({ email: { $regex: new RegExp("^" + user.email + "$", "i") } });
+        if (!employee) {
+          const count = await Employee.countDocuments();
+          const nextEmpNum = String(count + 1).padStart(3, "0");
+          const nameParts = user.name ? user.name.split(" ") : ["Employee"];
+          const firstName = nameParts[0];
+          const lastName = nameParts.slice(1).join(" ") || "User";
+          
+          await Employee.create({
+            employeeId: `emp-${nextEmpNum}`,
+            firstName,
+            lastName,
+            email: user.email.toLowerCase(),
+            department: "General",
+            designation: "Staff",
+            status: "Active"
+          });
+        }
+      } catch (err) {
+        console.error("Auto employee creation error during login:", err);
+      }
+    }
+
     res.status(200).json({
       token,
       user: { _id: user._id, name: user.name, email: user.email, role: user.role },
@@ -71,6 +98,11 @@ router.post("/login", async (req, res) => {
     console.error("Login error:", err);
     res.status(500).json({ message: "Server error during login." });
   }
+});
+
+// ─── POST /api/auth/logout ───────────────────────────────────────────────────
+router.post("/logout", protect, async (req, res) => {
+  res.status(200).json({ message: "Logged out successfully" });
 });
 
 // ─── GET /api/auth/me ────────────────────────────────────────────────────────
