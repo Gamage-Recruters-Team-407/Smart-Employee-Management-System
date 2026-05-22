@@ -2,6 +2,7 @@ import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
 import mongoose from "mongoose";
+import attendanceRoutes from "./routes/attendanceRoutes.js";
 
 dotenv.config();
 
@@ -14,6 +15,8 @@ mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("MongoDB Connected"))
   .catch((err) => console.log(err));
+
+app.use("/api/attendance", attendanceRoutes);
 
 app.get("/", (req, res) => {
   res.send("Backend Running");
