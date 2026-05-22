@@ -70,10 +70,38 @@ export const createEmployee = async (req, res) => {
 /**
  * GET /api/employees
  * Return all employees sorted newest first.
+ *
+ * Supports the following optional query parameters (can be combined):
+ *   ?search=value       — case-insensitive regex search across firstName, lastName, email
+ *   ?department=value   — exact (case-insensitive) match on department
+ *   ?designation=value  — exact (case-insensitive) match on designation
  */
 export const getEmployees = async (req, res) => {
   try {
-    const employees = await Employee.find().sort({ createdAt: -1 });
+    const { search, department, designation } = req.query;
+    const query = {};
+
+    // Case-insensitive search across firstName, lastName, and email
+    if (search && search.trim()) {
+      const searchRegex = new RegExp(search.trim(), "i");
+      query.$or = [
+        { firstName: searchRegex },
+        { lastName: searchRegex },
+        { email: searchRegex },
+      ];
+    }
+
+    // Exact (case-insensitive) match on department
+    if (department && department.trim()) {
+      query.department = { $regex: new RegExp(`^${department.trim()}$`, "i") };
+    }
+
+    // Exact (case-insensitive) match on designation
+    if (designation && designation.trim()) {
+      query.designation = { $regex: new RegExp(`^${designation.trim()}$`, "i") };
+    }
+
+    const employees = await Employee.find(query).sort({ createdAt: -1 });
 
     return res.status(200).json({
       success: true,
@@ -121,6 +149,144 @@ export const getEmployeeById = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Server error while fetching employee.",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * PUT /api/employees/:id
+ * Update all editable fields of an employee.
+ * NOTE: employeeId is NOT editable and is always excluded from updates.
+ * Returns the updated employee document.
+ * Returns 404 if the employee is not found.
+ * Returns 409 if the new email belongs to a different employee.
+ */
+export const updateEmployee = async (req, res) => {
+  try {
+    // Guard against missing body (e.g. request sent with no Content-Type / no body)
+    const body = req.body || {};
+
+    // Destructure only editable fields — employeeId is intentionally excluded
+    const {
+      firstName,
+      lastName,
+      email,
+      phone,
+      department,
+      designation,
+      salary,
+      joiningDate,
+      address,
+      documents,
+      status,
+    } = body;
+
+    // Build update payload with only the fields that were actually provided
+    const updateData = {};
+    if (firstName !== undefined) updateData.firstName = firstName;
+    if (lastName !== undefined) updateData.lastName = lastName;
+    if (phone !== undefined) updateData.phone = phone;
+    if (department !== undefined) updateData.department = department;
+    if (designation !== undefined) updateData.designation = designation;
+    if (salary !== undefined) updateData.salary = salary;
+    if (joiningDate !== undefined) updateData.joiningDate = joiningDate;
+    if (address !== undefined) updateData.address = address;
+    if (documents !== undefined) updateData.documents = documents;
+    if (status !== undefined) updateData.status = status;
+
+    // Handle email: normalise and check for duplicates among OTHER employees
+    if (email !== undefined) {
+      const normalizedEmail =
+        typeof email === "string" ? email.toLowerCase().trim() : email;
+
+      const duplicate = await Employee.findOne({
+        email: normalizedEmail,
+        _id: { $ne: req.params.id },
+      });
+
+      if (duplicate) {
+        return res.status(409).json({
+          success: false,
+          message: "Another employee with this email already exists.",
+        });
+      }
+
+      updateData.email = normalizedEmail;
+    }
+
+    const updatedEmployee = await Employee.findByIdAndUpdate(
+      req.params.id,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedEmployee) {
+      return res.status(404).json({
+        success: false,
+        message: "Employee not found.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Employee updated successfully.",
+      data: updatedEmployee,
+    });
+  } catch (error) {
+    console.error("updateEmployee error:", error);
+    if (error.name === "CastError") {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid employee ID format.",
+      });
+    }
+    if (error.name === "ValidationError") {
+      return res.status(400).json({
+        success: false,
+        message: "Validation error.",
+        error: error.message,
+      });
+    }
+    return res.status(500).json({
+      success: false,
+      message: "Server error while updating employee.",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * DELETE /api/employees/:id
+ * Permanently remove an employee from the database.
+ * Returns a descriptive success message or 404 if the employee is not found.
+ */
+export const deleteEmployee = async (req, res) => {
+  try {
+    const deletedEmployee = await Employee.findByIdAndDelete(req.params.id);
+
+    if (!deletedEmployee) {
+      return res.status(404).json({
+        success: false,
+        message: "Employee not found.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Employee '${deletedEmployee.firstName} ${deletedEmployee.lastName}' (${deletedEmployee.employeeId}) has been permanently deleted.`,
+    });
+  } catch (error) {
+    console.error("deleteEmployee error:", error);
+    if (error.name === "CastError") {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid employee ID format.",
+      });
+    }
+    return res.status(500).json({
+      success: false,
+      message: "Server error while deleting employee.",
       error: error.message,
     });
   }

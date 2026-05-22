@@ -1,5 +1,15 @@
 import mongoose from "mongoose";
 
+const documentSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true },   // original file name
+    path: { type: String, required: true },   // relative path: uploads/<filename>
+    mimetype: { type: String },               // e.g. application/pdf
+    size: { type: Number },                   // bytes
+  },
+  { _id: true, timestamps: true }
+);
+
 const employeeSchema = new mongoose.Schema(
   {
     employeeId: {
@@ -47,7 +57,7 @@ const employeeSchema = new mongoose.Schema(
       trim: true,
     },
     documents: {
-      type: [String],
+      type: [documentSchema],
       default: [],
     },
     status: {
