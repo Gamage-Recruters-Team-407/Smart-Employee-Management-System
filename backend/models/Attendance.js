@@ -4,7 +4,7 @@ const attendanceSchema=new mongoose.Schema(
     {
         employee:{
             type:mongoose.Schema.Types.ObjectId,
-            ref:"Employee",k
+            ref:"Employee",
         },
         loginTime:Date,
         logoutTime:Date,
