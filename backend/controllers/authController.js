@@ -5,7 +5,7 @@ import User from '../models/User.js';
 // Helper function to generate JWT
 const generateToken = (id, role) => {
   return jwt.sign({ id, role }, process.env.JWT_SECRET, {
-    expiresIn: '15min',
+    expiresIn: '1d',
   });
 };
 
