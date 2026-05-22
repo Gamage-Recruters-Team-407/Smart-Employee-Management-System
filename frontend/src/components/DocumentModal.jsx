@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback } from "react";
 import {
   X,
   Upload,
@@ -73,7 +73,7 @@ const DocumentModal = ({ isOpen, onClose, employee, onUpdate }) => {
 
 
   // ── Upload handler ─────────────────────────────────────────────────────────
- const handleUpload = async (file) => {
+ const handleUpload = useCallback(async (file) => {
     setUploadError("");
     setUploadSuccess("");
 
@@ -99,7 +99,7 @@ const DocumentModal = ({ isOpen, onClose, employee, onUpdate }) => {
       setProgress(0);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
-  };
+  }, [employee?._id, onUpdate]);
 
   // ── Drag & drop ────────────────────────────────────────────────────────────
 const handleDrop = useCallback(
@@ -109,7 +109,7 @@ const handleDrop = useCallback(
       const file = e.dataTransfer.files[0];
       if (file) handleUpload(file);
     },
-    [employee?._id] // dependency – handleUpload is stable if not recreated, but fine
+    [handleUpload]
   );
 
  if (!isOpen || !employee) return null;
@@ -269,16 +269,29 @@ const handleDrop = useCallback(
 
                   {/* Actions */}
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
-                    {/* Open / download */}
-                    <a
-                      href={`http://localhost:5000/${doc.path}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    {/* Download with correct filename */}
+                    <button
+                      onClick={async () => {
+                        try {
+                          const res = await fetch(`http://localhost:5000/${doc.path}`);
+                          const blob = await res.blob();
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement("a");
+                          a.href = url;
+                          a.download = doc.name;
+                          document.body.appendChild(a);
+                          a.click();
+                          a.remove();
+                          URL.revokeObjectURL(url);
+                        } catch {
+                          window.open(`http://localhost:5000/${doc.path}`, "_blank");
+                        }
+                      }}
                       className="p-1.5 rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-100 transition"
-                      title="Open file"
+                      title={`Download ${doc.name}`}
                     >
                       <Download size={15} />
-                    </a>
+                    </button>
 
                     {/* Delete */}
                     <button

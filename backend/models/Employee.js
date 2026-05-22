@@ -60,6 +60,10 @@ const employeeSchema = new mongoose.Schema(
       type: [documentSchema],
       default: [],
     },
+    profilePhoto: {
+      type: String,   // relative path: uploads/<filename>
+      default: null,
+    },
     status: {
       type: String,
       enum: ["Active", "Inactive", "On Leave", "Terminated"],

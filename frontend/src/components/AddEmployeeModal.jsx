@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState, useRef } from "react";
 import {
   X,
   User,
@@ -12,7 +12,7 @@ import {
   Loader2,
   AlertCircle,
 } from "lucide-react";
-import { addEmployee } from "../services/employeeService";
+import { addEmployee, updateEmployee, uploadProfilePhoto } from "../services/employeeService";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const DEPARTMENTS = [
@@ -95,17 +95,112 @@ const SectionHeading = ({ children }) => (
 );
 
 // ─── Validation ───────────────────────────────────────────────────────────────
-const validate = (form) => {
+const validate = (form, touchedFields = null) => {
   const errors = {};
-  if (!form.firstName.trim()) errors.firstName = "First name is required.";
-  if (!form.lastName.trim()) errors.lastName = "Last name is required.";
-  if (!form.email.trim()) errors.email = "Email is required.";
-  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
-    errors.email = "Enter a valid email address.";
-  if (form.salary && isNaN(Number(form.salary)))
-    errors.salary = "Salary must be a number.";
+  const check = (field) => !touchedFields || touchedFields.has(field);
+
+  // First Name
+  if (check("firstName")) {
+    if (!form.firstName.trim())
+      errors.firstName = "First name is required.";
+    else if (form.firstName.trim().length < 2)
+      errors.firstName = "First name must be at least 2 characters.";
+    else if (!/^[a-zA-Z\s'-]+$/.test(form.firstName))
+      errors.firstName = "First name can only contain letters, spaces, hyphens or apostrophes.";
+  }
+
+  // Last Name
+  if (check("lastName")) {
+    if (!form.lastName.trim())
+      errors.lastName = "Last name is required.";
+    else if (form.lastName.trim().length < 2)
+      errors.lastName = "Last name must be at least 2 characters.";
+    else if (!/^[a-zA-Z\s'-]+$/.test(form.lastName))
+      errors.lastName = "Last name can only contain letters, spaces, hyphens or apostrophes.";
+  }
+
+  // Email
+  if (check("email")) {
+    if (!form.email.trim())
+      errors.email = "Email address is required.";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim()))
+      errors.email = "Please enter a valid email address (e.g. name@company.com).";
+  }
+
+  // Phone
+  if (check("phone") && form.phone.trim()) {
+    const digits = form.phone.replace(/\D/g, "");
+    if (digits.length < 7 || digits.length > 15)
+      errors.phone = "Phone number must be between 7 and 15 digits.";
+    else if (!/^[\d\s\+\-\(\)]+$/.test(form.phone))
+      errors.phone = "Phone number contains invalid characters.";
+  }
+
+  // Department
+  if (check("department")) {
+    if (!form.department)
+      errors.department = "Please select a department.";
+  }
+
+  // Designation
+  if (check("designation")) {
+    if (!form.designation)
+      errors.designation = "Please select a designation.";
+  }
+
+  // Salary
+  if (check("salary") && form.salary !== "") {
+    const sal = Number(form.salary);
+    if (isNaN(sal))
+      errors.salary = "Salary must be a valid number.";
+    else if (sal < 0)
+      errors.salary = "Salary cannot be negative.";
+    else if (sal > 10000000)
+      errors.salary = "Salary seems unrealistically high. Please double‑check.";
+  }
+
+  // Joining Date
+  if (check("joiningDate")) {
+    if (!form.joiningDate)
+      errors.joiningDate = "Joining date is required.";
+    else {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const chosen = new Date(form.joiningDate);
+      if (chosen > today)
+        errors.joiningDate = "Joining date cannot be in the future.";
+    }
+  }
+
+  // Address
+  if (check("address") && form.address.trim()) {
+    if (form.address.trim().length > 200)
+      errors.address = "Address must not exceed 200 characters.";
+  }
+
   return errors;
 };
+
+const formatDateForInput = (value) => {
+  if (!value) return "";
+  return new Date(value).toISOString().slice(0, 10);
+};
+
+const buildFormFromEmployee = (employee) => ({
+  firstName: employee?.firstName || "",
+  lastName: employee?.lastName || "",
+  email: employee?.email || "",
+  phone: employee?.phone || "",
+  department: employee?.department || "",
+  designation: employee?.designation || "",
+  salary:
+    employee?.salary === undefined || employee?.salary === null
+      ? ""
+      : String(employee.salary),
+  joiningDate: formatDateForInput(employee?.joiningDate),
+  address: employee?.address || "",
+  status: employee?.status || "Active",
+});
 
 // ─── Modal ────────────────────────────────────────────────────────────────────
 /**
@@ -118,25 +213,53 @@ const validate = (form) => {
  *   onClose   fn
  *   onSuccess fn(newEmployee)  — called after successful creation
  */
-const AddEmployeeModal = ({ isOpen, onClose, onSuccess }) => {
-  const [form, setForm] = useState(INITIAL_FORM);
+const AddEmployeeModal = ({ isOpen, onClose, onSuccess, employee = null }) => {
+  const [form, setForm] = useState(() =>
+    employee?._id ? buildFormFromEmployee(employee) : INITIAL_FORM
+  );
   const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState(new Set());
   const [apiError, setApiError] = useState("");
   const [loading, setLoading] = useState(false);
+  const isEditing = Boolean(employee?._id);
+
+  // ── Photo state ────────────────────────────────────────────────────────────
+  const [photoFile, setPhotoFile] = useState(null);       // File object
+  const [photoPreview, setPhotoPreview] = useState(      // preview URL
+    employee?.profilePhoto ? `http://localhost:5000/${employee.profilePhoto}` : null
+  );
+  const [photoError, setPhotoError] = useState("");
+  const photoInputRef = useRef(null);
 
   if (!isOpen) return null;
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
+    const updatedForm = { ...form, [name]: value };
+    setForm(updatedForm);
+    // Re-validate only the touched field in real time
+    if (touched.has(name)) {
+      const fieldErrors = validate(updatedForm, new Set([name]));
+      setErrors((prev) => ({ ...prev, [name]: fieldErrors[name] || "" }));
+    }
+  };
+
+  const handleBlur = (e) => {
+    const { name } = e.target;
+    const newTouched = new Set(touched).add(name);
+    setTouched(newTouched);
+    const fieldErrors = validate(form, new Set([name]));
+    setErrors((prev) => ({ ...prev, [name]: fieldErrors[name] || "" }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setApiError("");
 
-    const validationErrors = validate(form);
+    // Validate all fields on submit
+    const allFields = new Set(Object.keys(INITIAL_FORM));
+    const validationErrors = validate(form, allFields);
+    setTouched(allFields);
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       return;
@@ -149,23 +272,62 @@ const AddEmployeeModal = ({ isOpen, onClose, onSuccess }) => {
         salary: form.salary ? Number(form.salary) : 0,
         joiningDate: form.joiningDate || undefined,
       };
-      const result = await addEmployee(payload);
+      const result = isEditing
+        ? await updateEmployee(employee._id, payload)
+        : await addEmployee(payload);
+
+      // Upload photo if one was selected
+      const savedEmployee = result.data;
+      if (photoFile && savedEmployee?._id) {
+        try {
+          const photoResult = await uploadProfilePhoto(savedEmployee._id, photoFile);
+          onSuccess(photoResult.data);
+        } catch {
+          // Photo upload failed but employee was saved — still proceed
+          onSuccess(savedEmployee);
+        }
+      } else {
+        onSuccess(savedEmployee);
+      }
+
       setForm(INITIAL_FORM);
       setErrors({});
-      onSuccess(result.data);
+      setPhotoFile(null);
+      setPhotoPreview(null);
     } catch (err) {
       setApiError(
-        err.response?.data?.message || "Failed to create employee. Please try again."
+        err.response?.data?.message ||
+          `Failed to ${isEditing ? "update" : "create"} employee. Please try again.`
       );
     } finally {
       setLoading(false);
     }
   };
 
+  const handlePhotoChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setPhotoError("Only image files (JPG, PNG) are accepted.");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setPhotoError("Photo must be under 2 MB.");
+      return;
+    }
+    setPhotoError("");
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
+  };
+
   const handleClose = () => {
     setForm(INITIAL_FORM);
     setErrors({});
+    setTouched(new Set());
     setApiError("");
+    setPhotoFile(null);
+    setPhotoPreview(null);
+    setPhotoError("");
     onClose();
   };
 
@@ -180,9 +342,13 @@ const AddEmployeeModal = ({ isOpen, onClose, onSuccess }) => {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 flex-shrink-0">
           <div>
-            <h2 className="text-xl font-bold text-gray-900">Add New Employee</h2>
+            <h2 className="text-xl font-bold text-gray-900">
+              {isEditing ? "Edit Employee" : "Add New Employee"}
+            </h2>
             <p className="text-sm text-gray-500 mt-0.5">
-              Fill in the details below. You can attach documents after saving.
+              {isEditing
+                ? "Update the details below. Employee ID stays unchanged."
+                : "Fill in the details below. You can attach documents after saving."}
             </p>
           </div>
           <button
@@ -204,29 +370,90 @@ const AddEmployeeModal = ({ isOpen, onClose, onSuccess }) => {
             </div>
           )}
 
+          {/* ── Profile Photo ────────────────────────────────────────────── */}
+          <div>
+            <SectionHeading>Profile Photo</SectionHeading>
+            <div className="flex items-center gap-5">
+              {/* Avatar preview */}
+              <div
+                onClick={() => photoInputRef.current?.click()}
+                className="relative w-20 h-20 rounded-full cursor-pointer flex-shrink-0 group"
+                title="Click to upload photo"
+              >
+                {photoPreview ? (
+                  <img
+                    src={photoPreview}
+                    alt="Profile preview"
+                    className="w-20 h-20 rounded-full object-cover border-4 border-indigo-100 shadow"
+                  />
+                ) : (
+                  <div className="w-20 h-20 rounded-full bg-indigo-100 border-4 border-indigo-200 flex items-center justify-center">
+                    <User size={32} className="text-indigo-400" />
+                  </div>
+                )}
+                {/* Overlay on hover */}
+                <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                  <span className="text-white text-[10px] font-bold text-center leading-tight px-1">
+                    Change<br />Photo
+                  </span>
+                </div>
+              </div>
+
+              {/* Info + hidden input */}
+              <div className="flex flex-col gap-1.5">
+                <p className="text-sm font-medium text-gray-700">
+                  {photoPreview ? "Photo selected — click avatar to change" : "Click the circle to upload a photo"}
+                </p>
+                <p className="text-xs text-gray-400">JPG or PNG · Max 2 MB</p>
+                {photoError && (
+                  <p className="text-xs text-red-500 flex items-center gap-1">
+                    <AlertCircle size={12} /> {photoError}
+                  </p>
+                )}
+                {photoPreview && (
+                  <button
+                    type="button"
+                    onClick={() => { setPhotoFile(null); setPhotoPreview(null); setPhotoError(""); }}
+                    className="text-xs text-red-500 hover:text-red-700 text-left w-fit"
+                  >
+                    Remove photo
+                  </button>
+                )}
+              </div>
+
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/jpeg,image/png"
+                className="hidden"
+                onChange={handlePhotoChange}
+              />
+            </div>
+          </div>
+
           {/* Personal Information */}
           <div>
             <SectionHeading>Personal Information</SectionHeading>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <InputField
                 label="First Name *" icon={User} name="firstName"
-                placeholder="John" value={form.firstName}
-                onChange={handleChange} error={errors.firstName}
+                placeholder="Mohamed" value={form.firstName}
+                onChange={handleChange} onBlur={handleBlur} error={errors.firstName}
               />
               <InputField
                 label="Last Name *" icon={User} name="lastName"
-                placeholder="Doe" value={form.lastName}
-                onChange={handleChange} error={errors.lastName}
+                placeholder="Minhaj" value={form.lastName}
+                onChange={handleChange} onBlur={handleBlur} error={errors.lastName}
               />
               <InputField
                 label="Email Address *" icon={Mail} name="email" type="email"
-                placeholder="john.doe@company.com" value={form.email}
-                onChange={handleChange} error={errors.email}
+                placeholder="mhmd.minhaj@company.com" value={form.email}
+                onChange={handleChange} onBlur={handleBlur} error={errors.email}
               />
               <InputField
                 label="Phone" icon={Phone} name="phone" type="tel"
-                placeholder="+1 555 000 0000" value={form.phone}
-                onChange={handleChange}
+                placeholder="+94 77 123 4567" value={form.phone}
+                onChange={handleChange} onBlur={handleBlur} error={errors.phone}
               />
             </div>
           </div>
@@ -236,16 +463,18 @@ const AddEmployeeModal = ({ isOpen, onClose, onSuccess }) => {
             <SectionHeading>Job Details</SectionHeading>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <SelectField
-                label="Department" icon={Building2} name="department"
-                value={form.department} onChange={handleChange}
+                label="Department *" icon={Building2} name="department"
+                value={form.department} onChange={handleChange} onBlur={handleBlur}
+                error={errors.department}
               >
                 <option value="">Select department</option>
                 {DEPARTMENTS.map((d) => <option key={d} value={d}>{d}</option>)}
               </SelectField>
 
               <SelectField
-                label="Designation" icon={Briefcase} name="designation"
-                value={form.designation} onChange={handleChange}
+                label="Designation *" icon={Briefcase} name="designation"
+                value={form.designation} onChange={handleChange} onBlur={handleBlur}
+                error={errors.designation}
               >
                 <option value="">Select designation</option>
                 {DESIGNATIONS.map((d) => <option key={d} value={d}>{d}</option>)}
@@ -254,24 +483,27 @@ const AddEmployeeModal = ({ isOpen, onClose, onSuccess }) => {
               <InputField
                 label="Salary (USD)" icon={DollarSign} name="salary"
                 type="number" min="0" placeholder="60000"
-                value={form.salary} onChange={handleChange} error={errors.salary}
+                value={form.salary} onChange={handleChange} onBlur={handleBlur}
+                error={errors.salary}
               />
 
               <InputField
-                label="Joining Date" icon={Calendar} name="joiningDate"
-                type="date" value={form.joiningDate} onChange={handleChange}
+                label="Joining Date *" icon={Calendar} name="joiningDate"
+                type="date" value={form.joiningDate}
+                onChange={handleChange} onBlur={handleBlur}
+                error={errors.joiningDate}
+                max={new Date().toISOString().slice(0, 10)}
               />
 
               <SelectField
                 label="Status" name="status"
-                value={form.status} onChange={handleChange}
+                value={form.status} onChange={handleChange} onBlur={handleBlur}
               >
                 {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
               </SelectField>
             </div>
           </div>
 
-          {/* Address */}
           <div>
             <SectionHeading>Address</SectionHeading>
             <div className="flex flex-col gap-1">
@@ -283,10 +515,20 @@ const AddEmployeeModal = ({ isOpen, onClose, onSuccess }) => {
                 <textarea
                   name="address" rows={2}
                   placeholder="123 Main St, City, State, ZIP"
-                  value={form.address} onChange={handleChange}
-                  className="w-full pl-9 pr-3 py-2.5 text-sm rounded-lg border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition resize-none"
+                  value={form.address}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  className={`w-full pl-9 pr-3 py-2.5 text-sm rounded-lg border ${
+                    errors.address ? "border-red-400 bg-red-50" : "border-gray-200 bg-gray-50"
+                  } focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition resize-none`}
                 />
               </div>
+              {errors.address && (
+                <p className="text-xs text-red-500 mt-0.5">{errors.address}</p>
+              )}
+              <p className="text-xs text-gray-400 mt-0.5">
+                {form.address.length}/200 characters
+              </p>
             </div>
           </div>
 
@@ -298,9 +540,9 @@ const AddEmployeeModal = ({ isOpen, onClose, onSuccess }) => {
               </svg>
             </div>
             <p className="text-xs text-indigo-700">
-              <span className="font-semibold">Tip:</span> After creating the employee, use the{" "}
-              <span className="font-semibold">📎 paperclip button</span> in the table row to
-              upload documents (PDF, JPG, PNG).
+              <span className="font-semibold">Tip:</span> Use the{" "}
+              <span className="font-semibold">Documents button</span> in the table row to
+              upload and manage documents (PDF, JPG, PNG).
             </p>
           </div>
 
@@ -324,10 +566,10 @@ const AddEmployeeModal = ({ isOpen, onClose, onSuccess }) => {
             {loading ? (
               <>
                 <Loader2 size={15} className="animate-spin" />
-                Creating…
+                {isEditing ? "Updating..." : "Creating..."}
               </>
             ) : (
-              "Create Employee"
+              isEditing ? "Update Employee" : "Create Employee"
             )}
           </button>
         </div>

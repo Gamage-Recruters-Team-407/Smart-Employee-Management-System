@@ -80,3 +80,19 @@ export const deleteDocument = (employeeId, docId) =>
   api
     .delete(`/employees/${employeeId}/documents/${docId}`)
     .then((res) => res.data);
+
+/**
+ * Upload or replace an employee's profile photo.
+ * @param {string} employeeId  MongoDB _id of the employee
+ * @param {File}   file        Image file (JPG or PNG)
+ * @returns {Promise<{ success, message, data }>}
+ */
+export const uploadProfilePhoto = (employeeId, file) => {
+  const formData = new FormData();
+  formData.append("photo", file);
+  return api
+    .post(`/employees/${employeeId}/photo`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    })
+    .then((res) => res.data);
+};

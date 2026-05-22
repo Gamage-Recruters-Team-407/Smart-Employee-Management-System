@@ -1,5 +1,7 @@
 import Employee from "../models/Employee.js";
 import generateEmployeeId from "../utils/generateEmployeeId.js";
+import fs from "fs";
+import path from "path";
 
 /**
  * POST /api/employees
@@ -21,6 +23,17 @@ export const createEmployee = async (req, res) => {
       documents,
       status,
     } = req.body;
+
+    // Validate required fields
+    if (!firstName || !String(firstName).trim()) {
+      return res.status(400).json({ success: false, message: "First name is required." });
+    }
+    if (!lastName || !String(lastName).trim()) {
+      return res.status(400).json({ success: false, message: "Last name is required." });
+    }
+    if (!email || !String(email).trim()) {
+      return res.status(400).json({ success: false, message: "Email address is required." });
+    }
 
     // Only check duplicate if email is a string
     if (email && typeof email === "string" && email.trim()) {
@@ -48,6 +61,7 @@ export const createEmployee = async (req, res) => {
       address,
       documents,
       status,
+      profilePhoto: req.body.profilePhoto || null,
     });
 
     await employee.save();
@@ -194,6 +208,7 @@ export const updateEmployee = async (req, res) => {
     if (address !== undefined) updateData.address = address;
     if (documents !== undefined) updateData.documents = documents;
     if (status !== undefined) updateData.status = status;
+    if (req.body.profilePhoto !== undefined) updateData.profilePhoto = req.body.profilePhoto;
 
     // Handle email: normalise and check for duplicates among OTHER employees
     if (email !== undefined) {
@@ -218,7 +233,7 @@ export const updateEmployee = async (req, res) => {
     const updatedEmployee = await Employee.findByIdAndUpdate(
       req.params.id,
       { $set: updateData },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     );
 
     if (!updatedEmployee) {
@@ -287,6 +302,53 @@ export const deleteEmployee = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Server error while deleting employee.",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * POST /api/employees/:id/photo
+ * Upload or replace the profile photo for an employee.
+ * Expects multipart/form-data with field name "photo".
+ */
+export const uploadProfilePhoto = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "No image file provided.",
+      });
+    }
+
+    const employee = await Employee.findById(req.params.id);
+    if (!employee) {
+      return res.status(404).json({
+        success: false,
+        message: "Employee not found.",
+      });
+    }
+
+    // Delete old photo if it exists
+    if (employee.profilePhoto) {
+      const oldPath = path.join(process.cwd(), employee.profilePhoto);
+      if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+    }
+
+    const photoPath = `uploads/${req.file.filename}`.replace(/\\/g, "/");
+    employee.profilePhoto = photoPath;
+    await employee.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Profile photo uploaded successfully.",
+      data: employee,
+    });
+  } catch (error) {
+    console.error("uploadProfilePhoto error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error while uploading profile photo.",
       error: error.message,
     });
   }

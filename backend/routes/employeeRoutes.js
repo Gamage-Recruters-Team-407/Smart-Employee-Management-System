@@ -5,8 +5,10 @@ import {
   getEmployeeById,
   updateEmployee,
   deleteEmployee,
+  uploadProfilePhoto,
 } from "../controllers/employeeController.js";
 import mockAuth from "../middleware/authMiddleware.js";
+import upload, { imageUpload } from "../config/multer.js";
 
 const router = express.Router();
 
@@ -32,5 +34,8 @@ router.put("/:id", updateEmployee);
 
 // DELETE /api/employees/:id   → Permanently delete an employee
 router.delete("/:id", deleteEmployee);
+
+// POST   /api/employees/:id/photo → Upload / replace profile photo
+router.post("/:id/photo", imageUpload.single("photo"), uploadProfilePhoto);
 
 export default router;

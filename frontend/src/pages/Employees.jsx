@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Users,
   Search,
@@ -11,6 +11,7 @@ import {
   Briefcase,
   AlertCircle,
   Loader2,
+  Pencil,
   UserCheck,
   UserX,
   X,
@@ -45,7 +46,7 @@ const AVATAR_COLORS = [
   "bg-orange-500","bg-teal-500","bg-cyan-500","bg-sky-500",
 ];
 
-const Avatar = ({ name, index }) => {
+const Avatar = ({ name, index, profilePhoto }) => {
   const initials = name
     .split(" ")
     .map((n) => n[0])
@@ -53,6 +54,29 @@ const Avatar = ({ name, index }) => {
     .join("")
     .toUpperCase();
   const color = AVATAR_COLORS[index % AVATAR_COLORS.length];
+
+  if (profilePhoto) {
+    return (
+      <div className="relative w-9 h-9 flex-shrink-0">
+        <img
+          src={`http://localhost:5000/${profilePhoto}`}
+          alt={name}
+          className="w-9 h-9 rounded-full object-cover border-2 border-gray-100 shadow-sm"
+          onError={(e) => {
+            // On load failure fall back to initials
+            e.currentTarget.style.display = "none";
+            e.currentTarget.nextSibling.style.display = "flex";
+          }}
+        />
+        <div
+          className={`w-9 h-9 rounded-full ${color} items-center justify-center text-white text-sm font-bold absolute inset-0`}
+          style={{ display: "none" }}
+        >
+          {initials}
+        </div>
+      </div>
+    );
+  }
   return (
     <div
       className={`w-9 h-9 rounded-full ${color} flex items-center justify-center text-white text-sm font-bold flex-shrink-0`}
@@ -76,6 +100,9 @@ const StatCard = ({ label, value, color }) => (
 );
 
 // ─── Main Page ───────────────────────────────────────────────────────────────
+const EMPLOYEE_TABLE_GRID =
+  "grid-cols-[150px_minmax(200px,1.1fr)_minmax(240px,1.25fr)_minmax(120px,0.75fr)_140px_1fr]";
+
 const Employees = () => {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -89,10 +116,12 @@ const Employees = () => {
 
   // Modal state
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editTarget, setEditTarget] = useState(null);
 
   // Delete confirmation state
   const [deleteTarget, setDeleteTarget] = useState(null); // { _id, name }
   const [deleting, setDeleting] = useState(false);
+
 
   // Documents modal state
   const [docTarget, setDocTarget] = useState(null); // full employee object
@@ -136,10 +165,25 @@ const Employees = () => {
   const onLeaveCount = employees.filter((e) => e.status === "On Leave").length;
 
   // ── Handlers ──────────────────────────────────────────────────────────────
-  const handleAddSuccess = (newEmployee) => {
+  const handleEmployeeSaved = async () => {
+    const wasEditing = Boolean(editTarget);
     setShowAddModal(false);
-    setEmployees((prev) => [newEmployee, ...prev]);
+    setEditTarget(null);
+    // Always reload from server so photo + all fields are fresh
+    await loadEmployees();
+    showToast(wasEditing ? "Employee updated successfully." : "Employee created successfully.");
   };
+
+  const openAddModal = () => {
+    setEditTarget(null);
+    setShowAddModal(true);
+  };
+
+  const openEditModal = (employee) => {
+    setEditTarget(employee);
+    setShowAddModal(true);
+  };
+
 
   // Sync employee list after a document upload or delete
   const handleDocUpdate = (updatedEmployee, action = "updated") => {
@@ -156,14 +200,16 @@ const Employees = () => {
     setDeleting(true);
     try {
       await deleteEmployee(deleteTarget._id);
-      setEmployees((prev) => prev.filter((e) => e._id !== deleteTarget._id));
       setDeleteTarget(null);
+      await loadEmployees();
+      showToast("Employee deleted.");
     } catch (err) {
       setError(err.response?.data?.message || "Failed to delete employee.");
     } finally {
       setDeleting(false);
     }
   };
+
 
   const clearFilters = () => {
     setSearch("");
@@ -206,7 +252,7 @@ const Employees = () => {
             <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
           </button>
           <button
-            onClick={() => setShowAddModal(true)}
+            onClick={openAddModal}
             className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg shadow-sm transition"
           >
             <Plus size={16} />
@@ -323,14 +369,17 @@ const Employees = () => {
 
       {/* ── Employees Table ───────────────────────────────────────────────── */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+        {/* Horizontally scrollable area */}
+        <div className="overflow-x-auto">
+          <div className="min-w-[900px]">
         {/* Table header */}
-        <div className="grid grid-cols-[1fr_1.5fr_1.5fr_1fr_1fr_auto] gap-4 px-6 py-3 bg-gray-50 border-b border-gray-100 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+        <div className={`grid ${EMPLOYEE_TABLE_GRID} gap-5 px-8 py-3 bg-gray-50 border-b border-gray-100 text-xs font-semibold text-gray-500 uppercase tracking-wider`}>
           <span>Employee ID</span>
           <span>Name</span>
           <span>Email</span>
           <span>Department</span>
           <span>Status</span>
-          <span className="text-center">Actions</span>
+          <span className="text-left">Actions</span>
         </div>
 
         {/* Loading state */}
@@ -364,7 +413,7 @@ const Employees = () => {
               </button>
             ) : (
               <button
-                onClick={() => setShowAddModal(true)}
+                onClick={openAddModal}
                 className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition"
               >
                 <Plus size={14} /> Add Employee
@@ -379,7 +428,7 @@ const Employees = () => {
             {employees.map((emp, idx) => (
               <div
                 key={emp._id}
-                className="grid grid-cols-[1fr_1.5fr_1.5fr_1fr_1fr_auto] gap-4 items-center px-6 py-4 hover:bg-indigo-50/30 transition group"
+                className={`grid ${EMPLOYEE_TABLE_GRID} gap-5 items-center px-8 py-4 hover:bg-indigo-50/30 transition group`}
               >
                 {/* Employee ID */}
                 <span className="text-xs font-mono font-semibold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md w-fit">
@@ -388,7 +437,7 @@ const Employees = () => {
 
                 {/* Name with avatar */}
                 <div className="flex items-center gap-3 min-w-0">
-                  <Avatar name={`${emp.firstName} ${emp.lastName}`} index={idx} />
+                  <Avatar name={`${emp.firstName} ${emp.lastName}`} index={idx} profilePhoto={emp.profilePhoto} />
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-gray-900 truncate">
                       {emp.firstName} {emp.lastName}
@@ -404,10 +453,12 @@ const Employees = () => {
                 <span className="text-sm text-gray-700 truncate">{emp.department || "—"}</span>
 
                 {/* Status */}
-                <StatusBadge status={emp.status} />
+                <div className="flex justify-start">
+                  <StatusBadge status={emp.status} />
+                </div>
 
                 {/* Actions — always visible so users can discover them */}
-                <div className="flex items-center gap-1">
+                <div className="flex items-center justify-start gap-2">
                   {/* Upload Document */}
                   <button
                     onClick={() => setDocTarget(emp)}
@@ -415,7 +466,7 @@ const Employees = () => {
                     title="Upload / manage documents"
                   >
                     <Paperclip size={13} />
-                    <span className="hidden sm:inline">Docs</span>
+                    <span>Upload</span>
                     {emp.documents?.length > 0 && (
                       <span className="w-4 h-4 bg-indigo-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
                         {emp.documents.length}
@@ -423,7 +474,16 @@ const Employees = () => {
                     )}
                   </button>
 
-                  {/* Delete */}
+                  {/* Edit — icon only */}
+                  <button
+                    onClick={() => openEditModal(emp)}
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition"
+                    title="Edit employee"
+                  >
+                    <Pencil size={15} />
+                  </button>
+
+                  {/* Delete — icon only, visible on row hover */}
                   <button
                     onClick={() =>
                       setDeleteTarget({
@@ -431,7 +491,7 @@ const Employees = () => {
                         name: `${emp.firstName} ${emp.lastName}`,
                       })
                     }
-                    className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition opacity-0 group-hover:opacity-100"
+                    className="p-1.5 rounded-lg text-gray-300 hover:text-red-600 hover:bg-red-50 transition opacity-0 group-hover:opacity-100"
                     title="Delete employee"
                   >
                     <Trash2 size={15} />
@@ -441,6 +501,8 @@ const Employees = () => {
             ))}
           </div>
         )}
+          </div>{/* end min-w-[900px] */}
+        </div>{/* end overflow-x-auto */}
 
         {/* Table footer */}
         {!loading && employees.length > 0 && (
@@ -453,9 +515,14 @@ const Employees = () => {
 
       {/* ── Add Employee Modal ─────────────────────────────────────────────── */}
       <AddEmployeeModal
+        key={editTarget?._id || "new-employee"}
         isOpen={showAddModal}
-        onClose={() => setShowAddModal(false)}
-        onSuccess={handleAddSuccess}
+        onClose={() => {
+          setShowAddModal(false);
+          setEditTarget(null);
+        }}
+        onSuccess={handleEmployeeSaved}
+        employee={editTarget}
       />
 
       {/* ── Document Modal ────────────────────────────────────────────────── */}
