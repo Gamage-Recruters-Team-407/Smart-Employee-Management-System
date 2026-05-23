@@ -6,10 +6,13 @@ import Performance from "./pages/Performance";
 import Attendance from "./pages/Attendance";
 import Leave from "./pages/Leave";
 import Payroll from "./pages/Payroll";
-
+import Register from "./pages/Register";
 function App() {
   return (
     <Routes>
+
+      <Route path="/register" element={<Register />} />
+
       <Route path="/" element={<Dashboard />}>
         <Route index element={<DashboardHome />} />
         <Route path="employees" element={<Employees />} />
