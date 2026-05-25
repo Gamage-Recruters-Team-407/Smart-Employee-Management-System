@@ -1,109 +1,78 @@
-import Attendance from "../models/Attendance.js";
-import User from "../models/User.js";
-import Employee from "../models/Employee.js";
-import bcryptjs from "bcryptjs";
-import jwt from "jsonwebtoken";
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
+import User from '../models/User.js';
 
-export const loginUser = async (req, res) => {
+// Helper function to generate JWT
+const generateToken = (id, role) => {
+  return jwt.sign({ id, role }, process.env.JWT_SECRET, {
+    expiresIn: '1d',
+  });
+};
+
+// @desc    Register new user
+// @route   POST /api/auth/register
+// @access  Public
+export const registerUser = async (req, res) => {
   try {
-    const { email, password } = req.body || {};
+    const { name, email, password, role } = req.body;
 
-    // Find user
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
+    // 1. Check if user already exists
+    const userExists = await User.findOne({ email });
+    if (userExists) {
+      return res.status(400).json({ message: 'User already exists' });
     }
 
-    // Verify password
-    const isPasswordValid = await bcryptjs.compare(password, user.password);
-    if (!isPasswordValid) {
-      return res.status(401).json({ message: "Invalid credentials" });
-    }
+    // 2. Hash password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Create attendance record if employee profile exists
-    let attendance = null;
-    const employee = await Employee.findOne({ email: user.email });
-    if (employee) {
-      // Check if attendance already exists for today to prevent duplicates on relogin
-      const todayStr = new Date().toISOString().split('T')[0];
-      attendance = await Attendance.findOne({ employee: employee._id, date: todayStr });
+    // 3. Create user
+    const user = await User.create({
+      name,
+      email,
+      password: hashedPassword,
+      role: role || 'Employee',
+    });
 
-      if (!attendance) {
-        attendance = new Attendance({
-          employee: employee._id,
-          loginTime: new Date(),
-          status: "Present",
-          activityStatus: true,
-        });
-        await attendance.save();
-      }
-    }
-
-    // Create JWT token (include both id and userId for middleware compatibility)
-    const token = jwt.sign(
-      { id: user._id, userId: user._id, role: user.role },
-      process.env.JWT_SECRET || "secret",
-      { expiresIn: "8h" }
-    );
-
-    res.status(200).json({
-      message: "Login successful",
-      token,
-      user: {
-        id: user._id,
+    if (user) {
+      res.status(201).json({
+        _id: user.id,
         name: user.name,
         email: user.email,
         role: user.role,
-      },
-      attendance: attendance ? {
-        id: attendance._id,
-        loginTime: attendance.loginTime,
-      } : null,
-    });
+        token: generateToken(user._id, user.role),
+      });
+    } else {
+      res.status(400).json({ message: 'Invalid user data received' });
+    }
   } catch (error) {
-    res.status(500).json({
-      message: error.message,
-    });
+    res.status(500).json({ message: 'Server Error', error: error.message });
   }
 };
 
-export const logoutUser = async (req, res) => {
+// @desc    Authenticate a user
+// @route   POST /api/auth/login
+// @access  Public
+export const loginUser = async (req, res) => {
   try {
-    const { attendanceId } = req.body || {};
+    const { email, password } = req.body;
 
-    if (!attendanceId) {
-      return res.status(200).json({
-        message: "Logout successful (no attendance session to update)",
+    // 1. Check for user email
+    const user = await User.findOne({ email });
+
+    // 2. Verify password
+    if (user && (await bcrypt.compare(password, user.password))) {
+      res.status(200).json({
+        _id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        token: generateToken(user._id, user.role),
       });
+    } else {
+      res.status(401).json({ message: 'Invalid email or password' });
     }
-
-    // Update attendance record with logout time
-    const attendance = await Attendance.findByIdAndUpdate(
-      attendanceId,
-      {
-        logoutTime: new Date(),
-        activityStatus: false,
-      },
-      { new: true }
-    );
-
-    if (!attendance) {
-      return res.status(404).json({ message: "Attendance record not found" });
-    }
-
-    // Calculate working hours
-    const workingHours =
-      (attendance.logoutTime - attendance.loginTime) / (1000 * 60 * 60);
-
-    res.status(200).json({
-      message: "Logout successful",
-      attendance,
-      workingHours: workingHours.toFixed(2),
-    });
   } catch (error) {
-    console.error("Error in logoutUser:", error);
-    res.status(500).json({
-      message: error.message,
-    });
+    res.status(500).json({ message: 'Server Error', error: error.message });
   }
 };
