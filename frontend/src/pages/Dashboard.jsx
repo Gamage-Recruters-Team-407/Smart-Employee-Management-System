@@ -1,12 +1,8 @@
 import React, { useState } from 'react';
 import Sidebar from '../components/common/Sidebar';
-import DashboardStats from '../components/common/DashboardStats';
-import RecentActivity from '../components/common/RecentActivity';
 import Navbar from '../components/common/Navbar';
-import { Menu, X } from 'lucide-react';
 import { Outlet } from "react-router-dom";
 import { Menu, X, LogOut } from "lucide-react";
-import Sidebar from "../components/common/Sidebar";
 import { useAuth } from "../context/AuthContext";
 
 const Dashboard = () => {

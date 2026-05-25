@@ -1,38 +1,21 @@
 import mongoose from "mongoose";
 
-const userSchema=new mongoose.Schema(
-    {
-        name:{
-            type:String,
-            required:true,
-        },
-        email:{
-            type:String,
-            required:true,
-            unique:true
-        },
-        password:{
-            type:String,
-            required:true,
-        },
-        role:{
-            type:String,
-            enum:["Admin","HR","Manager","Employee"],
-            default:"Employee",
-        },
+const userSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: true,
     },
     email: {
       type: String,
-      required: [true, "Email is required"],
+      required: true,
       unique: true,
       lowercase: true,
       trim: true,
     },
     password: {
       type: String,
-      required: [true, "Password is required"],
-      minlength: 6,
-      select: false, // never returned in queries unless explicitly requested
+      required: true,
     },
     role: {
       type: String,

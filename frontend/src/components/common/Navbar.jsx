@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { LogOut, Clock } from 'lucide-react';
 import SessionTracker from '../../utils/sessionTracker.js';
 import api from '../../services/api.js';
+import { useAuth } from '../../context/AuthContext';
 
 const Navbar = ({ userName, userRole, attendanceId }) => {
   const navigate = useNavigate();
+  const { logout } = useAuth();
   const [sessionStatus, setSessionStatus] = useState(null);
   const [showWarning, setShowWarning] = useState(false);
   
@@ -39,16 +41,10 @@ const Navbar = ({ userName, userRole, attendanceId }) => {
    */
   const handleLogout = async () => {
     try {
-      // Send logout request to backend
-      if (attendanceId) {
-        await api.post('/attendance/logout', {
-          attendanceId: attendanceId,
-        });
-      }
+      // Call Context logout (handles check-out and backend invalidation)
+      await logout();
 
-      // Clear localStorage
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      // Clear local storage specific to dashboard session
       localStorage.removeItem('attendanceId');
 
       // Redirect to login page
@@ -72,9 +68,8 @@ const Navbar = ({ userName, userRole, attendanceId }) => {
         });
       }
 
-      // Clear localStorage
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      // Call Context logout to clear Auth state and sync with local storage
+      await logout();
       localStorage.removeItem('attendanceId');
 
       // Redirect to login page

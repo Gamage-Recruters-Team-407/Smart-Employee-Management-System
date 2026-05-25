@@ -1,11 +1,12 @@
 import Attendance from "../models/Attendance.js";
 import User from "../models/User.js";
+import Employee from "../models/Employee.js";
 import bcryptjs from "bcryptjs";
 import jwt from "jsonwebtoken";
 
 export const loginUser = async (req, res) => {
   try {
-    const { email, password, employeeId } = req.body;
+    const { email, password } = req.body || {};
 
     // Find user
     const user = await User.findOne({ email });
@@ -19,19 +20,28 @@ export const loginUser = async (req, res) => {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    // Create attendance record with login time
-    const attendance = new Attendance({
-      employee: employeeId,
-      loginTime: new Date(),
-      status: "Present",
-      activityStatus: true,
-    });
+    // Create attendance record if employee profile exists
+    let attendance = null;
+    const employee = await Employee.findOne({ email: user.email });
+    if (employee) {
+      // Check if attendance already exists for today to prevent duplicates on relogin
+      const todayStr = new Date().toISOString().split('T')[0];
+      attendance = await Attendance.findOne({ employee: employee._id, date: todayStr });
 
-    await attendance.save();
+      if (!attendance) {
+        attendance = new Attendance({
+          employee: employee._id,
+          loginTime: new Date(),
+          status: "Present",
+          activityStatus: true,
+        });
+        await attendance.save();
+      }
+    }
 
-    // Create JWT token
+    // Create JWT token (include both id and userId for middleware compatibility)
     const token = jwt.sign(
-      { userId: user._id, role: user.role },
+      { id: user._id, userId: user._id, role: user.role },
       process.env.JWT_SECRET || "secret",
       { expiresIn: "8h" }
     );
@@ -45,10 +55,10 @@ export const loginUser = async (req, res) => {
         email: user.email,
         role: user.role,
       },
-      attendance: {
+      attendance: attendance ? {
         id: attendance._id,
         loginTime: attendance.loginTime,
-      },
+      } : null,
     });
   } catch (error) {
     res.status(500).json({
@@ -59,7 +69,13 @@ export const loginUser = async (req, res) => {
 
 export const logoutUser = async (req, res) => {
   try {
-    const { attendanceId } = req.body;
+    const { attendanceId } = req.body || {};
+
+    if (!attendanceId) {
+      return res.status(200).json({
+        message: "Logout successful (no attendance session to update)",
+      });
+    }
 
     // Update attendance record with logout time
     const attendance = await Attendance.findByIdAndUpdate(
@@ -85,6 +101,7 @@ export const logoutUser = async (req, res) => {
       workingHours: workingHours.toFixed(2),
     });
   } catch (error) {
+    console.error("Error in logoutUser:", error);
     res.status(500).json({
       message: error.message,
     });

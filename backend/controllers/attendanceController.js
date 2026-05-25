@@ -138,3 +138,202 @@ export const getInactiveEmployees = async (req, res) => {
     });
   }
 };
+
+// Get attendance optionally filtered by date
+export const getAttendance = async (req, res) => {
+  try {
+    const { date } = req.query;
+    const query = date ? { date } : {};
+    const attendance = await Attendance.find(query).populate("employee");
+    res.status(200).json(attendance);
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+// Get attendance history for a specific employeeId
+export const getAttendanceByEmployeeId = async (req, res) => {
+  try {
+    const { employeeId } = req.params;
+    const employee = await Employee.findOne({ employeeId });
+    if (!employee) {
+      return res.status(404).json({ message: "Employee not found" });
+    }
+    const attendance = await Attendance.find({ employee: employee._id }).populate("employee").sort({ date: -1 });
+    res.status(200).json(attendance);
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+// Create or update attendance manually (admin)
+export const markAttendance = async (req, res) => {
+  try {
+    const { employee, date, status, checkInTime, checkOutTime } = req.body;
+    
+    // Find employee by their custom employeeId
+    const employeeDoc = await Employee.findOne({ employeeId: employee });
+    if (!employeeDoc) {
+      return res.status(404).json({ message: `Employee with ID ${employee} not found` });
+    }
+
+    // Find existing record
+    let attendance = await Attendance.findOne({
+      employee: employeeDoc._id,
+      date: date
+    });
+
+    // Helper to parse HH:MM into a Date object on the specified date
+    const parseTimeToDate = (timeStr, baseDateStr) => {
+      if (!timeStr) return null;
+      const [hours, minutes] = timeStr.split(":");
+      const d = new Date(baseDateStr);
+      d.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
+      return d;
+    };
+
+    const loginTime = parseTimeToDate(checkInTime, date);
+    const logoutTime = parseTimeToDate(checkOutTime, date);
+
+    if (attendance) {
+      // Update existing record
+      attendance.status = status;
+      attendance.checkInTime = checkInTime || null;
+      attendance.checkOutTime = checkOutTime || null;
+      attendance.loginTime = loginTime;
+      attendance.logoutTime = logoutTime;
+      await attendance.save();
+    } else {
+      // Create new record
+      attendance = new Attendance({
+        employee: employeeDoc._id,
+        date,
+        status,
+        checkInTime: checkInTime || null,
+        checkOutTime: checkOutTime || null,
+        loginTime,
+        logoutTime,
+      });
+      await attendance.save();
+    }
+
+    res.status(200).json(attendance);
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+// Record check-in automatically from frontend authService.checkIn
+export const checkIn = async (req, res) => {
+  try {
+    const { date, checkInTime, location } = req.body;
+
+    const employeeDoc = await Employee.findOne({ email: req.user.email });
+    if (!employeeDoc) {
+      return res.status(404).json({ message: "Employee profile not found for this user." });
+    }
+
+    let attendance = await Attendance.findOne({
+      employee: employeeDoc._id,
+      date: date
+    });
+
+    let loginTime = null;
+    if (checkInTime) {
+      const [hours, minutes] = checkInTime.split(":");
+      const loginDate = new Date(date);
+      loginDate.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
+      loginTime = loginDate;
+    }
+
+    let status = "Present";
+    if (checkInTime) {
+      const [hours, minutes] = checkInTime.split(":");
+      const totalMinutes = parseInt(hours, 10) * 60 + parseInt(minutes, 10);
+      if (totalMinutes > 9 * 60 + 15) { // after 09:15
+        status = "Late";
+      }
+    }
+
+    if (attendance) {
+      attendance.checkInTime = checkInTime || attendance.checkInTime;
+      attendance.loginTime = loginTime || attendance.loginTime;
+      attendance.location = location || attendance.location;
+      attendance.activityStatus = true;
+      await attendance.save();
+    } else {
+      attendance = new Attendance({
+        employee: employeeDoc._id,
+        date: date,
+        checkInTime: checkInTime,
+        loginTime: loginTime,
+        status: status,
+        location: location || "Office",
+        activityStatus: true
+      });
+      await attendance.save();
+    }
+
+    res.status(200).json({
+      message: "Check-in recorded successfully",
+      attendance
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Record check-out automatically from frontend authService.checkOut
+export const checkOut = async (req, res) => {
+  try {
+    const { date, checkOutTime } = req.body;
+
+    const employeeDoc = await Employee.findOne({ email: req.user.email });
+    if (!employeeDoc) {
+      return res.status(404).json({ message: "Employee profile not found for this user." });
+    }
+
+    let attendance = await Attendance.findOne({
+      employee: employeeDoc._id,
+      date: date
+    });
+
+    let logoutTime = null;
+    if (checkOutTime) {
+      const [hours, minutes] = checkOutTime.split(":");
+      const logoutDate = new Date(date);
+      logoutDate.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
+      logoutTime = logoutDate;
+    }
+
+    if (!attendance) {
+      attendance = new Attendance({
+        employee: employeeDoc._id,
+        date: date,
+        status: "Present",
+        activityStatus: false,
+        checkOutTime: checkOutTime,
+        logoutTime: logoutTime
+      });
+    } else {
+      attendance.checkOutTime = checkOutTime;
+      attendance.logoutTime = logoutTime;
+      attendance.activityStatus = false;
+    }
+
+    await attendance.save();
+
+    res.status(200).json({
+      message: "Check-out recorded successfully",
+      attendance
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
