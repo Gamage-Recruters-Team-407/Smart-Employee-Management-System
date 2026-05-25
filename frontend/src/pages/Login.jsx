@@ -8,7 +8,7 @@ const Login = () => {
   const [activeTab, setActiveTab] = useState("signin");
 
   // AuthContext එකේ register function එකක් ඇති බව/නැතහොත් එකතු කළ හැක
-  const { login, register, loading, error, isAuthenticated, clearError } = useAuth();
+  const { login, register, googleLogin, loading, error, isAuthenticated, clearError } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -41,10 +41,14 @@ const Login = () => {
     }
   };
 
-  const handleGoogleSignUp = () => {
-    // Redirect to backend Google OAuth endpoint
-    const apiBase = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-    window.location.href = `${apiBase}/auth/google`;
+  const handleGoogleSignUp = async (googleToken) => {
+    try {
+      await googleLogin(googleToken);
+      const from = location.state?.from?.pathname || "/";
+      navigate(from, { replace: true });
+    } catch (err) {
+      console.error("Google login error:", err);
+    }
   };
 
   const handleTabChange = (tab) => {

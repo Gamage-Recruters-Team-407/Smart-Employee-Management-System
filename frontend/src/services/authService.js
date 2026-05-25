@@ -81,6 +81,15 @@ export const authService = {
   },
 
   /**
+   * POST /api/auth/google
+   * Sends Google ID token to backend for verification
+   */
+  googleLogin: async (token) => {
+    const { data } = await API.post("/auth/google", { token });
+    return data;
+  },
+
+  /**
    * GET /api/auth/google — Initiates Google OAuth flow
    */
   initiateGoogleAuth: () => {

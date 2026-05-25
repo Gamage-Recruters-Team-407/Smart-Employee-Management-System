@@ -30,7 +30,5 @@ const userSchema=new mongoose.Schema(
   }
 );
 
-// Add index for automatic cleanup of expired reset tokens (optional)
-userSchema.index({ resetPasswordExpire: 1 }, { expireAfterSeconds: 0 });
 
 export default mongoose.model("User", userSchema);

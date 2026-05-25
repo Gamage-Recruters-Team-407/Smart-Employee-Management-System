@@ -127,6 +127,28 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Google OAuth Login
+  const googleLogin = async (googleToken) => {
+    setError(null);
+
+    try {
+      const data = await authService.googleLogin(googleToken);
+
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user || data));
+
+      setToken(data.token);
+      setUser(data.user || data);
+
+      return data;
+    } catch (err) {
+      const message = err.response?.data?.message || "Google login failed. Please try again.";
+
+      setError(message);
+      throw new Error(message);
+    }
+  };
+
   // Logout
   const logout = useCallback(() => {
     clearSession();
@@ -146,6 +168,7 @@ export const AuthProvider = ({ children }) => {
         error,
         login,
         register,
+        googleLogin,
         logout,
         clearError,
         isAuthenticated: !!token,

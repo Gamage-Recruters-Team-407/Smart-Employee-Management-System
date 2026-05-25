@@ -28,15 +28,11 @@ api.interceptors.request.use(
 export const authAPI = {
   login: (data) => api.post('/auth/login', data),
   register: (data) => api.post('/auth/register', data),
+  googleLogin: (token) => api.post('/auth/google', { token }),
   
-  // Forgot Password with Code
-  forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
-  verifyResetCode: (email, code) => api.post('/auth/verify-reset-code', { email, code }),
-  resetPasswordWithCode: (email, code, password) => api.post('/auth/reset-password-with-code', { email, code, password }),
-  
-  // Traditional token-based reset (kept for compatibility)
-  resetPassword: (token, password) => api.put(`/auth/reset-password/${token}`, { password }),
-  verifyResetToken: (token) => api.get(`/auth/reset-password/${token}/verify`),
+  // Forgot Password & Reset with OTP
+  forgotPassword: (email) => api.post('/auth/forgotpassword', { email }),
+  resetPassword: (email, otp, newPassword) => api.post('/auth/resetpassword', { email, otp, newPassword }),
   
   logout: () => api.post('/auth/logout'),
   getMe: () => api.get('/auth/me'),
