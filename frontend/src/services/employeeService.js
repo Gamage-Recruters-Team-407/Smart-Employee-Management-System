@@ -50,6 +50,14 @@ export const deleteEmployee = (id) =>
   api.delete(`/employees/${id}`).then((res) => res.data);
 
 /**
+ * Permanently delete multiple employees at once.
+ * @param {string[]} ids  Array of MongoDB _ids
+ * @returns {Promise<{ success, deletedCount, message }>}
+ */
+export const bulkDeleteEmployees = (ids) =>
+  api.delete("/employees/bulk", { data: { ids } }).then((res) => res.data);
+
+/**
  * Upload a document (PDF / JPG / PNG, max 5 MB) for an employee.
  * @param {string} employeeId  MongoDB _id of the employee
  * @param {File}   file        File object from an <input type="file">

@@ -6,6 +6,7 @@ import {
   updateEmployee,
   deleteEmployee,
   uploadProfilePhoto,
+  bulkDeleteEmployees,
 } from "../controllers/employeeController.js";
 import mockAuth from "../middleware/authMiddleware.js";
 import upload, { imageUpload } from "../config/multer.js";
@@ -18,13 +19,17 @@ router.use(mockAuth);
 // POST   /api/employees        → Create a new employee
 router.post("/", createEmployee);
 
-// GET    /api/employees        → List all employees (with optional search & filters)
+// GET    /api/employees        → List all employees
 //   Query params:
-//     ?search=value            → case-insensitive search across firstName, lastName, email
-//     ?department=value        → filter by exact department (case-insensitive)
-//     ?designation=value       → filter by exact designation (case-insensitive)
-//   Params can be combined, e.g. ?search=john&department=IT
+//     ?search=value       → case-insensitive search across firstName, lastName, email
+//     ?department=value   → filter by exact department (case-insensitive)
+//     ?designation=value  → filter by exact designation (case-insensitive)
+//     ?status=value       → filter by status (Active, Inactive, On Leave, Terminated)
 router.get("/", getEmployees);
+
+// DELETE /api/employees/bulk  → Permanently delete multiple employees
+// NOTE: Must be declared BEFORE /:id so Express does not treat "bulk" as an ID param
+router.delete("/bulk", bulkDeleteEmployees);
 
 // GET    /api/employees/:id    → Get a single employee by MongoDB _id
 router.get("/:id", getEmployeeById);

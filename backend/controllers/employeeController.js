@@ -92,7 +92,7 @@ export const createEmployee = async (req, res) => {
  */
 export const getEmployees = async (req, res) => {
   try {
-    const { search, department, designation } = req.query;
+    const { search, department, designation, status } = req.query;
     const query = {};
 
     // Case-insensitive search across firstName, lastName, and email
@@ -113,6 +113,11 @@ export const getEmployees = async (req, res) => {
     // Exact (case-insensitive) match on designation
     if (designation && designation.trim()) {
       query.designation = { $regex: new RegExp(`^${designation.trim()}$`, "i") };
+    }
+
+    // Exact match on status
+    if (status && status.trim()) {
+      query.status = status.trim();
     }
 
     const employees = await Employee.find(query).sort({ createdAt: -1 });
@@ -349,6 +354,39 @@ export const uploadProfilePhoto = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Server error while uploading profile photo.",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * DELETE /api/employees/bulk
+ * Permanently remove multiple employees from the database in one request.
+ * Expects body: { ids: ["mongoId1", "mongoId2", ...] }
+ */
+export const bulkDeleteEmployees = async (req, res) => {
+  try {
+    const { ids } = req.body;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "A non-empty array of employee IDs is required.",
+      });
+    }
+
+    const result = await Employee.deleteMany({ _id: { $in: ids } });
+
+    return res.status(200).json({
+      success: true,
+      deletedCount: result.deletedCount,
+      message: `${result.deletedCount} employee(s) deleted successfully.`,
+    });
+  } catch (error) {
+    console.error("bulkDeleteEmployees error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error while bulk deleting employees.",
       error: error.message,
     });
   }

@@ -374,11 +374,24 @@ const AddEmployeeModal = ({ isOpen, onClose, onSuccess, employee = null }) => {
           <div>
             <SectionHeading>Profile Photo</SectionHeading>
             <div className="flex items-center gap-5">
-              {/* Avatar preview */}
+              {/* Drag-and-drop + click avatar preview */}
               <div
                 onClick={() => photoInputRef.current?.click()}
-                className="relative w-20 h-20 rounded-full cursor-pointer flex-shrink-0 group"
-                title="Click to upload photo"
+                onDragOver={(e) => { e.preventDefault(); e.currentTarget.dataset.drag = "true"; e.currentTarget.classList.add("ring-2","ring-indigo-400","ring-offset-2"); }}
+                onDragLeave={(e) => { e.currentTarget.classList.remove("ring-2","ring-indigo-400","ring-offset-2"); }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.currentTarget.classList.remove("ring-2","ring-indigo-400","ring-offset-2");
+                  const file = e.dataTransfer.files[0];
+                  if (!file) return;
+                  if (!file.type.startsWith("image/")) { setPhotoError("Only image files (JPG, PNG) are accepted."); return; }
+                  if (file.size > 2 * 1024 * 1024) { setPhotoError("Photo must be under 2 MB."); return; }
+                  setPhotoError("");
+                  setPhotoFile(file);
+                  setPhotoPreview(URL.createObjectURL(file));
+                }}
+                className="relative w-20 h-20 rounded-full cursor-pointer flex-shrink-0 group transition"
+                title="Click or drag an image to upload"
               >
                 {photoPreview ? (
                   <img
@@ -402,7 +415,7 @@ const AddEmployeeModal = ({ isOpen, onClose, onSuccess, employee = null }) => {
               {/* Info + hidden input */}
               <div className="flex flex-col gap-1.5">
                 <p className="text-sm font-medium text-gray-700">
-                  {photoPreview ? "Photo selected — click avatar to change" : "Click the circle to upload a photo"}
+                  {photoPreview ? "Photo selected — click avatar to change" : "Click or drag & drop a photo"}
                 </p>
                 <p className="text-xs text-gray-400">JPG or PNG · Max 2 MB</p>
                 {photoError && (

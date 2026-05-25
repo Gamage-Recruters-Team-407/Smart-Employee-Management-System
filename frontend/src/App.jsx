@@ -1,6 +1,7 @@
 import { Route, Routes } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
 import Employees from "./pages/Employees";
+import EmployeeProfile from "./pages/EmployeeProfile";
 import DashboardHome from "./components/common/DashboardHome";
 import Performance from "./pages/Performance";
 import Attendance from "./pages/Attendance";
@@ -13,6 +14,7 @@ function App() {
       <Route path="/" element={<Dashboard />}>
         <Route index element={<DashboardHome />} />
         <Route path="employees" element={<Employees />} />
+        <Route path="employees/:id" element={<EmployeeProfile />} />
         <Route path="attendance" element={<Attendance />} />
         <Route path="leaves" element={<Leave />} />
         <Route path="payroll" element={<Payroll />} />
