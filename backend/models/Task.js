@@ -1,8 +1,16 @@
 import mongoose from "mongoose";
 
+const commentSchema = new mongoose.Schema(
+  {
+    text: { type: String, required: true },
+    author: { type: String, default: "Admin" },
+  },
+  { timestamps: true }
+);
+
 const taskSchema = new mongoose.Schema(
   {
-    title: String,
+    title: { type: String, required: true },
     description: String,
     assignedTo: {
       type: mongoose.Schema.Types.ObjectId,
@@ -13,12 +21,16 @@ const taskSchema = new mongoose.Schema(
       enum: ["To Do", "In Progress", "Review", "Completed"],
       default: "To Do",
     },
+    progress: {
+      type: Number,
+      min: 0,
+      max: 100,
+      default: 0,
+    },
     dueDate: Date,
-    comments: String,
+    comments: [commentSchema],
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
 export default mongoose.model("Task", taskSchema);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-// import API from '../services/api';
+import API from '../services/api';
 import { format, subDays } from 'date-fns';
 
 const Attendance = () => {
@@ -26,8 +26,8 @@ const Attendance = () => {
     const fetchAttendance = async () => {
       setLoading(true);
       try {
-        const res = await API.get(`/attendance?date=${selectedDate}`);
-        setAttendanceData(res.data);
+        const data = await API.get(`/attendance?date=${selectedDate}`);
+        setAttendanceData(data);
       } catch (err) {
         console.error(err);
       } finally {
@@ -47,8 +47,8 @@ const Attendance = () => {
       });
 
       // Refresh attendance
-      const res = await API.get(`/attendance?date=${selectedDate}`);
-      setAttendanceData(res.data);
+      const data = await API.get(`/attendance?date=${selectedDate}`);
+      setAttendanceData(data);
     } catch (error) {
       alert('Failed to mark attendance');
     }
