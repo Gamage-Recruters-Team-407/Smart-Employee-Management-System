@@ -4,6 +4,8 @@ import performanceApi from "../services/performanceApi";
 
 const managerRoles = ["Manager", "Admin", "HR"];
 const apiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
+const objectIdRegex = /^[a-fA-F0-9]{24}$/;
+const emidRegex = /^(EMID|EID)\d+$/i;
 
 const emptyForm = {
   employee: "",
@@ -25,12 +27,32 @@ const scoreTagClasses = (score) => {
   return "bg-red-100 text-red-700";
 };
 
+const getEmployeeFieldIssue = (value) => {
+  const trimmed = (value || "").trim();
+
+  if (!trimmed) {
+    return "Employee ID is required.";
+  }
+
+  if (emidRegex.test(trimmed)) {
+    return "EMID format detected. Use the employee User ID (24-character ObjectId) for this form.";
+  }
+
+  if (!objectIdRegex.test(trimmed)) {
+    return "Employee User ID must be a valid 24-character ObjectId.";
+  }
+
+  return "";
+};
+
 const Performance = () => {
   const [records, setRecords] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [validationIssue, setValidationIssue] = useState("");
+  const [employeeFieldIssue, setEmployeeFieldIssue] = useState("");
   const [message, setMessage] = useState("");
 
   const currentRole = localStorage.getItem("role") || "Manager";
@@ -40,6 +62,7 @@ const Performance = () => {
   const loadPerformance = async () => {
     setLoading(true);
     setError("");
+    setValidationIssue("");
 
     try {
       let list = [];
@@ -101,13 +124,25 @@ const Performance = () => {
   const handleChange = (event) => {
     const { name, value } = event.target;
     setForm((prev) => ({ ...prev, [name]: value }));
+
+    if (name === "employee") {
+      setEmployeeFieldIssue(getEmployeeFieldIssue(value));
+    }
   };
 
   const handleCreate = async (event) => {
     event.preventDefault();
+    const fieldIssue = getEmployeeFieldIssue(form.employee);
+    if (fieldIssue) {
+      setEmployeeFieldIssue(fieldIssue);
+      setValidationIssue(`Employee field: ${fieldIssue}`);
+      return;
+    }
+
     setSubmitting(true);
     setMessage("");
     setError("");
+    setValidationIssue("");
 
     try {
       await performanceApi.create({
@@ -126,7 +161,14 @@ const Performance = () => {
       if (!apiError.response) {
         setError(`Cannot connect to backend API (${apiBase}). Start backend and retry.`);
       } else {
-        setError(apiError.response?.data?.message || "Failed to create record.");
+        const status = apiError.response.status;
+        const apiMessage = apiError.response?.data?.message || "Failed to create record.";
+
+        if (status === 400 || status === 409 || status === 422) {
+          setValidationIssue(apiMessage);
+        } else {
+          setError(apiMessage);
+        }
       }
     } finally {
       setSubmitting(false);
@@ -152,6 +194,11 @@ const Performance = () => {
           {error}
         </div>
       )}
+      {validationIssue && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-amber-800">
+          Validation issue: {validationIssue}
+        </div>
+      )}
       {message && (
         <div className="rounded-xl border border-green-300 bg-green-50 px-4 py-3 text-green-700">
           {message}
@@ -163,13 +210,17 @@ const Performance = () => {
           <h2 className="text-xl font-semibold text-gray-800">Create Performance Record</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <input
-              className="border rounded-xl px-4 py-2"
+              className={`border rounded-xl px-4 py-2 ${employeeFieldIssue ? "border-red-400 bg-red-50" : ""}`}
               name="employee"
               value={form.employee}
               onChange={handleChange}
-              placeholder="Employee User ID"
+              onBlur={(event) => setEmployeeFieldIssue(getEmployeeFieldIssue(event.target.value))}
+              placeholder="Employee User ID (24-char ObjectId)"
               required
             />
+            {employeeFieldIssue && (
+              <p className="-mt-2 text-sm text-red-600 md:col-span-2 lg:col-span-3">{employeeFieldIssue}</p>
+            )}
             <input
               className="border rounded-xl px-4 py-2"
               name="attendanceScore"
