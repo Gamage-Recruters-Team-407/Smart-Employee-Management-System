@@ -1,12 +1,20 @@
 import React, { useState } from 'react';
 import Sidebar from '../components/common/Sidebar';
-import DashboardStats from '../components/common/DashboardStats';
-import RecentActivity from '../components/common/RecentActivity';
 import { Menu, X } from 'lucide-react';
-import { Outlet } from "react-router-dom";
+import { Link, Outlet, useNavigate } from "react-router-dom";
+import { getStoredUser, clearAuthSession } from '../utils/authStorage';
+import { hasAuthToken } from '../utils/authToken';
 
 const Dashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const navigate = useNavigate();
+  const user = getStoredUser();
+  const isLoggedIn = hasAuthToken();
+
+  const handleLogout = () => {
+    clearAuthSession();
+    navigate('/login');
+  };
 
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden">
@@ -25,11 +33,31 @@ const Dashboard = () => {
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="text-right">
-              <p className="font-medium">Admin User</p>
-              <p className="text-sm text-gray-500">HR Manager</p>
-            </div>
-            <div className="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold">A</div>
+            {isLoggedIn ? (
+              <>
+                <div className="text-right">
+                  <p className="font-medium">{user?.name || "User"}</p>
+                  <p className="text-sm text-gray-500">{user?.role || "—"}</p>
+                </div>
+                <div className="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold">
+                  {(user?.name || "U").charAt(0).toUpperCase()}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="text-sm font-medium text-red-600 hover:underline"
+                >
+                  Logout
+                </button>
+              </>
+            ) : (
+              <Link
+                to="/login"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-medium"
+              >
+                Sign In
+              </Link>
+            )}
           </div>
         </header>
 

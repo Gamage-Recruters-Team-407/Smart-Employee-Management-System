@@ -7,10 +7,12 @@ import Attendance from "./pages/Attendance";
 import Leave from "./pages/Leave";
 import Payroll from "./pages/Payroll";
 import Notifications from "./pages/Notifications";
+import Login from "./pages/Login";
 
 function App() {
   return (
     <Routes>
+      <Route path="/login" element={<Login />} />
       <Route path="/" element={<Dashboard />}>
         <Route index element={<DashboardHome />} />
         <Route path="employees" element={<Employees />} />

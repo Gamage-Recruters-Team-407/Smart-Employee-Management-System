@@ -3,6 +3,7 @@ import { protect } from "../middleware/authMiddleware.js";
 import { authorize } from "../middleware/roleMiddleware.js";
 import {
   downloadPayslipPdf,
+  downloadDemoPayslipPdf,
   downloadAttendancePdf,
   downloadLeavePdf,
   downloadPerformancePdf,
@@ -17,6 +18,12 @@ router.get(
   "/payrolls",
   authorize("Admin", "HR", "Manager", "Employee"),
   listPayrollsForPdf
+);
+
+router.get(
+  "/payslip/demo",
+  authorize("Admin", "HR", "Manager", "Employee"),
+  downloadDemoPayslipPdf
 );
 
 router.get(

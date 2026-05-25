@@ -169,6 +169,46 @@ export const downloadPerformancePdf = async (req, res) => {
   }
 };
 
+// @desc    Download demo payslip when no payroll exists in DB
+// @route   GET /api/notifications/reports/payslip/demo
+export const downloadDemoPayslipPdf = async (req, res) => {
+  try {
+    const pdfBuffer = await generatePayslipPDF({
+      employee: {
+        employeeId: "EMP001",
+        firstName: "Jane",
+        lastName: "Doe",
+        email: "jane.doe@sems.com",
+        department: "Engineering",
+        designation: "Software Developer",
+      },
+      payroll: {
+        month: "May 2026",
+        basicSalary: 5000,
+        allowances: 800,
+        deductions: 200,
+        tax: 450,
+        loans: 100,
+        netSalary: 5050,
+      },
+    });
+
+    await notifyPdfGenerated(req.user._id, {
+      title: "Sample Payslip PDF Generated",
+      message: "Your sample payslip for May 2026 is ready for download.",
+      type: "payroll",
+    });
+
+    return sendPdfResponse(res, pdfBuffer, "payslip-demo-may-2026.pdf");
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to generate demo payslip PDF",
+      error: error.message,
+    });
+  }
+};
+
 // @desc    List payroll records for payslip PDF selection
 // @route   GET /api/notifications/reports/payrolls
 export const listPayrollsForPdf = async (req, res) => {

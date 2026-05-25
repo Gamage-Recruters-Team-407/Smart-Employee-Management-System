@@ -4,23 +4,36 @@ import cors from "cors";
 import mongoose from "mongoose";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import reportRoutes from "./routes/reportRoutes.js";
+import authRoutes from "./routes/authRoutes.js";
+import { seedDefaultUser } from "./utils/seedDefaultUser.js";
+import { seedSamplePayroll } from "./utils/seedSamplePayroll.js";
 
 dotenv.config();
 
 const app = express();
 
-app.use(cors());
+app.use(
+  cors({
+    origin: true,
+    exposedHeaders: ["Content-Disposition"],
+  })
+);
 app.use(express.json());
 
 mongoose
   .connect(process.env.MONGO_URI)
-  .then(() => console.log("MongoDB Connected"))
+  .then(async () => {
+    console.log("MongoDB Connected");
+    await seedDefaultUser();
+    await seedSamplePayroll();
+  })
   .catch((err) => console.log(err));
 
 app.get("/", (req, res) => {
   res.send("Backend Running");
 });
 
+app.use("/api/auth", authRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/notifications/reports", reportRoutes);
 
