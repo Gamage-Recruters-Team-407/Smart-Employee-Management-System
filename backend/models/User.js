@@ -20,6 +20,8 @@ const userSchema=new mongoose.Schema(
             enum:["Admin","HR","Manager","Employee"],
             default:"Employee",
         },
+        resetPasswordOTP: String, 
+        resetPasswordExpire: Date,
     },
     {
         timestamps:true,
