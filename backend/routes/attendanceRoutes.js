@@ -1,7 +1,6 @@
 import express from "express";
+import { protect } from "../middleware/authMiddleware.js";
 import {
-  recordLogin,
-  recordLogout,
   markInactive,
   getTodayAttendance,
   getInactiveEmployees,
@@ -9,10 +8,8 @@ import {
 
 const router = express.Router();
 
-router.post("/login", recordLogin);
-router.post("/logout", recordLogout);
-router.post("/mark-inactive", markInactive);
-router.get("/today/:employeeId", getTodayAttendance);
-router.get("/inactive-employees", getInactiveEmployees);
+router.post("/mark-inactive", protect, markInactive);
+router.get("/today/:employeeId",protect, getTodayAttendance);
+router.get("/inactive-employees", protect, getInactiveEmployees);
 
 export default router;
