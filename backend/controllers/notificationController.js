@@ -51,13 +51,20 @@ export const createNotificationForUser = async ({
 
   const user = await User.findById(userId).select("email name");
   if (user?.email) {
-    await sendNotificationEmail({
-      to: user.email,
-      recipientName: user.name,
-      title,
-      message,
-      type,
-    });
+    try {
+      await sendNotificationEmail({
+        to: user.email,
+        recipientName: user.name,
+        title,
+        message,
+        type,
+      });
+    } catch (emailError) {
+      console.error(
+        "[email] Notification email failed:",
+        emailError.message
+      );
+    }
   }
 
   return notification;

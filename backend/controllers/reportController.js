@@ -9,6 +9,25 @@ import {
   generateLeavePDF,
   generatePerformancePDF,
 } from "../services/pdfService.js";
+import { sendPayslipAvailableEmail } from "../services/emailService.js";
+
+const getEmployeeDisplayName = (employee) => {
+  if (!employee) return "Employee";
+  return `${employee.firstName || ""} ${employee.lastName || ""}`.trim() || "Employee";
+};
+
+const parseMonthYear = (month) => {
+  if (!month) return { month: "", year: "" };
+  if (/^\d{4}-\d{2}$/.test(month)) {
+    const [year] = month.split("-");
+    const monthLabel = new Date(`${month}-01`).toLocaleString("en-US", {
+      month: "long",
+    });
+    return { month: monthLabel, year };
+  }
+  const parts = String(month).split(" ");
+  return { month: parts[0] || month, year: parts[1] || "" };
+};
 
 const sendPdfResponse = (res, buffer, filename) => {
   res.setHeader("Content-Type", "application/pdf");
@@ -58,6 +77,29 @@ export const downloadPayslipPdf = async (req, res) => {
     });
 
     const filename = `payslip-${payroll.month || "report"}-${payroll._id}.pdf`;
+
+    try {
+      const employee = payroll.employee;
+      if (employee?.email) {
+        const { month, year } = parseMonthYear(payroll.month);
+        const baseUrl =
+          process.env.APP_URL || `${req.protocol}://${req.get("host")}`;
+        const downloadLink = `${baseUrl}/api/notifications/reports/payslip/${payroll._id}`;
+
+        await sendPayslipAvailableEmail({
+          to: employee.email,
+          employeeName: getEmployeeDisplayName(employee),
+          month,
+          year,
+          downloadLink,
+        });
+      }
+    } catch (emailError) {
+      console.error(
+        "[email] Payslip available email failed:",
+        emailError.message
+      );
+    }
 
     await notifyPdfGenerated(req.user._id, {
       title: "Payslip PDF Generated",
