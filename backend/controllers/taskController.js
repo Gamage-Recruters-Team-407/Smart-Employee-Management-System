@@ -1,5 +1,15 @@
 import Task from "../models/Task.js";
+import Employee from "../models/Employee.js";
 import mongoose from "mongoose";
+
+const getAssigneeSnapshot = async (assignedToId) => {
+  const employee = await Employee.findById(assignedToId);
+  if (!employee) return null;
+  return {
+    assignedTo: employee._id,
+    assignedToEmail: employee.email?.toLowerCase(),
+  };
+};
 
 const STATUSES = ["To Do", "In Progress", "Review", "Completed"];
 
@@ -59,8 +69,24 @@ export const getTasks = async (req, res) => {
       filter.status = req.query.status;
     }
     const tasks = await Task.find(filter)
-      .populate("assignedTo", "firstName lastName employeeId department")
+      .populate("assignedTo", "firstName lastName employeeId email department")
       .sort({ updatedAt: -1 });
+    res.json(tasks);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/** Employee-scoped: only tasks for req.user.id (mock header or future JWT) */
+export const getMyTasks = async (req, res) => {
+  try {
+    const filter = { assignedTo: req.user.id };
+    if (req.query.status && STATUSES.includes(req.query.status)) {
+      filter.status = req.query.status;
+    }
+    const tasks = await Task.find(filter)
+      .populate("assignedTo", "firstName lastName employeeId email department")
+      .sort({ dueDate: 1, updatedAt: -1 });
     res.json(tasks);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -89,10 +115,15 @@ export const createTask = async (req, res) => {
       return res.status(400).json({ message: "Validation failed", errors });
     }
 
+    const assignee = await getAssigneeSnapshot(assignedTo);
+    if (!assignee) {
+      return res.status(400).json({ message: "Assigned employee not found" });
+    }
+
     const task = await Task.create({
       title,
       description: description || undefined,
-      assignedTo,
+      ...assignee,
       dueDate,
       status: STATUSES.includes(status) ? status : "To Do",
       progress: status === "Completed" ? 100 : 0,
@@ -123,7 +154,14 @@ export const updateTask = async (req, res) => {
 
     task.title = title;
     task.description = description || undefined;
-    task.assignedTo = req.body.assignedTo || null;
+    if (req.body.assignedTo) {
+      const assignee = await getAssigneeSnapshot(req.body.assignedTo);
+      if (!assignee) {
+        return res.status(400).json({ message: "Assigned employee not found" });
+      }
+      task.assignedTo = assignee.assignedTo;
+      task.assignedToEmail = assignee.assignedToEmail;
+    }
     task.dueDate = req.body.dueDate;
     if (status && STATUSES.includes(status)) {
       task.status = status;

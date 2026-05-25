@@ -13,6 +13,7 @@ const Sidebar = ({ isOpen, toggle }) => {
     { icon: DollarSign, label: 'Payroll', path: '/payroll' },
     { icon: Award, label: 'Performance', path: '/performance' },
     { icon: CheckSquare, label: 'Tasks', path: '/tasks' },
+    { icon: CheckSquare, label: 'My Tasks', path: '/my-tasks' },
   ];
 
   return (

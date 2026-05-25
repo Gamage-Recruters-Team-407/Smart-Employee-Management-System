@@ -1,6 +1,7 @@
 import express from "express";
 import {
   getTasks,
+  getMyTasks,
   getTaskById,
   createTask,
   updateTask,
@@ -9,10 +10,12 @@ import {
   addTaskComment,
   deleteTask,
 } from "../controllers/taskController.js";
+import { resolveUser } from "../middleware/resolveUser.js";
 
 const router = express.Router();
 
 router.get("/", getTasks);
+router.get("/my", resolveUser, getMyTasks);
 router.get("/:id", getTaskById);
 router.post("/", createTask);
 router.put("/:id", updateTask);

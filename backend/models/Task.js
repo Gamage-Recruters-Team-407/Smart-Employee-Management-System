@@ -15,6 +15,13 @@ const taskSchema = new mongoose.Schema(
     assignedTo: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Employee",
+      required: true,
+    },
+    /** Denormalized for filtering; set from Employee.email on assign */
+    assignedToEmail: {
+      type: String,
+      lowercase: true,
+      trim: true,
     },
     status: {
       type: String,
