@@ -1,6 +1,4 @@
-<<<<<<< Updated upstream
 
-=======
 {
   "name": "backend",
   "version": "1.0.0",
@@ -30,4 +28,3 @@
     "nodemon": "^3.1.14"
   }
 }
->>>>>>> Stashed changes

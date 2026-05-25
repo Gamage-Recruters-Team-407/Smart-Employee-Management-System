@@ -41,6 +41,26 @@ const Login = () => {
     }
   };
 
+  const handleGoogleSignUp = () => {
+    // Google OAuth sign in/up
+    console.log("Google Sign Up clicked");
+    // You can implement Google OAuth here
+    // Example: window.location.href = "http://localhost:5000/api/auth/google";
+    alert("Google Sign In feature will be integrated with backend soon!");
+  };
+
+  const handleForgotPassword = async (email) => {
+    try {
+      // API call to send password reset email
+      console.log("Password reset requested for:", email);
+      // await axios.post("/api/auth/forgot-password", { email });
+      alert(`Password reset link sent to ${email}`);
+    } catch (error) {
+      console.error("Forgot password error:", error);
+      alert("Failed to send reset link. Please try again.");
+    }
+  };
+
   const handleTabChange = (tab) => {
     setActiveTab(tab);
     clearError(); // Tab එක මාරු වන විට පැරණි API errors අයින් කරන්න
@@ -101,7 +121,7 @@ const Login = () => {
 
           <div className="mb-6">
             <h2 className="text-2xl font-bold text-gray-900 tracking-tight">
-              {activeTab === "signin" ? "Welcome back" : "Get started absolute free"}
+              {activeTab === "signin" ? "Welcome back" : "Get started absolutely free"}
             </h2>
             <p className="mt-1.5 text-sm text-gray-500">
               {activeTab === "signin" ? "Enter your workspace credentials." : "Create your staff account to join."}
@@ -134,6 +154,8 @@ const Login = () => {
           <AuthForm
             mode={activeTab}
             onSubmit={handleSubmit}
+            onGoogleSignUp={handleGoogleSignUp}
+            onForgotPassword={handleForgotPassword}
             loading={loading}
             error={error}
             onClearError={clearError}

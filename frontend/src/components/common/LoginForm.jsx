@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Eye, EyeOff, Loader2, AlertCircle, User, Mail, Lock } from "lucide-react";
 
-const AuthForm = ({ mode, onSubmit, loading, error, onClearError }) => {
+const AuthForm = ({ mode, onSubmit, onGoogleSignUp, onForgotPassword, loading, error, onClearError }) => {
   const isSignUp = mode === "signup";
   
   const [formData, setFormData] = useState({ 
@@ -13,6 +13,9 @@ const AuthForm = ({ mode, onSubmit, loading, error, onClearError }) => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState("");
+  const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
 
   const validate = () => {
     const errs = {};
@@ -62,148 +65,328 @@ const AuthForm = ({ mode, onSubmit, loading, error, onClearError }) => {
     }
   };
 
-  return (
-    <form onSubmit={handleSubmit} noValidate className="space-y-4">
-      {error && (
-        <div className="flex items-start gap-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3 animate-shake">
-          <AlertCircle size={18} className="mt-0.5 shrink-0" />
-          <span>{error}</span>
-        </div>
-      )}
+  const handleForgotPasswordSubmit = (e) => {
+    e.preventDefault();
+    if (!forgotPasswordEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(forgotPasswordEmail)) {
+      alert("Please enter a valid email address.");
+      return;
+    }
+    onForgotPassword(forgotPasswordEmail);
+    setResetSent(true);
+    setTimeout(() => {
+      setShowForgotPasswordModal(false);
+      setResetSent(false);
+      setForgotPasswordEmail("");
+    }, 3000);
+  };
 
-      {/* Name (Sign Up වලදී පමණක් පෙන්වයි) */}
-      {isSignUp && (
+  const handleGoogleSignUp = () => {
+    if (onGoogleSignUp) {
+      onGoogleSignUp();
+    } else {
+      console.log("Google Sign Up clicked");
+      alert("Google Sign Up feature coming soon!");
+    }
+  };
+
+  return (
+    <>
+      <form onSubmit={handleSubmit} noValidate className="space-y-4">
+        {error && (
+          <div className="flex items-start gap-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3 animate-shake">
+            <AlertCircle size={18} className="mt-0.5 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {/* Name (Sign Up වලදී පමණක් පෙන්වයි) */}
+        {isSignUp && (
+          <div>
+            <label htmlFor="name" className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">
+              Full Name
+            </label>
+            <div className="relative">
+              <User size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                id="name"
+                name="name"
+                type="text"
+                value={formData.name}
+                onChange={handleChange}
+                placeholder="John Doe"
+                className={`w-full pl-11 pr-4 py-3 rounded-xl border text-sm outline-none transition focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
+                  ${fieldErrors.name ? "border-red-400 bg-red-50" : "border-gray-200 bg-gray-50/50 focus:bg-white"}`}
+              />
+            </div>
+            {fieldErrors.name && <p className="mt-1 text-xs text-red-600">{fieldErrors.name}</p>}
+          </div>
+        )}
+
+        {/* Email */}
         <div>
-          <label htmlFor="name" className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">
-            Full Name
+          <label htmlFor="email" className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">
+            Email address
           </label>
           <div className="relative">
-            <User size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
-              id="name"
-              name="name"
-              type="text"
-              value={formData.name}
+              id="email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              value={formData.email}
               onChange={handleChange}
-              placeholder="John Doe"
+              placeholder="you@company.com"
               className={`w-full pl-11 pr-4 py-3 rounded-xl border text-sm outline-none transition focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
-                ${fieldErrors.name ? "border-red-400 bg-red-50" : "border-gray-200 bg-gray-50/50 focus:bg-white"}`}
+                ${fieldErrors.email ? "border-red-400 bg-red-50" : "border-gray-200 bg-gray-50/50 focus:bg-white"}`}
             />
           </div>
-          {fieldErrors.name && <p className="mt-1 text-xs text-red-600">{fieldErrors.name}</p>}
+          {fieldErrors.email && <p className="mt-1 text-xs text-red-600">{fieldErrors.email}</p>}
         </div>
-      )}
 
-      {/* Email */}
-      <div>
-        <label htmlFor="email" className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">
-          Email address
-        </label>
-        <div className="relative">
-          <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            id="email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            value={formData.email}
-            onChange={handleChange}
-            placeholder="you@company.com"
-            className={`w-full pl-11 pr-4 py-3 rounded-xl border text-sm outline-none transition focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
-              ${fieldErrors.email ? "border-red-400 bg-red-50" : "border-gray-200 bg-gray-50/50 focus:bg-white"}`}
-          />
-        </div>
-        {fieldErrors.email && <p className="mt-1 text-xs text-red-600">{fieldErrors.email}</p>}
-      </div>
-
-      {/* Password */}
-      <div>
-        <label htmlFor="password" className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">
-          Password
-        </label>
-        <div className="relative">
-          <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            id="password"
-            name="password"
-            type={showPassword ? "text" : "password"}
-            autoComplete={isSignUp ? "new-password" : "current-password"}
-            value={formData.password}
-            onChange={handleChange}
-            placeholder="••••••••"
-            className={`w-full pl-11 pr-12 py-3 rounded-xl border text-sm outline-none transition focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
-              ${fieldErrors.password ? "border-red-400 bg-red-50" : "border-gray-200 bg-gray-50/50 focus:bg-white"}`}
-          />
-          <button
-            type="button"
-            onClick={() => setShowPassword((v) => !v)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition"
-            tabIndex={-1}
-          >
-            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-          </button>
-        </div>
-        {fieldErrors.password && <p className="mt-1 text-xs text-red-600">{fieldErrors.password}</p>}
-      </div>
-
-      {/* Confirm Password (Sign Up වලදී පමණක් පෙන්වයි) */}
-      {isSignUp && (
+        {/* Password */}
         <div>
-          <label htmlFor="confirmPassword" className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">
-            Confirm Password
+          <label htmlFor="password" className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">
+            Password
           </label>
           <div className="relative">
             <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
-              id="confirmPassword"
-              name="confirmPassword"
+              id="password"
+              name="password"
               type={showPassword ? "text" : "password"}
-              value={formData.confirmPassword}
+              autoComplete={isSignUp ? "new-password" : "current-password"}
+              value={formData.password}
               onChange={handleChange}
               placeholder="••••••••"
-              className={`w-full pl-11 pr-4 py-3 rounded-xl border text-sm outline-none transition focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
-                ${fieldErrors.confirmPassword ? "border-red-400 bg-red-50" : "border-gray-200 bg-gray-50/50 focus:bg-white"}`}
+              className={`w-full pl-11 pr-12 py-3 rounded-xl border text-sm outline-none transition focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
+                ${fieldErrors.password ? "border-red-400 bg-red-50" : "border-gray-200 bg-gray-50/50 focus:bg-white"}`}
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition"
+              tabIndex={-1}
+            >
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
           </div>
-          {fieldErrors.confirmPassword && <p className="mt-1 text-xs text-red-600">{fieldErrors.confirmPassword}</p>}
+          {fieldErrors.password && <p className="mt-1 text-xs text-red-600">{fieldErrors.password}</p>}
         </div>
-      )}
 
-      {/* Remember me & Forgot Password (Sign In වලදී පමණක් පෙන්වයි) */}
-      {!isSignUp && (
-        <div className="flex items-center justify-between text-sm py-1">
-          <label className="flex items-center gap-2 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              name="rememberMe"
-              checked={formData.rememberMe}
-              onChange={handleChange}
-              className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-gray-300 accent-indigo-600"
-            />
-            <span className="text-gray-600 text-xs font-medium">Remember me</span>
-          </label>
-          <a href="#" className="text-indigo-600 hover:underline text-xs font-semibold">
-            Forgot password?
-          </a>
-        </div>
-      )}
-
-      {/* Submit Button */}
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full mt-2 flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:opacity-70 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl shadow-lg shadow-indigo-100 transition duration-200 text-sm"
-      >
-        {loading ? (
-          <>
-            <Loader2 size={18} className="animate-spin" />
-            {isSignUp ? "Creating Account..." : "Signing in..."}
-          </>
-        ) : (
-          isSignUp ? "Create Account" : "Sign In"
+        {/* Confirm Password (Sign Up වලදී පමණක් පෙන්වයි) */}
+        {isSignUp && (
+          <div>
+            <label htmlFor="confirmPassword" className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">
+              Confirm Password
+            </label>
+            <div className="relative">
+              <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                id="confirmPassword"
+                name="confirmPassword"
+                type={showPassword ? "text" : "password"}
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                placeholder="••••••••"
+                className={`w-full pl-11 pr-4 py-3 rounded-xl border text-sm outline-none transition focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
+                  ${fieldErrors.confirmPassword ? "border-red-400 bg-red-50" : "border-gray-200 bg-gray-50/50 focus:bg-white"}`}
+              />
+            </div>
+            {fieldErrors.confirmPassword && <p className="mt-1 text-xs text-red-600">{fieldErrors.confirmPassword}</p>}
+          </div>
         )}
-      </button>
-    </form>
+
+        {/* Remember me & Forgot Password (Sign In වලදී පමණක් පෙන්වයි) */}
+        {!isSignUp && (
+          <div className="flex items-center justify-between text-sm py-1">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                name="rememberMe"
+                checked={formData.rememberMe}
+                onChange={handleChange}
+                className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-gray-300 accent-indigo-600"
+              />
+              <span className="text-gray-600 text-xs font-medium">Remember me</span>
+            </label>
+            <button
+              type="button"
+              onClick={() => setShowForgotPasswordModal(true)}
+              className="text-indigo-600 hover:underline text-xs font-semibold"
+            >
+              Forgot password?
+            </button>
+          </div>
+        )}
+
+        {/* Submit Button */}
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full mt-2 flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:opacity-70 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl shadow-lg shadow-indigo-100 transition duration-200 text-sm"
+        >
+          {loading ? (
+            <>
+              <Loader2 size={18} className="animate-spin" />
+              {isSignUp ? "Creating Account..." : "Signing in..."}
+            </>
+          ) : (
+            isSignUp ? "Create Account" : "Sign In"
+          )}
+        </button>
+
+        {/* Google Sign Up Button - Only for Sign Up mode */}
+        {isSignUp && (
+          <>
+            <div className="relative my-4">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-200"></div>
+              </div>
+              <div className="relative flex justify-center text-xs">
+                <span className="px-2 bg-white text-gray-500">Or continue with</span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleGoogleSignUp}
+              className="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-700 font-medium py-3 rounded-xl shadow-sm transition duration-200 text-sm"
+            >
+              <svg className="w-5 h-5" viewBox="0 0 24 24">
+                <path
+                  fill="#4285F4"
+                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                />
+                <path
+                  fill="#EA4335"
+                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                />
+              </svg>
+              Sign up with Google
+            </button>
+          </>
+        )}
+
+        {/* Divider for Sign In mode - Google Sign In option */}
+        {!isSignUp && (
+          <>
+            <div className="relative my-4">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-200"></div>
+              </div>
+              <div className="relative flex justify-center text-xs">
+                <span className="px-2 bg-white text-gray-500">Or continue with</span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleGoogleSignUp}
+              className="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-700 font-medium py-3 rounded-xl shadow-sm transition duration-200 text-sm"
+            >
+              <svg className="w-5 h-5" viewBox="0 0 24 24">
+                <path
+                  fill="#4285F4"
+                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                />
+                <path
+                  fill="#EA4335"
+                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                />
+              </svg>
+              Sign in with Google
+            </button>
+          </>
+        )}
+      </form>
+
+      {/* Forgot Password Modal */}
+      {showForgotPasswordModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowForgotPasswordModal(false)}>
+          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-gray-900">Reset Password</h3>
+                <button
+                  onClick={() => {
+                    setShowForgotPasswordModal(false);
+                    setResetSent(false);
+                    setForgotPasswordEmail("");
+                  }}
+                  className="text-gray-400 hover:text-gray-600 transition"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              {!resetSent ? (
+                <>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Enter your email address and we'll send you a link to reset your password.
+                  </p>
+                  <form onSubmit={handleForgotPasswordSubmit}>
+                    <div className="mb-4">
+                      <label htmlFor="reset-email" className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">
+                        Email Address
+                      </label>
+                      <div className="relative">
+                        <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <input
+                          id="reset-email"
+                          type="email"
+                          value={forgotPasswordEmail}
+                          onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                          placeholder="you@company.com"
+                          className="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50/50 focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition text-sm"
+                          required
+                        />
+                      </div>
+                    </div>
+                    <button
+                      type="submit"
+                      className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold py-3 rounded-xl shadow-md transition duration-200 text-sm"
+                    >
+                      Send Reset Link
+                    </button>
+                  </form>
+                </>
+              ) : (
+                <div className="text-center py-4">
+                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <h4 className="text-lg font-semibold text-gray-900 mb-2">Check Your Email</h4>
+                  <p className="text-sm text-gray-600">
+                    We've sent a password reset link to <strong>{forgotPasswordEmail}</strong>
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 
