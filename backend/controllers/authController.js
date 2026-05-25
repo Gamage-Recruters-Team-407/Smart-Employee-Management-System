@@ -1,11 +1,60 @@
 import Attendance from "../models/Attendance.js";
 import User from "../models/User.js";
-import bcryptjs from "bcryptjs";
+import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+
+// Helper function to generate JWT
+const generateToken = (id, role) => {
+  return jwt.sign(
+    { id, role },
+    process.env.JWT_SECRET,
+    { expiresIn: "1d" }
+  );
+};
+
+//register user(this part was copied from dilhara)
+export const registerUser = async (req, res) => {
+  try {
+    const { name, email, password, role } = req.body;
+
+    // 1. Check if user already exists
+    const userExists = await User.findOne({ email });
+    if (userExists) {
+      return res.status(400).json({ message: 'User already exists' });
+    }
+
+    // 2. Hash password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    // 3. Create user
+    const user = await User.create({
+      name,
+      email,
+      password: hashedPassword,
+      role: role || 'Employee',
+    });
+
+    if (user) {
+      res.status(201).json({
+        _id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        token: generateToken(user._id, user.role),
+      });
+    } else {
+      res.status(400).json({ message: 'Invalid user data received' });
+    }
+  } catch (error) {
+    res.status(500).json({ message: 'Server Error', error: error.message });
+  }
+};
+
 
 export const loginUser = async (req, res) => {
   try {
-    const { email, password, employeeId } = req.body;
+    const { email, password } = req.body;
 
     // Find user
     const user = await User.findOne({ email });
@@ -14,26 +63,26 @@ export const loginUser = async (req, res) => {
     }
 
     // Verify password
-    const isPasswordValid = await bcryptjs.compare(password, user.password);
+    const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
     // Create attendance record with login time
-    const attendance = new Attendance({
-      employee: employeeId,
-      loginTime: new Date(),
-      status: "Present",
-      activityStatus: true,
-    });
-
+   const attendance = await Attendance.create({
+    employee: user._id,
+    loginTime: new Date(),
+    status: "Present",
+    activityStatus: true,
+   });
+  
     await attendance.save();
 
     // Create JWT token
     const token = jwt.sign(
-      { userId: user._id, role: user.role },
-      process.env.JWT_SECRET || "secret",
-      { expiresIn: "8h" }
+      { id: user._id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "1d" }
     );
 
     res.status(200).json({
