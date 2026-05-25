@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { format } from "date-fns";
 import { Link } from "react-router-dom";
-import { Bell, CheckCheck, Trash2, FileDown } from "lucide-react";
+import { Bell, CheckCheck, Trash2, FileDown, Mail } from "lucide-react";
 import API from "../services/api";
 import { hasAuthToken } from "../utils/authToken";
+import { getStoredUser } from "../utils/authStorage";
 import {
   fetchPayrollsForPdf,
   downloadPayslipPdf,
@@ -32,6 +33,12 @@ const Notifications = () => {
   const [selectedPayrollId, setSelectedPayrollId] = useState("");
   const [pdfLoading, setPdfLoading] = useState("");
   const [pdfMessage, setPdfMessage] = useState("");
+  const [emailStatus, setEmailStatus] = useState(null);
+  const [emailActionMsg, setEmailActionMsg] = useState("");
+  const [emailLoading, setEmailLoading] = useState("");
+
+  const user = getStoredUser();
+  const canTestEmail = ["Admin", "HR", "Manager"].includes(user?.role);
 
   const fetchUnreadCount = useCallback(async () => {
     const res = await API.get("/notifications/unread-count");
@@ -89,6 +96,40 @@ const Notifications = () => {
   useEffect(() => {
     fetchNotifications();
   }, [fetchNotifications]);
+
+  useEffect(() => {
+    const loadEmailStatus = async () => {
+      if (!hasAuthToken()) {
+        setEmailStatus(null);
+        return;
+      }
+      try {
+        const res = await API.get("/notifications/email-status");
+        setEmailStatus(res.data?.data ?? null);
+      } catch {
+        setEmailStatus(null);
+      }
+    };
+    loadEmailStatus();
+  }, []);
+
+  const handleSendTestEmail = async () => {
+    setEmailLoading("test");
+    setEmailActionMsg("");
+    try {
+      const res = await API.post("/notifications/test-email");
+      setEmailActionMsg(res.data?.message || "Test email sent.");
+      await fetchNotifications();
+    } catch (err) {
+      setEmailActionMsg(
+        err.response?.data?.message ||
+          err.message ||
+          "Failed to send test email"
+      );
+    } finally {
+      setEmailLoading("");
+    }
+  };
 
   const handlePdfDownload = async (key, downloadFn) => {
     if (!hasAuthToken()) {
@@ -198,6 +239,76 @@ const Notifications = () => {
           <p className="text-sm text-gray-500">Unread notifications</p>
           <p className="text-3xl font-bold text-gray-800">{unreadCount}</p>
         </div>
+      </div>
+
+      <div className="bg-white rounded-2xl shadow p-6 mb-8">
+        <div className="flex items-center gap-3 mb-3">
+          <Mail className="text-indigo-600" size={22} />
+          <div>
+            <h2 className="text-xl font-semibold text-gray-800">
+              Email Notifications
+            </h2>
+            <p className="text-sm text-gray-500">
+              In-app alerts also send email to the user&apos;s account address
+              when SMTP is enabled.
+            </p>
+          </div>
+        </div>
+
+        {emailStatus && (
+          <ul className="text-sm text-gray-600 space-y-1 mb-4">
+            <li>
+              Email enabled:{" "}
+              <span className="font-medium">
+                {emailStatus.emailEnabled ? "Yes" : "No"}
+              </span>
+            </li>
+            <li>
+              SMTP configured:{" "}
+              <span className="font-medium">
+                {emailStatus.smtpConfigured ? "Yes" : "No"}
+              </span>
+            </li>
+            {emailStatus.verification?.message && (
+              <li>
+                Status:{" "}
+                <span
+                  className={
+                    emailStatus.verification.ok
+                      ? "text-green-600 font-medium"
+                      : "text-amber-700 font-medium"
+                  }
+                >
+                  {emailStatus.verification.message}
+                </span>
+              </li>
+            )}
+          </ul>
+        )}
+
+        {emailActionMsg && (
+          <p className="mb-3 text-sm rounded-xl px-4 py-3 bg-slate-50 border border-slate-200 text-slate-700">
+            {emailActionMsg}
+          </p>
+        )}
+
+        {canTestEmail && hasAuthToken() && (
+          <button
+            type="button"
+            onClick={handleSendTestEmail}
+            disabled={emailLoading === "test"}
+            className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white px-4 py-2 rounded-xl text-sm font-medium transition"
+          >
+            {emailLoading === "test" ? "Sending..." : "Send Test Email"}
+          </button>
+        )}
+
+        {!emailStatus?.emailEnabled && (
+          <p className="text-xs text-gray-500 mt-3">
+            Set EMAIL_ENABLED=true and SMTP variables in backend .env to
+            activate.
+          </p>
+        )}
       </div>
 
       <div className="bg-white rounded-2xl shadow p-6 mb-8">

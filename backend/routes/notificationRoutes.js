@@ -8,6 +8,8 @@ import {
   markAllAsRead,
   deleteNotification,
   createNotification,
+  getEmailStatus,
+  sendTestEmail,
 } from "../controllers/notificationController.js";
 
 const router = express.Router();
@@ -15,6 +17,12 @@ const router = express.Router();
 router.use(protect);
 
 router.get("/unread-count", getUnreadCount);
+router.get("/email-status", getEmailStatus);
+router.post(
+  "/test-email",
+  authorize("Admin", "HR", "Manager"),
+  sendTestEmail
+);
 router.patch("/read-all", markAllAsRead);
 
 router.get("/", getNotifications);

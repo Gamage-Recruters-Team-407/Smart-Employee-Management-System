@@ -1,5 +1,9 @@
 import Notification from "../models/Notification.js";
 import User from "../models/User.js";
+import {
+  sendNotificationEmail,
+  verifyEmailConnection,
+} from "../services/emailService.js";
 
 const NOTIFICATION_TYPES = [
   "attendance",
@@ -31,19 +35,101 @@ const validateCreatePayload = (body) => {
   return errors;
 };
 
-// Reusable by other modules (leave, payroll, etc.)
+// Reusable by other modules (leave, payroll, PDF reports, etc.)
 export const createNotificationForUser = async ({
   userId,
   title,
   message,
   type,
 }) => {
-  return Notification.create({
+  const notification = await Notification.create({
     userId,
     title,
     message,
     type,
   });
+
+  const user = await User.findById(userId).select("email name");
+  if (user?.email) {
+    await sendNotificationEmail({
+      to: user.email,
+      recipientName: user.name,
+      title,
+      message,
+      type,
+    });
+  }
+
+  return notification;
+};
+
+// @desc    Check email / SMTP configuration status
+// @route   GET /api/notifications/email-status
+export const getEmailStatus = async (req, res) => {
+  try {
+    const verification = await verifyEmailConnection();
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        emailEnabled: process.env.EMAIL_ENABLED === "true",
+        smtpConfigured: Boolean(
+          process.env.SMTP_HOST &&
+            process.env.SMTP_USER &&
+            process.env.SMTP_PASS
+        ),
+        verification,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to check email status",
+      error: error.message,
+    });
+  }
+};
+
+// @desc    Send a test notification email to the logged-in user
+// @route   POST /api/notifications/test-email
+export const sendTestEmail = async (req, res) => {
+  try {
+    const result = await sendNotificationEmail({
+      to: req.user.email,
+      recipientName: req.user.name,
+      title: "SEMS Email Test",
+      message:
+        "If you received this email, notification emails are configured correctly.",
+      type: "system",
+    });
+
+    if (!result.sent) {
+      return res.status(400).json({
+        success: false,
+        message: result.reason || result.error || "Email was not sent",
+        data: result,
+      });
+    }
+
+    await Notification.create({
+      userId: req.user._id,
+      title: "Test Email Sent",
+      message: "A test notification email was sent to your inbox.",
+      type: "system",
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Test email sent successfully",
+      data: result,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to send test email",
+      error: error.message,
+    });
+  }
 };
 
 // @desc    Get logged-in user's notifications (newest first)
