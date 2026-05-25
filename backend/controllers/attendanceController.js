@@ -1,6 +1,7 @@
 import Attendance from "../models/Attendance.js";
 import Employee from "../models/Employee.js";
 
+//This part is copied from tharuka's code
 // Record login time - start of session
 export const checkIn = async (req, res) => {
   try {
@@ -66,6 +67,8 @@ export const checkIn = async (req, res) => {
  * @desc Record employee Check-Out (Self Attendance)
  * @route POST /api/attendance/check-out
  */
+
+//this part is copied from tharuka's code
 export const checkOut = async (req, res) => {
   try {
     const { checkOutTime, date } = req.body;
@@ -118,40 +121,7 @@ export const checkOut = async (req, res) => {
  * @route GET /api/attendance/employee/:employeeId
  */
 
-// Record logout time - end of session
-export const recordLogout = async (req, res) => {
-  try {
-    const { attendanceId } = req.body;
 
-    // Find the attendance record and update logout time
-    const attendance = await Attendance.findByIdAndUpdate(
-      attendanceId,
-      {
-        logoutTime: new Date(),
-        activityStatus: false,
-      },
-      { new: true }
-    );
-
-    if (!attendance) {
-      return res.status(404).json({ message: "Attendance record not found" });
-    }
-
-    // Calculate working hours
-    const workingHours =
-      (attendance.logoutTime - attendance.loginTime) / (1000 * 60 * 60);
-
-    res.status(200).json({
-      message: "Logout recorded successfully",
-      attendance,
-      workingHours: workingHours.toFixed(2),
-    });
-  } catch (error) {
-    res.status(500).json({
-      message: error.message,
-    });
-  }
-};
 
 // Mark employee as inactive (auto logout)
 export const markInactive = async (req, res) => {
