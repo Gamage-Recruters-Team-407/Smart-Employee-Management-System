@@ -7,6 +7,7 @@ import reportRoutes from "./routes/reportRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import { seedDefaultUser } from "./utils/seedDefaultUser.js";
 import { seedSamplePayroll } from "./utils/seedSamplePayroll.js";
+import payrollRoutes from "./routes/payrollRoutes.js";
 
 dotenv.config();
 
@@ -36,6 +37,7 @@ app.get("/", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/notifications/reports", reportRoutes);
+app.use("/api/payroll", payrollRoutes);
 
 const PORT = process.env.PORT || 5000;
 

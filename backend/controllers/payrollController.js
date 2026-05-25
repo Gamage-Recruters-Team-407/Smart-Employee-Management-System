@@ -1,6 +1,8 @@
-﻿import Payroll from "../models/Payroll.js";
+import Payroll from "../models/Payroll.js";
 import Employee from "../models/Employee.js";
-import { generatePayslipPDF } from "../utils/pdfGenerator.js";
+import Notification from "../models/Notification.js";
+import User from "../models/User.js";
+import { generatePayslipPDF } from "../services/pdfService.js";
 import {
   sendPayrollGeneratedEmail,
   sendPayslipAvailableEmail,
@@ -314,5 +316,56 @@ export const getPayslip = async (req, res) => {
     generatePayslipPDF(payroll, res);
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+};
+// @desc    Generate and stream PDF payslip using employeeId, month and year
+// @route   GET /api/payroll/payslip
+// @access  Public
+export const getPayslipPDF = async (req, res) => {
+  try {
+    const { employeeId, month, year } = req.query;
+
+    if (!employeeId || !month) {
+      return res.status(400).json({ message: "employeeId and month are required." });
+    }
+
+    const monthStr = year ? `${month} ${year}` : month;
+    const payroll = await Payroll.findOne({ employee: employeeId, month: monthStr }).populate("employee");
+
+    if (!payroll) {
+      return res.status(404).json({ message: "Payroll data not found for the selected month." });
+    }
+
+    const pdfBuffer = await generatePayslipPDF({
+      employee: payroll.employee,
+      payroll: payroll,
+    });
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=payslip-${monthStr.replace(" ", "-")}-${employeeId}.pdf`
+    );
+
+    // Trigger Notification for admin
+    const adminUser = await User.findOne({ role: "Admin" });
+    if (adminUser) {
+      await Notification.create({
+        userId: adminUser._id,
+        title: "Payslip Generated",
+        message: `Payslip for ${monthStr} is ready for download`,
+        type: "payroll",
+      });
+    }
+
+    // Optional email
+    if (typeof sendPayslipAvailableEmailSafe === "function") {
+      await sendPayslipAvailableEmailSafe(payroll, payroll.employee, req);
+    }
+
+    return res.end(pdfBuffer);
+  } catch (error) {
+    console.error("Error generating payslip PDF:", error);
+    return res.status(500).json({ message: "Failed to generate PDF." });
   }
 };

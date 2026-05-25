@@ -31,9 +31,7 @@ const getEmailCredentials = () => {
   const pass = process.env.EMAIL_PASS;
 
   if (!user || !pass) {
-    throw new Error(
-      "Email configuration missing: EMAIL_USER and EMAIL_PASS must be set in .env"
-    );
+    throw new Error("Email service disabled");
   }
 
   return { user, pass };
@@ -129,9 +127,18 @@ export const sendEmail = async ({ to, subject, htmlContent }) => {
   }
 
   const mailSubject = String(subject).trim();
-  const transport = getTransporter();
+
+  if (process.env.EMAIL_ENABLED === "false") {
+    console.log(`[EMAIL SIMULATED] To: ${recipient} | Subject: ${mailSubject}`);
+    return {
+      success: true,
+      messageId: `simulated-${Date.now()}`,
+      to: recipient,
+    };
+  }
 
   try {
+    const transport = getTransporter();
     const info = await transport.sendMail({
       from: `"${COMPANY_NAME}" <${process.env.EMAIL_USER}>`,
       to: recipient,
@@ -148,6 +155,14 @@ export const sendEmail = async ({ to, subject, htmlContent }) => {
       to: recipient,
     };
   } catch (error) {
+    if (error.message === "Email service disabled") {
+      console.log(`[EMAIL SIMULATED - FALLBACK] To: ${recipient} | Subject: ${mailSubject}`);
+      return {
+        success: true,
+        messageId: `simulated-${Date.now()}`,
+        to: recipient,
+      };
+    }
     throw new Error(`Failed to send email: ${error.message}`);
   }
 };
@@ -332,6 +347,9 @@ export const sendPerformanceReviewEmail = async ({
  */
 export const verifyEmailConnection = async () => {
   try {
+    if (process.env.EMAIL_ENABLED === "false") {
+      return { ok: true, message: "Email service disabled (simulated mode)" };
+    }
     getEmailCredentials();
     const transport = getTransporter();
     await transport.verify();

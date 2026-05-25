@@ -70,11 +70,14 @@ export const fetchPayrollsForPdf = async () => {
   return response.data?.data ?? [];
 };
 
-export const downloadPayslipPdf = (payrollId) =>
-  downloadPdfFromApi(
-    `/notifications/reports/payslip/${payrollId}`,
+export const downloadPayslipPdf = (payroll) => {
+  const employeeId = payroll.employee?._id || payroll.employee;
+  const [month, year] = (payroll.month || "").split(" ");
+  return downloadPdfFromApi(
+    `/payroll/payslip?employeeId=${employeeId}&month=${month}&year=${year}`,
     "payslip.pdf"
   );
+};
 
 export const downloadDemoPayslipPdf = () =>
   downloadPdfFromApi(
