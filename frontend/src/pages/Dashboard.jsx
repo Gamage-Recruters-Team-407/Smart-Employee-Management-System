@@ -7,10 +7,29 @@ import { useAuth } from "../context/AuthContext";
 
 const Dashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
-    // Get user data from localStorage
-  const userData = JSON.parse(localStorage.getItem('user') || '{}');
-  const attendanceId = localStorage.getItem('attendanceId');
-
+  
+  // Get user data safely from local or session storage
+  let userData = {};
+  try {
+    let rawUser = localStorage.getItem('user');
+    if (rawUser === 'undefined') {
+      localStorage.removeItem('user');
+      rawUser = null;
+    }
+    if (!rawUser) {
+      rawUser = sessionStorage.getItem('user');
+      if (rawUser === 'undefined') {
+        sessionStorage.removeItem('user');
+        rawUser = null;
+      }
+    }
+    if (rawUser) {
+      userData = JSON.parse(rawUser);
+    }
+  } catch (e) {
+    console.error("Failed to parse user data:", e);
+  }
+  
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden">
       <Sidebar isOpen={sidebarOpen} toggle={() => setSidebarOpen(!sidebarOpen)} />
@@ -19,7 +38,6 @@ const Dashboard = () => {
         <Navbar 
           userName={userData.name} 
           userRole={userData.role} 
-          attendanceId={attendanceId}
         />
 
         <main className="flex-1 overflow-auto p-6">

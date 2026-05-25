@@ -62,35 +62,6 @@ export const recordLogout = async (req, res) => {
   }
 };
 
-// Mark employee as inactive (auto logout)
-export const markInactive = async (req, res) => {
-  try {
-    const { attendanceId } = req.body;
-
-    const attendance = await Attendance.findByIdAndUpdate(
-      attendanceId,
-      {
-        logoutTime: new Date(),
-        status: "Inactive",
-        activityStatus: false,
-      },
-      { new: true }
-    );
-
-    if (!attendance) {
-      return res.status(404).json({ message: "Attendance record not found" });
-    }
-
-    res.status(200).json({
-      message: "Employee marked as inactive (auto logout)",
-      attendance,
-    });
-  } catch (error) {
-    res.status(500).json({
-      message: error.message,
-    });
-  }
-};
 
 // Get today's attendance for an employee
 export const getTodayAttendance = async (req, res) => {
@@ -234,9 +205,25 @@ export const checkIn = async (req, res) => {
   try {
     const { date, checkInTime, location } = req.body;
 
-    const employeeDoc = await Employee.findOne({ email: req.user.email });
+    let employeeDoc = await Employee.findOne({ email: req.user.email });
     if (!employeeDoc) {
-      return res.status(404).json({ message: "Employee profile not found for this user." });
+      // Auto-create employee profile if not found
+      const employeeCount = await Employee.countDocuments();
+      const newEmpId = `emp-${String(employeeCount + 1).padStart(3, '0')}`;
+      
+      const names = (req.user.name || "Test User").split(' ');
+      const firstName = names[0];
+      const lastName = names.slice(1).join(' ') || 'User';
+
+      employeeDoc = new Employee({
+        employeeId: newEmpId,
+        firstName,
+        lastName,
+        email: req.user.email,
+        joiningDate: new Date(),
+        status: "Active",
+      });
+      await employeeDoc.save();
     }
 
     let attendance = await Attendance.findOne({
@@ -262,8 +249,9 @@ export const checkIn = async (req, res) => {
     }
 
     if (attendance) {
-      attendance.checkInTime = checkInTime || attendance.checkInTime;
-      attendance.loginTime = loginTime || attendance.loginTime;
+      // Keep the first check-in time of the day
+      attendance.checkInTime = attendance.checkInTime || checkInTime;
+      attendance.loginTime = attendance.loginTime || loginTime;
       attendance.location = location || attendance.location;
       attendance.activityStatus = true;
       await attendance.save();
@@ -294,9 +282,25 @@ export const checkOut = async (req, res) => {
   try {
     const { date, checkOutTime } = req.body;
 
-    const employeeDoc = await Employee.findOne({ email: req.user.email });
+    let employeeDoc = await Employee.findOne({ email: req.user.email });
     if (!employeeDoc) {
-      return res.status(404).json({ message: "Employee profile not found for this user." });
+      // Auto-create employee profile if not found
+      const employeeCount = await Employee.countDocuments();
+      const newEmpId = `emp-${String(employeeCount + 1).padStart(3, '0')}`;
+      
+      const names = (req.user.name || "Test User").split(' ');
+      const firstName = names[0];
+      const lastName = names.slice(1).join(' ') || 'User';
+
+      employeeDoc = new Employee({
+        employeeId: newEmpId,
+        firstName,
+        lastName,
+        email: req.user.email,
+        joiningDate: new Date(),
+        status: "Active",
+      });
+      await employeeDoc.save();
     }
 
     let attendance = await Attendance.findOne({
@@ -333,6 +337,36 @@ export const checkOut = async (req, res) => {
       message: "Check-out recorded successfully",
       attendance
     });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Get attendance history for the logged-in employee
+export const getMyAttendanceHistory = async (req, res) => {
+  try {
+    let employee = await Employee.findOne({ email: req.user.email });
+    if (!employee) {
+      // Auto-create employee profile if not found
+      const employeeCount = await Employee.countDocuments();
+      const newEmpId = `emp-${String(employeeCount + 1).padStart(3, '0')}`;
+      
+      const names = (req.user.name || "Test User").split(' ');
+      const firstName = names[0];
+      const lastName = names.slice(1).join(' ') || 'User';
+
+      employee = new Employee({
+        employeeId: newEmpId,
+        firstName,
+        lastName,
+        email: req.user.email,
+        joiningDate: new Date(),
+        status: "Active",
+      });
+      await employee.save();
+    }
+    const attendance = await Attendance.find({ employee: employee._id }).populate("employee").sort({ date: -1 });
+    res.status(200).json(attendance);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

@@ -1,9 +1,11 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Home, Users, Clock, Calendar, DollarSign, Award, Settings } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 const Sidebar = ({ isOpen, toggle }) => {
   const location = useLocation();
+  const { user } = useAuth();
 
   const navItems = [
     { icon: Home, label: 'Dashboard', path: '/' },

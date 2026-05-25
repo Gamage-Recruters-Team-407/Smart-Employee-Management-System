@@ -1,40 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Clock } from 'lucide-react';
-import SessionTracker from '../../utils/sessionTracker.js';
-import api from '../../services/api.js';
+import { LogOut } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
-const Navbar = ({ userName, userRole, attendanceId }) => {
+const Navbar = ({ userName, userRole }) => {
   const navigate = useNavigate();
   const { logout } = useAuth();
-  const [sessionStatus, setSessionStatus] = useState(null);
-  const [showWarning, setShowWarning] = useState(false);
-  
-  // Create session tracker instance (15 minutes timeout)
-  const sessionTracker = new SessionTracker(15 * 60 * 1000);
-
-  useEffect(() => {
-    // Initialize session tracking
-    sessionTracker.startTracking();
-
-    // Set what to do when user becomes inactive
-    sessionTracker.setOnInactiveCallback(() => {
-      setShowWarning(true);
-      handleAutoLogout();
-    });
-
-    // Update session status display every 30 seconds
-    const statusInterval = setInterval(() => {
-      setSessionStatus(sessionTracker.getStatus());
-    }, 30000);
-
-    // Cleanup when component unmounts
-    return () => {
-      clearInterval(statusInterval);
-      sessionTracker.stopTracking();
-    };
-  }, []);
 
   /**
    * Handle manual logout when user clicks logout button
@@ -57,30 +28,6 @@ const Navbar = ({ userName, userRole, attendanceId }) => {
   };
 
   /**
-   * Handle auto-logout due to inactivity
-   */
-  const handleAutoLogout = async () => {
-    try {
-      // Mark employee as inactive in backend
-      if (attendanceId) {
-        await api.post('/attendance/mark-inactive', {
-          attendanceId: attendanceId,
-        });
-      }
-
-      // Call Context logout to clear Auth state and sync with local storage
-      await logout();
-      localStorage.removeItem('attendanceId');
-
-      // Redirect to login page
-      navigate('/login');
-    } catch (error) {
-      console.error('Auto logout error:', error);
-      navigate('/login');
-    }
-  };
-
-  /**
    * Get user initials for avatar
    */
   const getInitials = (name) => {
@@ -98,21 +45,6 @@ const Navbar = ({ userName, userRole, attendanceId }) => {
       </div>
 
       <div className="flex items-center gap-6">
-        {/* Session Status Indicator */}
-        {sessionStatus && (
-          <div className="flex items-center gap-2 text-sm">
-            {/* Clock icon changes color based on status */}
-            <Clock 
-              size={18} 
-              className={sessionStatus.isActive ? 'text-green-600' : 'text-red-600'} 
-            />
-            {/* Status text */}
-            <span className={sessionStatus.isActive ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
-              {sessionStatus.isActive ? '🟢 Active' : '🔴 Inactive'}
-            </span>
-          </div>
-        )}
-
         {/* User Information */}
         <div className="flex items-center gap-3">
           <div className="text-right">
@@ -135,14 +67,6 @@ const Navbar = ({ userName, userRole, attendanceId }) => {
           <span className="hidden sm:inline">Logout</span>
         </button>
       </div>
-
-      {/* Inactivity Warning Popup */}
-      {showWarning && (
-        <div className="fixed top-4 right-4 bg-red-100 border-2 border-red-400 text-red-700 px-4 py-3 rounded-lg shadow-lg z-50">
-          <p className="font-bold text-lg">⚠️ Session Expired</p>
-          <p className="text-sm">You were logged out due to inactivity (15 minutes)</p>
-        </div>
-      )}
     </header>
   );
 };

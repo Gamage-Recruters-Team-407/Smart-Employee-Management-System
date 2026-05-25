@@ -76,3 +76,10 @@ export const loginUser = async (req, res) => {
     res.status(500).json({ message: 'Server Error', error: error.message });
   }
 };
+
+// @desc    Logout user / clear token (stateless dummy response)
+// @route   POST /api/auth/logout
+// @access  Public
+export const logoutUser = async (req, res) => {
+  res.status(200).json({ message: 'Logged out successfully' });
+};

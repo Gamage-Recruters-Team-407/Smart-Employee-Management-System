@@ -65,3 +65,35 @@ export const createEmployee = async (req, res) => {
     res.status(500).json({ message: "Error creating employee", error: error.message });
   }
 };
+
+/**
+ * @desc Get currently logged in employee profile
+ * @route GET /api/employees/me
+ */
+export const getMyProfile = async (req, res) => {
+  try {
+    let employee = await Employee.findOne({ email: req.user.email });
+    if (!employee) {
+      // Auto-create profile if missing
+      const employeeCount = await Employee.countDocuments();
+      const newEmpId = `emp-${String(employeeCount + 1).padStart(3, '0')}`;
+      
+      const names = (req.user.name || "Test User").split(' ');
+      const firstName = names[0];
+      const lastName = names.slice(1).join(' ') || 'User';
+
+      employee = new Employee({
+        employeeId: newEmpId,
+        firstName,
+        lastName,
+        email: req.user.email,
+        joiningDate: new Date(),
+        status: "Active",
+      });
+      await employee.save();
+    }
+    res.status(200).json(employee);
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching profile", error: error.message });
+  }
+};

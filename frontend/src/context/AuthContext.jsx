@@ -19,8 +19,10 @@ export const AuthProvider = ({ children }) => {
   const clearSession = useCallback(() => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+    localStorage.removeItem("attendanceId");
     sessionStorage.removeItem("token");
     sessionStorage.removeItem("user");
+    sessionStorage.removeItem("attendanceId");
 
     setToken(null);
     setUser(null);
@@ -28,13 +30,31 @@ export const AuthProvider = ({ children }) => {
 
   // Restore session on refresh
   useEffect(() => {
-    const storedToken =
-      localStorage.getItem("token") ||
-      sessionStorage.getItem("token");
+    let storedToken = localStorage.getItem("token");
+    let storedUser = localStorage.getItem("user");
 
-    const storedUser =
-      localStorage.getItem("user") ||
-      sessionStorage.getItem("user");
+    // Clean up string "undefined" if present in localStorage
+    if (storedToken === "undefined") {
+      localStorage.removeItem("token");
+      storedToken = null;
+    }
+    if (storedUser === "undefined") {
+      localStorage.removeItem("user");
+      storedUser = null;
+    }
+
+    // Fallback to sessionStorage if not in localStorage
+    if (!storedToken || !storedUser) {
+      const sessToken = sessionStorage.getItem("token");
+      const sessUser = sessionStorage.getItem("user");
+
+      if (sessToken && sessToken !== "undefined") {
+        storedToken = sessToken;
+      }
+      if (sessUser && sessUser !== "undefined") {
+        storedUser = sessUser;
+      }
+    }
 
     if (storedToken && storedUser) {
       try {
@@ -81,24 +101,34 @@ export const AuthProvider = ({ children }) => {
         ? localStorage
         : sessionStorage;
 
+      const userObj = {
+        _id: data._id,
+        name: data.name,
+        email: data.email,
+        role: data.role
+      };
+
       storage.setItem("token", data.token);
       storage.setItem(
         "user",
-        JSON.stringify(data.user)
+        JSON.stringify(userObj)
       );
 
       setToken(data.token);
-      setUser(data.user);
+      setUser(userObj);
 
-      // Record check-in automatically for Employee role using local browser time
-      if (data.user && data.user.role === "Employee") {
+      // Record check-in automatically using local browser time
+      if (userObj) {
         try {
           const { date, time } = getBrowserDateTime();
-          await authService.checkIn({
+          const checkInRes = await authService.checkIn({
             date,
             checkInTime: time,
             location: "Office"
           });
+          if (checkInRes && checkInRes.attendance) {
+            storage.setItem("attendanceId", checkInRes.attendance._id);
+          }
         } catch (checkInErr) {
           console.error("Auto check-in failed during login:", checkInErr);
         }
@@ -130,6 +160,13 @@ export const AuthProvider = ({ children }) => {
         password,
       });
 
+      const userObj = {
+        _id: data._id,
+        name: data.name,
+        email: data.email,
+        role: data.role
+      };
+
       // Auto login after signup
       localStorage.setItem(
         "token",
@@ -138,21 +175,24 @@ export const AuthProvider = ({ children }) => {
 
       localStorage.setItem(
         "user",
-        JSON.stringify(data.user)
+        JSON.stringify(userObj)
       );
 
       setToken(data.token);
-      setUser(data.user);
+      setUser(userObj);
 
-      // Record check-in automatically for Employee role using local browser time
-      if (data.user && data.user.role === "Employee") {
+      // Record check-in automatically using local browser time
+      if (userObj) {
         try {
           const { date, time } = getBrowserDateTime();
-          await authService.checkIn({
+          const checkInRes = await authService.checkIn({
             date,
             checkInTime: time,
             location: "Office"
           });
+          if (checkInRes && checkInRes.attendance) {
+            localStorage.setItem("attendanceId", checkInRes.attendance._id);
+          }
         } catch (checkInErr) {
           console.error("Auto check-in failed during signup:", checkInErr);
         }
@@ -172,8 +212,8 @@ export const AuthProvider = ({ children }) => {
   // Logout
   const logout = useCallback(async () => {
     try {
-      // Record check-out automatically for Employee role using local browser time
-      if (user && user.role === "Employee") {
+      // Record check-out automatically using local browser time
+      if (user) {
         try {
           const { date, time } = getBrowserDateTime();
           await authService.checkOut({
