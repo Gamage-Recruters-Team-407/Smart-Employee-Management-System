@@ -9,11 +9,13 @@ const userSchema=new mongoose.Schema(
         email:{
             type:String,
             required:true,
-            unique:true
+            unique:true,
+            lowercase: true
         },
         password:{
             type:String,
             required:true,
+            minlength: 6
         },
         role:{
             type:String,
@@ -23,9 +25,12 @@ const userSchema=new mongoose.Schema(
         resetPasswordOTP: String, 
         resetPasswordExpire: Date,
     },
-    {
-        timestamps:true,
-    }
+  { 
+    timestamps: true 
+  }
 );
 
-export default mongoose.model("User",userSchema)
+// Add index for automatic cleanup of expired reset tokens (optional)
+userSchema.index({ resetPasswordExpire: 1 }, { expireAfterSeconds: 0 });
+
+export default mongoose.model("User", userSchema);
