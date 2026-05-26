@@ -180,9 +180,6 @@ const Performance = () => {
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Performance Management</h1>
-          <p className="text-gray-600 mt-1">
-            Overall Score = (Attendance Score + Task Completion Rate + Quality Score) / 3
-          </p>
         </div>
         <span className="inline-flex items-center px-3 py-1 rounded-full bg-indigo-100 text-indigo-700 text-sm font-medium">
           Current Role: {currentRole}
