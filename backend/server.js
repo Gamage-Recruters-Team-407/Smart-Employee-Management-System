@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import cors from "cors";
 import mongoose from "mongoose";
 import authRoutes from "./routes/authRoutes.js";
+import payrollRoutes from "./routes/payrollRoutes.js";
 
 dotenv.config();
 
@@ -26,6 +27,7 @@ mongoose
 // ── Routes ────────────────────────────────────────────────────────────────────
 app.get("/", (req, res) => res.send("SEMS Backend Running"));
 app.use("/api/auth", authRoutes);
+app.use("/api/payroll", payrollRoutes);
 
 // ── Start ─────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;

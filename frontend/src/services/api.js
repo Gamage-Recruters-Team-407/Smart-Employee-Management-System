@@ -42,4 +42,16 @@ export const authAPI = {
   getMe: () => api.get('/auth/me'),
 };
 
+// Payroll endpoints
+export const payrollAPI = {
+  getAll: (params) => api.get('/payroll', { params }),
+  getById: (id) => api.get(`/payroll/${id}`),
+  create: (data) => api.post('/payroll', data),
+  update: (id, data) => api.put(`/payroll/${id}`, data),
+  delete: (id) => api.delete(`/payroll/${id}`),
+  generateBulk: (data) => api.post('/payroll/bulk', data),
+  getSummary: (month) => api.get(`/payroll/summary/${month}`),
+  getEmployees: () => api.get('/payroll/employees'),
+};
+
 export default api;
