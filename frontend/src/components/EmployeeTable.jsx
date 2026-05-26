@@ -1,6 +1,7 @@
+import { useState } from "react";
 import {
   UserCheck, UserX, Pencil, Trash2, Paperclip,
-  ChevronUp, ChevronDown, ChevronsUpDown,
+  ChevronUp, ChevronDown, ChevronsUpDown, Clock, AlertTriangle, Loader2,
 } from "lucide-react";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -27,14 +28,17 @@ const AVATAR_COLORS = [
   "bg-orange-500", "bg-teal-500", "bg-cyan-500", "bg-sky-500",
 ];
 
-const Avatar = ({ name, index, profilePhoto }) => {
+// Fix #9: derive color from stable emp._id instead of mutable row index
+const Avatar = ({ name, empId, profilePhoto }) => {
   const initials = name
     .split(" ")
     .map((n) => n[0])
     .slice(0, 2)
     .join("")
     .toUpperCase();
-  const color = AVATAR_COLORS[index % AVATAR_COLORS.length];
+  // Last char of MongoDB _id gives a stable, well-distributed color per employee
+  const colorIndex = empId ? empId.charCodeAt(empId.length - 1) % AVATAR_COLORS.length : 0;
+  const color = AVATAR_COLORS[colorIndex];
 
   if (profilePhoto) {
     const base = import.meta.env.VITE_API_URL?.replace("/api", "") || "http://localhost:5000";
@@ -105,6 +109,7 @@ const COLUMNS = [
  *   onDelete         fn(employee)
  *   onDocuments      fn(employee)
  *   onViewProfile    fn(employee)
+ *   onInlineUpdate   fn(empId, field, value) — optional, for inline quick-edit
  */
 const EmployeeTable = ({
   employees,
@@ -118,9 +123,28 @@ const EmployeeTable = ({
   onDelete,
   onDocuments,
   onViewProfile,
+  onInlineUpdate,
 }) => {
   const allSelected = employees.length > 0 && employees.every((e) => selectedIds.has(e._id));
   const someSelected = employees.some((e) => selectedIds.has(e._id));
+
+  // Phase 5: inline edit state — { empId, field } or null
+  const [editingCell, setEditingCell] = useState(null);
+  const [inlineSaving, setInlineSaving] = useState(null); // empId+field key
+
+  const DEPARTMENTS = [
+    "Engineering", "HR", "Finance", "Marketing", "Sales",
+    "Operations", "IT", "Design", "Legal", "Support",
+  ];
+  const STATUSES = ["Active", "Inactive", "On Leave", "Terminated"];
+
+  const handleInlineCommit = async (empId, field, value) => {
+    const key = `${empId}-${field}`;
+    setInlineSaving(key);
+    if (onInlineUpdate) await onInlineUpdate(empId, field, value);
+    setEditingCell(null);
+    setInlineSaving(null);
+  };
 
   const formatDate = (d) => {
     if (!d) return "—";
@@ -163,7 +187,7 @@ const EmployeeTable = ({
 
         {/* ── Rows ───────────────────────────────────────────────────────── */}
         <div className="divide-y divide-gray-50">
-          {employees.map((emp, idx) => {
+          {employees.map((emp) => {
             const isSelected = selectedIds.has(emp._id);
             const fullName = `${emp.firstName} ${emp.lastName}`;
 
@@ -194,7 +218,8 @@ const EmployeeTable = ({
                   onClick={() => onViewProfile(emp)}
                   className="flex items-center gap-3 min-w-0 text-left group/name"
                 >
-                  <Avatar name={fullName} index={idx} profilePhoto={emp.profilePhoto} />
+                  {/* Fix #9: pass empId (stable) instead of mutable row index */}
+                  <Avatar name={fullName} empId={emp._id} profilePhoto={emp.profilePhoto} />
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-gray-900 truncate group-hover/name:text-indigo-600 transition">
                       {fullName}
@@ -206,16 +231,53 @@ const EmployeeTable = ({
                 {/* Email */}
                 <span className="text-sm text-gray-600 truncate">{emp.email}</span>
 
-                {/* Department */}
-                <span className="text-sm text-gray-700 truncate">{emp.department || "—"}</span>
+                {/* Department — inline editable */}
+                {editingCell?.empId === emp._id && editingCell?.field === "department" ? (
+                  <select
+                    autoFocus
+                    defaultValue={emp.department || ""}
+                    onChange={(e) => handleInlineCommit(emp._id, "department", e.target.value)}
+                    onBlur={() => setEditingCell(null)}
+                    onKeyDown={(e) => e.key === "Escape" && setEditingCell(null)}
+                    className="text-sm border border-indigo-300 rounded-lg px-2 py-1 bg-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                  >
+                    <option value="">—</option>
+                    {DEPARTMENTS.map((d) => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                ) : (
+                  <button
+                    onClick={() => onInlineUpdate && setEditingCell({ empId: emp._id, field: "department" })}
+                    className={`text-sm text-gray-700 truncate text-left ${onInlineUpdate ? "hover:text-indigo-600 hover:underline cursor-pointer" : ""}`}
+                    title={onInlineUpdate ? "Click to edit" : undefined}
+                  >
+                    {inlineSaving === `${emp._id}-department` ? <Loader2 size={14} className="animate-spin text-indigo-500" /> : (emp.department || "—")}
+                  </button>
+                )}
 
                 {/* Joining Date */}
                 <span className="text-xs text-gray-500">{formatDate(emp.joiningDate)}</span>
 
-                {/* Status */}
-                <div className="flex justify-start">
-                  <StatusBadge status={emp.status} />
-                </div>
+                {/* Status — inline editable */}
+                {editingCell?.empId === emp._id && editingCell?.field === "status" ? (
+                  <select
+                    autoFocus
+                    defaultValue={emp.status}
+                    onChange={(e) => handleInlineCommit(emp._id, "status", e.target.value)}
+                    onBlur={() => setEditingCell(null)}
+                    onKeyDown={(e) => e.key === "Escape" && setEditingCell(null)}
+                    className="text-sm border border-indigo-300 rounded-lg px-2 py-1 bg-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                  >
+                    {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                ) : (
+                  <button
+                    onClick={() => onInlineUpdate && setEditingCell({ empId: emp._id, field: "status" })}
+                    className="flex justify-start"
+                    title={onInlineUpdate ? "Click to edit" : undefined}
+                  >
+                    {inlineSaving === `${emp._id}-status` ? <Loader2 size={14} className="animate-spin text-indigo-500" /> : <StatusBadge status={emp.status} />}
+                  </button>
+                )}
 
                 {/* Actions */}
                 <div className="flex items-center justify-start gap-1.5">

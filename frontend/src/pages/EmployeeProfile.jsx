@@ -4,11 +4,12 @@ import {
   ArrowLeft, Pencil, Mail, Phone, Building2, Briefcase,
   DollarSign, Calendar, MapPin, UserCheck, UserX,
   FileText, Image, File, Download, Loader2, AlertCircle,
-  Paperclip,
+  Paperclip, X, Clock,
 } from "lucide-react";
 import { fetchEmployeeById } from "../services/employeeService";
 import AddEmployeeModal from "../components/AddEmployeeModal";
 import DocumentModal from "../components/DocumentModal";
+import ChangeHistory from "../components/ChangeHistory";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const BASE_URL = import.meta.env.VITE_API_URL?.replace("/api", "") || "http://localhost:5000";
@@ -96,6 +97,9 @@ const EmployeeProfile = () => {
 
   useEffect(() => { load(); }, [id]);
 
+  // Fix #19: close the edit modal immediately, then reload so the profile reflects changes.
+  // onSuccess is called by AddEmployeeModal with the saved employee — setShowEdit(false)
+  // must also be called here (the modal calls onSuccess but not onClose).
   const handleSaved = async () => {
     setShowEdit(false);
     await load();
@@ -134,19 +138,27 @@ const EmployeeProfile = () => {
 
   const fullName   = `${employee.firstName} ${employee.lastName}`;
   const initials   = fullName.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();
-  const colorClass = AVATAR_COLORS[employee.employeeId?.charCodeAt(4) % AVATAR_COLORS.length] || "bg-indigo-500";
+  // Fix #10: hash the FULL employeeId string so every employee gets a distinct color.
+  // charCodeAt(4) always read the '-' in EMP-XXX (ASCII 45) giving the same index for all.
+  const idHash = employee.employeeId
+    ? [...employee.employeeId].reduce((acc, ch) => acc + ch.charCodeAt(0), 0)
+    : 0;
+  const colorClass = AVATAR_COLORS[idHash % AVATAR_COLORS.length];
   const docs       = employee.documents || [];
 
   return (
     <div className="flex flex-col gap-6">
 
-      {/* Toast */}
+      {/* Toast — Fix #20: now has a close button consistent with Employees page */}
       {toast && (
         <div className="fixed bottom-6 right-6 z-[60] flex items-center gap-3 px-5 py-3.5 bg-gray-900 text-white text-sm font-medium rounded-xl shadow-2xl animate-fade-in">
           <svg className="w-4 h-4 text-emerald-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
           </svg>
           {toast}
+          <button onClick={() => setToast("")} className="ml-2 text-gray-400 hover:text-white" aria-label="Close notification">
+            <X size={14} />
+          </button>
         </div>
       )}
 
@@ -287,6 +299,11 @@ const EmployeeProfile = () => {
             ))}
           </div>
         )}
+      </SectionCard>
+
+      {/* ── Change History (Phase 7) ────────────────────────────────────── */}
+      <SectionCard title="Change History" icon={<Clock size={18} className="text-indigo-500" />}>
+        <ChangeHistory employeeId={id} />
       </SectionCard>
 
       {/* ── Modals ───────────────────────────────────────────────────────── */}

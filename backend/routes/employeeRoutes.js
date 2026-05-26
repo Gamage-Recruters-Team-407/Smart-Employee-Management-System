@@ -1,4 +1,4 @@
-import express from "express";
+import { Router } from "express";
 import {
   createEmployee,
   getEmployees,
@@ -7,40 +7,34 @@ import {
   deleteEmployee,
   uploadProfilePhoto,
   bulkDeleteEmployees,
+  getEmployeeStats,
+  getEmployeeStatsDetailed,
+  importEmployees,
+  getEmployeeHistory,
 } from "../controllers/employeeController.js";
+import { imageUpload } from "../config/multer.js";
 import mockAuth from "../middleware/authMiddleware.js";
-import upload, { imageUpload } from "../config/multer.js";
 
-const router = express.Router();
+const router = Router();
 
-// Apply mock auth middleware to all employee routes
+// Apply mock auth to all routes
 router.use(mockAuth);
 
-// POST   /api/employees        → Create a new employee
-router.post("/", createEmployee);
-
-// GET    /api/employees        → List all employees
-//   Query params:
-//     ?search=value       → case-insensitive search across firstName, lastName, email
-//     ?department=value   → filter by exact department (case-insensitive)
-//     ?designation=value  → filter by exact designation (case-insensitive)
-//     ?status=value       → filter by status (Active, Inactive, On Leave, Terminated)
-router.get("/", getEmployees);
-
-// DELETE /api/employees/bulk  → Permanently delete multiple employees
-// NOTE: Must be declared BEFORE /:id so Express does not treat "bulk" as an ID param
+// ── Static / aggregate routes (MUST come before /:id) ─────────────────────────
+router.get("/stats", getEmployeeStats);
+router.get("/stats/detailed", getEmployeeStatsDetailed);
+router.post("/import", importEmployees);
 router.delete("/bulk", bulkDeleteEmployees);
 
-// GET    /api/employees/:id    → Get a single employee by MongoDB _id
+// ── CRUD ──────────────────────────────────────────────────────────────────────
+router.post("/", createEmployee);
+router.get("/", getEmployees);
+
+// ── Single-employee routes ────────────────────────────────────────────────────
 router.get("/:id", getEmployeeById);
-
-// PUT    /api/employees/:id    → Update an employee (employeeId field is immutable)
 router.put("/:id", updateEmployee);
-
-// DELETE /api/employees/:id   → Permanently delete an employee
 router.delete("/:id", deleteEmployee);
-
-// POST   /api/employees/:id/photo → Upload / replace profile photo
 router.post("/:id/photo", imageUpload.single("photo"), uploadProfilePhoto);
+router.get("/:id/history", getEmployeeHistory);
 
 export default router;

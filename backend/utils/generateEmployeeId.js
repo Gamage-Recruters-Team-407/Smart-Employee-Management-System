@@ -1,36 +1,52 @@
+import Counter from "../models/Counter.js";
 import Employee from "../models/Employee.js";
 
 /**
  * Generates the next sequential employee ID in the format EMP-001, EMP-002, etc.
- * Queries the last created employee, extracts the numeric part, increments it,
- * then pads to 3 digits.
+ *
+ * Uses an atomic MongoDB findOneAndUpdate ($inc) on a Counter document so that
+ * concurrent requests can never receive the same ID (fix for race condition #1).
+ *
+ * On very first call the counter is bootstrapped from the highest existing employee
+ * number so that pre-existing records are not overwritten.
  *
  * @returns {Promise<string>} The next employee ID string (e.g. "EMP-005")
  */
 const generateEmployeeId = async () => {
-  // Find the most recently created employee that has an employeeId
-  const lastEmployee = await Employee.findOne({ employeeId: { $exists: true, $ne: null } })
-    .sort({ createdAt: -1 })
-    .select("employeeId");
+  // Bootstrap: if the counter doesn't exist yet, seed it from the DB so we
+  // don't collide with IDs that were created before this counter existed.
+  const existing = await Counter.findById("employeeId");
+  if (!existing) {
+    // Find the highest numeric suffix among all existing employee IDs
+    const lastEmployee = await Employee.findOne({ employeeId: { $exists: true, $ne: null } })
+      .sort({ createdAt: -1 })
+      .select("employeeId");
 
-  if (!lastEmployee || !lastEmployee.employeeId) {
-    // No employees yet — start from EMP-001
-    return "EMP-001";
+    let seed = 0;
+    if (lastEmployee?.employeeId) {
+      const parts = lastEmployee.employeeId.split("-");
+      const n = parseInt(parts[1], 10);
+      if (!isNaN(n)) seed = n;
+    }
+
+    // Create the counter at the seeded value (upsert = safe if two requests race here)
+    await Counter.findByIdAndUpdate(
+      "employeeId",
+      { $setOnInsert: { seq: seed } },
+      { upsert: true, new: true }
+    );
   }
 
-  // Extract the numeric portion from "EMP-XXX"
-  const parts = lastEmployee.employeeId.split("-");
-  const lastNumber = parseInt(parts[1], 10);
+  // Atomically increment and return the new sequence number
+  const counter = await Counter.findByIdAndUpdate(
+    "employeeId",
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true }
+  );
 
-  if (isNaN(lastNumber)) {
-    return "EMP-001";
-  }
-
-  // Increment and pad with leading zeros to at least 3 digits
-  const nextNumber = lastNumber + 1;
-  const padded = String(nextNumber).padStart(3, "0");
-
+  const padded = String(counter.seq).padStart(3, "0");
   return `EMP-${padded}`;
 };
 
 export default generateEmployeeId;
+

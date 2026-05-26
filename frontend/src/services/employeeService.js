@@ -6,11 +6,25 @@ import api from "./api";
  * Consumed by React components/pages via hooks.
  */
 
+// ─── List / Search / Filter / Paginate ────────────────────────────────────────
+
 /**
- * Fetch all employees.
- * Supports optional query parameters for search and filtering:
- *   @param {Object} params  e.g. { search: "john", department: "IT", designation: "Manager" }
- * @returns {Promise<{ success, count, data }>}
+ * Fetch employees with server-side pagination, sorting, and filtering.
+ *
+ * @param {Object} params  All optional:
+ *   - search        : string   (regex across firstName, lastName, email, employeeId)
+ *   - department    : string   (comma-separated for multi-select, e.g. "IT,HR")
+ *   - designation   : string   (comma-separated for multi-select)
+ *   - status        : string   (Active | Inactive | On Leave | Terminated)
+ *   - salaryMin     : number
+ *   - salaryMax     : number
+ *   - joiningFrom   : string   (ISO date)
+ *   - joiningTo     : string   (ISO date)
+ *   - page          : number   (default 1)
+ *   - limit         : number   (default 10)
+ *   - sortField     : string   (default "createdAt")
+ *   - sortDir       : string   ("asc" | "desc", default "desc")
+ * @returns {Promise<{ success, data, count, pagination: { page, limit, totalCount, totalPages } }>}
  */
 export const fetchEmployees = (params = {}) =>
   api.get("/employees", { params }).then((res) => res.data);
@@ -22,6 +36,25 @@ export const fetchEmployees = (params = {}) =>
  */
 export const fetchEmployeeById = (id) =>
   api.get(`/employees/${id}`).then((res) => res.data);
+
+// ─── Stats ────────────────────────────────────────────────────────────────────
+
+/**
+ * Fetch lightweight employee status counts for stat cards.
+ * @returns {Promise<{ success, data: { total, active, inactive, onLeave, terminated } }>}
+ */
+export const fetchEmployeeStats = () =>
+  api.get("/employees/stats").then((res) => res.data);
+
+/**
+ * Fetch detailed analytics: department counts, status breakdown,
+ * salary distribution histogram, and salary min/avg/max.
+ * @returns {Promise<{ success, data: { departmentCounts, statusCounts, salaryDistribution, salaryStats } }>}
+ */
+export const fetchEmployeeStatsDetailed = () =>
+  api.get("/employees/stats/detailed").then((res) => res.data);
+
+// ─── CRUD ─────────────────────────────────────────────────────────────────────
 
 /**
  * Create a new employee.
@@ -57,6 +90,18 @@ export const deleteEmployee = (id) =>
 export const bulkDeleteEmployees = (ids) =>
   api.delete("/employees/bulk", { data: { ids } }).then((res) => res.data);
 
+// ─── CSV Import ───────────────────────────────────────────────────────────────
+
+/**
+ * Bulk-import employees from parsed CSV data.
+ * @param {Object[]} employees  Array of employee objects (already column-mapped)
+ * @returns {Promise<{ success, data: { created, skipped, errors } }>}
+ */
+export const importEmployees = (employees) =>
+  api.post("/employees/import", { employees }).then((res) => res.data);
+
+// ─── Documents ────────────────────────────────────────────────────────────────
+
 /**
  * Upload a document (PDF / JPG / PNG, max 5 MB) for an employee.
  * @param {string} employeeId  MongoDB _id of the employee
@@ -89,6 +134,8 @@ export const deleteDocument = (employeeId, docId) =>
     .delete(`/employees/${employeeId}/documents/${docId}`)
     .then((res) => res.data);
 
+// ─── Profile Photo ────────────────────────────────────────────────────────────
+
 /**
  * Upload or replace an employee's profile photo.
  * @param {string} employeeId  MongoDB _id of the employee
@@ -104,3 +151,16 @@ export const uploadProfilePhoto = (employeeId, file) => {
     })
     .then((res) => res.data);
 };
+
+// ─── Audit / Change History ───────────────────────────────────────────────────
+
+/**
+ * Fetch the change history (audit log) for a specific employee.
+ * @param {string} employeeId  MongoDB _id of the employee
+ * @param {Object} params      Optional: { page: 1, limit: 20 }
+ * @returns {Promise<{ success, data: [...logs], pagination }>}
+ */
+export const fetchEmployeeHistory = (employeeId, params = {}) =>
+  api
+    .get(`/employees/${employeeId}/history`, { params })
+    .then((res) => res.data);
