@@ -9,8 +9,8 @@ import Payslip from '../components/common/Payslip';
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const fmt = (val) =>
   new Intl.NumberFormat('en-IN', {
-    style: 'currency', currency: 'INR', maximumFractionDigits: 2,
-  }).format(val || 0);
+    style: 'currency', currency: 'LKR', maximumFractionDigits: 2,
+  }).format(val || 0).replace('LKR', 'Rs.');
 
 const currentMonthStr = () => {
   const now = new Date();
@@ -356,7 +356,7 @@ const Payroll = () => {
                       <td className="px-5 py-4">
                         <div className="font-medium text-gray-800 text-sm">{fullName || '—'}</div>
                         <div className="text-xs text-gray-400 font-mono mt-0.5">{emp.employeeId || ''}</div>
-                      </td>
+                       </td>
                       <td className="px-5 py-4 text-sm text-gray-600">{emp.department || '—'}</td>
                       <td className="px-5 py-4 text-sm text-right text-gray-700">{fmt(p.basicSalary)}</td>
                       <td className="px-5 py-4 text-sm text-right text-emerald-600">{fmt(p.allowances)}</td>
@@ -438,7 +438,7 @@ const Payroll = () => {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className={labelCls}>Allowances (₹)</label>
+                <label className={labelCls}>Allowances (Rs)</label>
                 <input
                   type="number" min="0" step="0.01" placeholder="0"
                   value={createForm.allowances}
@@ -447,7 +447,7 @@ const Payroll = () => {
                 />
               </div>
               <div>
-                <label className={labelCls}>Deductions (₹)</label>
+                <label className={labelCls}>Deductions (Rs)</label>
                 <input
                   type="number" min="0" step="0.01" placeholder="0"
                   value={createForm.deductions}
@@ -456,7 +456,7 @@ const Payroll = () => {
                 />
               </div>
               <div>
-                <label className={labelCls}>Loan Deduction (₹)</label>
+                <label className={labelCls}>Loan Deduction (Rs)</label>
                 <input
                   type="number" min="0" step="0.01" placeholder="0"
                   value={createForm.loans}
@@ -551,7 +551,7 @@ const Payroll = () => {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className={labelCls}>Allowances (₹)</label>
+                <label className={labelCls}>Allowances (Rs)</label>
                 <input
                   type="number" min="0" step="0.01"
                   value={editForm.allowances}
@@ -560,7 +560,7 @@ const Payroll = () => {
                 />
               </div>
               <div>
-                <label className={labelCls}>Deductions (₹)</label>
+                <label className={labelCls}>Deductions (Rs)</label>
                 <input
                   type="number" min="0" step="0.01"
                   value={editForm.deductions}
@@ -569,7 +569,7 @@ const Payroll = () => {
                 />
               </div>
               <div>
-                <label className={labelCls}>Loan Deduction (₹)</label>
+                <label className={labelCls}>Loan Deduction (Rs)</label>
                 <input
                   type="number" min="0" step="0.01"
                   value={editForm.loans}
