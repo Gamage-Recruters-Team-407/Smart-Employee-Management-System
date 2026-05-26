@@ -60,6 +60,30 @@ export const authService = {
     const apiBase = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
     window.location.href = `${apiBase}/auth/google`;
   },
+
+  /**
+   * POST /api/auth/logout - invalidate token and check out employee
+   */
+  logout: async () => {
+    const { data } = await API.post("/auth/logout");
+    return data;
+  },
+
+  /**
+   * POST /api/attendance/check-in - record check-in
+   */
+  checkIn: async (payload) => {
+    const { data } = await API.post("/attendance/check-in", payload);
+    return data;
+  },
+
+  /**
+   * POST /api/attendance/check-out - record check-out
+   */
+  checkOut: async (payload) => {
+    const { data } = await API.post("/attendance/check-out", payload);
+    return data;
+  },
 };
 
 export default API;
