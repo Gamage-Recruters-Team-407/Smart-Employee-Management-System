@@ -1,36 +1,45 @@
+// services/api.js
 import axios from 'axios';
 
-const API = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
-  headers: { 'Content-Type': 'application/json' },
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
+const api = axios.create({
+  baseURL: API_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
 });
 
-// Attach JWT to every request automatically
-API.interceptors.request.use((config) => {
-  const token =
-    localStorage.getItem("token") || sessionStorage.getItem("token");
-  if (token && token !== "undefined") {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-// Global 401 handler - clear stale tokens silently to keep state in sync
-API.interceptors.response.use(
-  (res) => res,
-  (err) => {
-    if (err.response?.status === 401) {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      localStorage.removeItem("attendanceId");
-      sessionStorage.removeItem("token");
-      sessionStorage.removeItem("user");
-      sessionStorage.removeItem("attendanceId");
-      // Redirect to login if user is unauthorized
-      window.location.href = '/login';
+// Add token to requests if it exists
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
-    return Promise.reject(err);
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
   }
 );
 
-export default API;
+// Auth endpoints
+export const authAPI = {
+  login: (data) => api.post('/auth/login', data),
+  register: (data) => api.post('/auth/register', data),
+  
+  // Forgot Password with Code
+  forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
+  verifyResetCode: (email, code) => api.post('/auth/verify-reset-code', { email, code }),
+  resetPasswordWithCode: (email, code, password) => api.post('/auth/reset-password-with-code', { email, code, password }),
+  
+  // Traditional token-based reset (kept for compatibility)
+  resetPassword: (token, password) => api.put(`/auth/reset-password/${token}`, { password }),
+  verifyResetToken: (token) => api.get(`/auth/reset-password/${token}/verify`),
+  
+  logout: () => api.post('/auth/logout'),
+  getMe: () => api.get('/auth/me'),
+};
+
+export default api;

@@ -8,6 +8,8 @@ import Attendance from "./pages/Attendance";
 import Leave from "./pages/Leave";
 import Payroll from "./pages/Payroll";
 import Performance from "./pages/Performance";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 
 // Wraps routes that require a logged-in user
 const ProtectedRoute = ({ children }) => {
@@ -32,8 +34,10 @@ const ProtectedRoute = ({ children }) => {
 function App() {
   return (
     <Routes>
-      {/* Public */}
+      {/* Public Routes */}
       <Route path="/login" element={<Login />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password/:token" element={<ResetPassword />} />
 
       {/* Protected shell */}
       <Route

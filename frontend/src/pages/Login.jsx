@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation,  } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import AuthForm from "../components/common/LoginForm";
 
 const Login = () => {
   //  'signin' හෝ 'signup' තෝරාගැනීමට state එකක්
-  const [activeTab, setActiveTab] = useState("signin"); 
-  
+  const [activeTab, setActiveTab] = useState("signin");
+
   // AuthContext එකේ register function එකක් ඇති බව/නැතහොත් එකතු කළ හැක
   const { login, register, loading, error, isAuthenticated, clearError } = useAuth();
   const navigate = useNavigate();
@@ -22,7 +22,7 @@ const Login = () => {
   const handleSubmit = async (data) => {
     try {
       if (activeTab === "signup") {
-        // Sign Up ක්‍රියාවලිය (AuthContext එකේ register එකක් තිබේ නම්)
+        // Sign Up ක්‍රියාවලිය
         if (register) {
           await register(data.name, data.email, data.password);
         } else {
@@ -33,12 +33,18 @@ const Login = () => {
         // Sign In ක්‍රියාවලිය
         await login(data.email, data.password, data.rememberMe);
       }
-      
+
       const from = location.state?.from?.pathname || "/";
       navigate(from, { replace: true });
     } catch {
       // Error handles inside context
     }
+  };
+
+  const handleGoogleSignUp = () => {
+    // Redirect to backend Google OAuth endpoint
+    const apiBase = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+    window.location.href = `${apiBase}/auth/google`;
   };
 
   const handleTabChange = (tab) => {
@@ -48,7 +54,7 @@ const Login = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row">
-      
+
       {/*  වම් පැත්ත: Advanced UI Illustration Section (Visible on desktop) */}
       <div className="hidden md:flex md:w-1/2 bg-gradient-to-br from-indigo-700 via-indigo-600 to-purple-800 p-12 flex-col justify-between relative overflow-hidden">
         {/* Background Decorative Blobs */}
@@ -66,10 +72,9 @@ const Login = () => {
         {/* Core Content & Image */}
         <div className="my-auto max-w-lg relative z-10 text-center md:text-left">
           <div className="mb-8 rounded-2xl overflow-hidden shadow-2xl border border-white/10 bg-white/5 backdrop-blur-sm p-4">
-            {/* Unsplash එකෙන් ගත් ඉතාමත් වෘත්තීයමය ඩිජිටල් Employee Dashboard/Workspace පින්තූරයක් */}
-            <img 
-              src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&q=80" 
-              alt="Employee Management Dashboard" 
+            <img
+              src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&q=80"
+              alt="Employee Management Dashboard"
               className="rounded-xl w-full h-auto object-cover opacity-95 mix-blend-normal"
             />
           </div>
@@ -90,7 +95,7 @@ const Login = () => {
       {/*  දකුණු පැත්ත: Form Section (Login & Signup Cards) */}
       <div className="w-full md:w-1/2 flex items-center justify-center px-4 py-12 bg-white sm:px-6 lg:px-16 xl:px-24">
         <div className="w-full max-w-sm lg:w-96">
-          
+
           {/* Mobile Only Header View */}
           <div className="md:hidden flex flex-col items-center mb-8">
             <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-md mb-3">
@@ -101,7 +106,7 @@ const Login = () => {
 
           <div className="mb-6">
             <h2 className="text-2xl font-bold text-gray-900 tracking-tight">
-              {activeTab === "signin" ? "Welcome back" : "Get started absolute free"}
+              {activeTab === "signin" ? "Welcome back" : "Get started absolutely free"}
             </h2>
             <p className="mt-1.5 text-sm text-gray-500">
               {activeTab === "signin" ? "Enter your workspace credentials." : "Create your staff account to join."}
@@ -113,8 +118,8 @@ const Login = () => {
             <button
               onClick={() => handleTabChange("signin")}
               className={`w-1/2 text-center py-2 text-xs font-semibold rounded-lg transition duration-150
-                ${activeTab === "signin" 
-                  ? "bg-white text-indigo-600 shadow-sm font-bold" 
+                ${activeTab === "signin"
+                  ? "bg-white text-indigo-600 shadow-sm font-bold"
                   : "text-gray-500 hover:text-gray-900"}`}
             >
               Sign In
@@ -122,8 +127,8 @@ const Login = () => {
             <button
               onClick={() => handleTabChange("signup")}
               className={`w-1/2 text-center py-2 text-xs font-semibold rounded-lg transition duration-150
-                ${activeTab === "signup" 
-                  ? "bg-white text-indigo-600 shadow-sm font-bold" 
+                ${activeTab === "signup"
+                  ? "bg-white text-indigo-600 shadow-sm font-bold"
                   : "text-gray-500 hover:text-gray-900"}`}
             >
               Register / Sign Up
@@ -134,6 +139,7 @@ const Login = () => {
           <AuthForm
             mode={activeTab}
             onSubmit={handleSubmit}
+            onGoogleSignUp={handleGoogleSignUp}
             loading={loading}
             error={error}
             onClearError={clearError}
@@ -156,7 +162,7 @@ const Login = () => {
           <p className="md:hidden text-center text-xxs text-gray-400 mt-10">
             &copy; {new Date().getFullYear()} SEMS &mdash; Secure Portal
           </p>
-          
+
         </div>
       </div>
 
