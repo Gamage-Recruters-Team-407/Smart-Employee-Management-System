@@ -122,6 +122,7 @@ const Leave = () => {
                 >
                   ×
                 </button>
+                <h1>bbbbb</h1>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-6">
