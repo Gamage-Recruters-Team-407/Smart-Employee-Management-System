@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Users, Clock, Calendar, DollarSign, Award, Settings } from 'lucide-react';
+import { Home, Users, Clock, Calendar, DollarSign, Award, CheckSquare } from 'lucide-react';
 
 const Sidebar = ({ isOpen, toggle }) => {
   const location = useLocation();
@@ -12,6 +12,8 @@ const Sidebar = ({ isOpen, toggle }) => {
     { icon: Calendar, label: 'Leaves', path: '/leaves' },
     { icon: DollarSign, label: 'Payroll', path: '/payroll' },
     { icon: Award, label: 'Performance', path: '/performance' },
+    { icon: CheckSquare, label: 'Tasks', path: '/tasks' },
+    { icon: CheckSquare, label: 'My Tasks', path: '/my-tasks' },
   ];
 
   return (
@@ -27,7 +29,9 @@ const Sidebar = ({ isOpen, toggle }) => {
         <nav className="space-y-1">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const active = location.pathname === item.path;
+            const active =
+              location.pathname === item.path ||
+              (item.path !== "/" && location.pathname.startsWith(item.path));
             return (
               <Link
                 key={item.path}
