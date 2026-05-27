@@ -1,10 +1,9 @@
-<<<<<<< HEAD
-
 {
   "name": "backend",
   "version": "1.0.0",
   "description": "Smart Employee Management System Backend",
-  "main": "src/server.js",
+  "main": "server.js",
+  "type": "module",
   "scripts": {
     "dev": "nodemon server.js",
     "start": "node server.js",
@@ -13,7 +12,6 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "module",
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
@@ -27,23 +25,5 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.14"
-=======
-{
-  "name": "backend",
-  "version": "1.0.0",
-  "type": "module",
-  "main": "server.js",
-  "scripts": {
-    "predev": "node scripts/free-port.js",
-    "prestart": "node scripts/free-port.js",
-    "start": "node server.js",
-    "dev": "node --watch server.js"
-  },
-  "dependencies": {
-    "cors": "^2.8.5",
-    "dotenv": "^16.4.7",
-    "express": "^4.21.2",
-    "mongoose": "^8.9.5"
->>>>>>> 0f94113dbedca67732fee7ea52e1607ba7238de8
   }
 }
