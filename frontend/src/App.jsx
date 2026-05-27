@@ -1,12 +1,18 @@
+<<<<<<< HEAD
 import { Route, Routes, Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import Login from "./pages/Login";
+=======
+import { Route, Routes } from "react-router-dom";
+import { MockAuthProvider } from "./context/MockAuthContext";
+>>>>>>> 0f94113dbedca67732fee7ea52e1607ba7238de8
 import Dashboard from "./pages/Dashboard";
 import DashboardHome from "./components/common/DashboardHome";
 import Employees from "./pages/Employees";
 import Attendance from "./pages/Attendance";
 import Leave from "./pages/Leave";
 import Payroll from "./pages/Payroll";
+<<<<<<< HEAD
 import Performance from "./pages/Performance";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
@@ -30,9 +36,15 @@ const ProtectedRoute = ({ children }) => {
 
   return children;
 };
+=======
+import Tasks from "./pages/Tasks";
+import EmployeeAccount from "./pages/EmployeeAccount";
+import MyTasks from "./pages/MyTasks";
+>>>>>>> 0f94113dbedca67732fee7ea52e1607ba7238de8
 
 function App() {
   return (
+    <MockAuthProvider>
     <Routes>
       {/* Public Routes */}
       <Route path="/login" element={<Login />} />
@@ -50,15 +62,19 @@ function App() {
       >
         <Route index element={<DashboardHome />} />
         <Route path="employees" element={<Employees />} />
+        <Route path="employees/:id" element={<EmployeeAccount />} />
         <Route path="attendance" element={<Attendance />} />
         <Route path="leaves" element={<Leave />} />
         <Route path="payroll" element={<Payroll />} />
         <Route path="performance" element={<Performance />} />
+        <Route path="tasks" element={<Tasks />} />
+        <Route path="my-tasks" element={<MyTasks />} />
       </Route>
 
       {/* Catch-all */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </MockAuthProvider>
   );
 }
 
