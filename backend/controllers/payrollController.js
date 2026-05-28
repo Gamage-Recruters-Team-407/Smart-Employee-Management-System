@@ -285,6 +285,7 @@ export const deletePayroll = async (req, res) => {
   }
 };
 
+
 // @desc    Generate and stream PDF payslip for a payroll ID
 // @route   GET /api/payroll/:id/payslip
 // @access  Public
