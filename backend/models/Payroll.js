@@ -1,3 +1,27 @@
+<<<<<<< HEAD
+import mongoose from "mongoose";
+
+const payrollSchema = new mongoose.Schema(
+  {
+    employee: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Employee",
+    },
+    basicSalary: Number,
+    allowances: Number,
+    deductions: Number,
+    tax: Number,
+    loans: Number,
+    netSalary: Number,
+    month: String,
+  },
+  {
+    timestamps: true,
+  }
+);
+
+export default mongoose.model("Payroll", payrollSchema);
+=======
 import mongoose from "mongoose";
 
 const payrollSchema = new mongoose.Schema(
@@ -69,3 +93,4 @@ payrollSchema.pre("save", function (next) {
 payrollSchema.index({ employee: 1, month: 1 }, { unique: true });
 
 export default mongoose.model("Payroll", payrollSchema);
+>>>>>>> 93cfd01ca649ed6f9c452646925a0e90c0c049f0

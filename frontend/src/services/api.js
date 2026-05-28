@@ -1,10 +1,34 @@
+<<<<<<< HEAD
+import axios from "axios";
+=======
 // <<<<<<< HEAD
 //  import axios from 'axios';
+>>>>>>> 93cfd01ca649ed6f9c452646925a0e90c0c049f0
 
-// const API = axios.create({
-//   baseURL: 'http://localhost:5000/api',
-// });
+/**
+ * Axios instance pre-configured with the backend base URL.
+ * All requests automatically include the Authorization header
+ * if a token is found in localStorage.
+ */
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000/api",
+});
 
+<<<<<<< HEAD
+// Request interceptor — attach JWT token from localStorage
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+export default api;
+=======
 // export default API;
 // =======
 // <<<<<<< HEAD
@@ -221,3 +245,4 @@ export const payrollAPI = {
 };
 
 export default API;
+>>>>>>> 93cfd01ca649ed6f9c452646925a0e90c0c049f0

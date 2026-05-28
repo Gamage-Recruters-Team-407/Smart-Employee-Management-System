@@ -9,6 +9,11 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 
 import Dashboard from "./pages/Dashboard";
+<<<<<<< HEAD
+import Employees from "./pages/Employees";
+import EmployeeProfile from "./pages/EmployeeProfile";
+=======
+>>>>>>> 93cfd01ca649ed6f9c452646925a0e90c0c049f0
 import DashboardHome from "./components/common/DashboardHome";
 import Employees from "./pages/Employees";
 import EmployeeAccount from "./pages/EmployeeAccount";
@@ -40,6 +45,19 @@ const ProtectedRoute = ({ children }) => {
 
 function App() {
   return (
+<<<<<<< HEAD
+    <Routes>
+      <Route path="/" element={<Dashboard />}>
+        <Route index element={<DashboardHome />} />
+        <Route path="employees" element={<Employees />} />
+        <Route path="employees/:id" element={<EmployeeProfile />} />
+        <Route path="attendance" element={<Attendance />} />
+        <Route path="leaves" element={<Leave />} />
+        <Route path="payroll" element={<Payroll />} />
+        <Route path="performance" element={<Performance />} />
+      </Route>
+    </Routes>
+=======
     <MockAuthProvider>
       <Routes>
         <Route path="/login" element={<Login />} />
@@ -68,6 +86,7 @@ function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </MockAuthProvider>
+>>>>>>> 93cfd01ca649ed6f9c452646925a0e90c0c049f0
   );
 }
 

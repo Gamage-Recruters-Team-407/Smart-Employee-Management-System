@@ -1,3 +1,22 @@
+<<<<<<< HEAD
+/**
+ *
+ * Attaches a mock req.user object to every request so that
+ * protected routes can reference req.user without failing.
+ * Replace with real JWT verification in a later sprint.
+ */
+const mockAuth = (req, res, next) => {
+  // Attach a mock user — swap this for real JWT logic later
+  req.user = {
+    id: "mock-user-id",
+    name: "Admin User",
+    role: "admin",
+  };
+  next();
+};
+
+export default mockAuth;
+=======
 const jwt = require("jsonwebtoken");
 
 const protect = async (req, res, next) => {
@@ -21,3 +40,4 @@ const protect = async (req, res, next) => {
 };
 
 module.exports = { protect };
+>>>>>>> 93cfd01ca649ed6f9c452646925a0e90c0c049f0

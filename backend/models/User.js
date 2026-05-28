@@ -1,3 +1,34 @@
+<<<<<<< HEAD
+import mongoose from "mongoose";
+
+const userSchema=new mongoose.Schema(
+    {
+        name:{
+            type:String,
+            required:true,
+        },
+        email:{
+            type:String,
+            required:true,
+            unique:true
+        },
+        password:{
+            type:String,
+            required:true,
+        },
+        role:{
+            type:String,
+            enum:["Admin","HR","Manager","Employee"],
+            default:"Employee",
+        },
+    },
+    {
+        timestamps:true,
+    }
+);
+
+export default mongoose.model("User",userSchema)
+=======
 // import mongoose from "mongoose";
 
 // <<<<<<< HEAD
@@ -139,3 +170,4 @@ const userSchema = new mongoose.Schema(
 userSchema.index({ resetPasswordExpire: 1 }, { expireAfterSeconds: 0 });
 
 export default mongoose.model("User", userSchema);
+>>>>>>> 93cfd01ca649ed6f9c452646925a0e90c0c049f0
