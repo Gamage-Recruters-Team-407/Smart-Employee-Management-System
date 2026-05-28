@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 
+<<<<<<< HEAD
 const documentSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },   // original file name
@@ -75,6 +76,26 @@ const employeeSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: ["Active", "Inactive", "On Leave", "Terminated"],
+=======
+const employeeSchema = new mongoose.Schema(
+  {
+    employeeId: String,
+    firstName: String,
+    lastName: String,
+    email: {
+      type: String,
+      unique: true,
+    },
+    phone: String,
+    department: String,
+    designation: String,
+    salary: Number,
+    joiningDate: Date,
+    address: String,
+    documents: [String],
+    status: {
+      type: String,
+>>>>>>> 93cfd01ca649ed6f9c452646925a0e90c0c049f0
       default: "Active",
     },
   },

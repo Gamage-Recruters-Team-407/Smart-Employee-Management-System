@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { Router } from "express";
 import {
   createEmployee,
@@ -36,5 +37,21 @@ router.put("/:id", updateEmployee);
 router.delete("/:id", deleteEmployee);
 router.post("/:id/photo", imageUpload.single("photo"), uploadProfilePhoto);
 router.get("/:id/history", getEmployeeHistory);
+=======
+import express from "express";
+import {
+  getEmployees,
+  createEmployee,
+  getEmployeeById,
+  getEmployeeTasks,
+} from "../controllers/employeeController.js";
+
+const router = express.Router();
+
+router.get("/", getEmployees);
+router.post("/", createEmployee);
+router.get("/:id/tasks", getEmployeeTasks);
+router.get("/:id", getEmployeeById);
+>>>>>>> 93cfd01ca649ed6f9c452646925a0e90c0c049f0
 
 export default router;

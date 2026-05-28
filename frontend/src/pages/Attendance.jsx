@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from 'react';
+<<<<<<< HEAD
 import { format } from 'date-fns';
+=======
+import API from '../services/api';
+import { format, subDays } from 'date-fns';
+>>>>>>> 93cfd01ca649ed6f9c452646925a0e90c0c049f0
 
 const Attendance = () => {
   const [attendanceData, setAttendanceData] = useState([]);
@@ -7,6 +12,55 @@ const Attendance = () => {
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [loading, setLoading] = useState(false);
 
+<<<<<<< HEAD
+=======
+  // Fetch Employees
+//   useEffect(() => {
+//     const fetchEmployees = async () => {
+//       try {
+//         const res = await API.get('/employees');
+//         setEmployees(res.data);
+//       } catch (err) {
+//         console.error(err);
+//       }
+//     };
+//     fetchEmployees();
+//   }, []);
+
+  // Fetch Attendance for selected date
+  useEffect(() => {
+    const fetchAttendance = async () => {
+      setLoading(true);
+      try {
+        const data = await API.get(`/attendance?date=${selectedDate}`);
+        setAttendanceData(data);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAttendance();
+  }, [selectedDate]);
+
+  const markAttendance = async (employeeId, status) => {
+    try {
+      await API.post('/attendance', {
+        employee: employeeId,
+        date: selectedDate,
+        status: status,
+        checkInTime: status === 'Present' ? '09:00' : null
+      });
+
+      // Refresh attendance
+      const data = await API.get(`/attendance?date=${selectedDate}`);
+      setAttendanceData(data);
+    } catch (error) {
+      alert('Failed to mark attendance');
+    }
+  };
+
+>>>>>>> 93cfd01ca649ed6f9c452646925a0e90c0c049f0
   const getStatusColor = (status) => {
     switch (status) {
       case 'Present':  return 'bg-green-100 text-green-700';
