@@ -24,3 +24,4 @@ export const getAuthToken = () => {
 };
 
 export const hasAuthToken = () => Boolean(getAuthToken());
+ 
