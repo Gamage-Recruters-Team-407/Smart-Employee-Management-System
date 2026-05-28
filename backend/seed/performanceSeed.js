@@ -26,8 +26,9 @@ const buildPerformanceDocs = (employees, managerId) => {
   ];
 
   return employees.map((employee, index) => ({
+    // Cycle template so any number of employees can be seeded.
     employee: employee._id,
-    ...template[index],
+    ...template[index % template.length],
     managerFeedback: [
       {
         manager: managerId,
@@ -39,27 +40,61 @@ const buildPerformanceDocs = (employees, managerId) => {
 };
 
 const connectMongo = async () => {
-  const mongoUri = process.env.MONGO_URI || "";
+  const primaryUri = (process.env.MONGO_URI || "").trim();
+  const localFallbackUri = (process.env.MONGO_FALLBACK_URI || "").trim();
+  const allowInMemoryFallback = process.env.SEED_ALLOW_IN_MEMORY === "true";
+  const tryPrimaryInDev = process.env.MONGO_TRY_PRIMARY_IN_DEV === "true";
+  const isProduction = process.env.NODE_ENV === "production";
   let mongodInstance = null;
+  const attempts = [];
 
-  try {
-    if (!mongoUri) {
-      throw new Error("Missing MONGO_URI");
+  if (isProduction) {
+    if (primaryUri) {
+      attempts.push({ uri: primaryUri, label: "primary" });
     }
-    await mongoose.connect(mongoUri);
-    console.log("Connected to primary MongoDB for seed.");
-  } catch (error) {
-    console.warn("Primary Mongo connection failed. Using in-memory MongoDB:", error.message);
-    mongodInstance = await MongoMemoryServer.create();
-    await mongoose.connect(mongodInstance.getUri());
-    console.log("Connected to in-memory MongoDB for seed.");
+  } else {
+    if (localFallbackUri && localFallbackUri !== primaryUri) {
+      attempts.push({ uri: localFallbackUri, label: "local fallback" });
+    }
+    if (primaryUri && tryPrimaryInDev) {
+      attempts.push({ uri: primaryUri, label: "primary" });
+    }
+    if (primaryUri && !tryPrimaryInDev) {
+      console.warn("Skipping primary MongoDB URI in seed for development. Set MONGO_TRY_PRIMARY_IN_DEV=true to use it.");
+    }
   }
 
-  return mongodInstance;
+  let lastError = null;
+  for (const attempt of attempts) {
+    try {
+      await mongoose.connect(attempt.uri, { serverSelectionTimeoutMS: 12000 });
+      console.log(`Connected to ${attempt.label} MongoDB for seed.`);
+      return mongodInstance;
+    } catch (error) {
+      lastError = error;
+      console.warn(`${attempt.label} Mongo connection failed: ${error.message}`);
+    }
+  }
+
+  if (allowInMemoryFallback) {
+    mongodInstance = await MongoMemoryServer.create();
+    await mongoose.connect(mongodInstance.getUri());
+    console.log("Connected to in-memory MongoDB for seed (SEED_ALLOW_IN_MEMORY=true).");
+    return mongodInstance;
+  }
+
+  const seedTargetMessage = attempts.length > 0
+    ? "Failed to connect to target MongoDB for seeding."
+    : "No MongoDB URI configured for seeding.";
+
+  throw new Error(
+    `${seedTargetMessage} Set MONGO_URI (or MONGO_FALLBACK_URI), or run with SEED_ALLOW_IN_MEMORY=true for temporary seed data. Last error: ${lastError?.message || "N/A"}`
+  );
 };
 
 const seed = async () => {
   let mongod = null;
+  let exitCode = 0;
   try {
     mongod = await connectMongo();
 
@@ -72,26 +107,33 @@ const seed = async () => {
       users.push(existing);
     }
 
-    const employees = users.filter((user) => user.role === "Employee").slice(0, 5);
+    // Seed for all employees in the DB, not only the hardcoded sample set.
+    const employees = await User.find({ role: "Employee" }).select("_id name email role");
     const manager = users.find((user) => user.role === "Manager");
+    if (!manager) {
+      throw new Error("Manager user is required to seed manager feedback.");
+    }
 
     const performanceDocs = buildPerformanceDocs(employees, manager._id);
+    let createdCount = 0;
     for (const doc of performanceDocs) {
       const existing = await Performance.findOne({ employee: doc.employee });
       if (!existing) {
         await Performance.create(doc);
+        createdCount += 1;
       }
     }
 
-    console.log("Performance seed complete with 5 employee records.");
-    process.exit(0);
+    console.log(`Performance seed complete. Added ${createdCount} new performance records.`);
   } catch (error) {
+    exitCode = 1;
     console.error("Performance seed failed:", error);
-    process.exit(1);
   } finally {
+    await mongoose.disconnect();
     if (mongod) {
       await mongod.stop();
     }
+    process.exit(exitCode);
   }
 };
 

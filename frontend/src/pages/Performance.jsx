@@ -27,6 +27,22 @@ const scoreTagClasses = (score) => {
   return "bg-red-100 text-red-700";
 };
 
+const getSessionUser = () => {
+  const localUserRaw = localStorage.getItem("user");
+  const sessionUserRaw = sessionStorage.getItem("user");
+  const raw = localUserRaw || sessionUserRaw;
+
+  if (!raw || raw === "undefined") {
+    return null;
+  }
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+};
+
 const getEmployeeFieldIssue = (value) => {
   const trimmed = (value || "").trim();
 
@@ -54,10 +70,13 @@ const Performance = () => {
   const [validationIssue, setValidationIssue] = useState("");
   const [employeeFieldIssue, setEmployeeFieldIssue] = useState("");
   const [message, setMessage] = useState("");
+  const [resolvedRole, setResolvedRole] = useState("");
+  const [resolvedCanManage, setResolvedCanManage] = useState(null);
 
-  const currentRole = localStorage.getItem("role") || "Manager";
-  const currentUserId = localStorage.getItem("userId") || "";
-  const canManage = managerRoles.includes(currentRole);
+  const sessionUser = getSessionUser();
+  const fallbackRole = sessionUser?.role || localStorage.getItem("role") || "Employee";
+  const currentRole = resolvedRole || fallbackRole;
+  const canManage = resolvedCanManage ?? managerRoles.includes(currentRole);
 
   const loadPerformance = async () => {
     setLoading(true);
@@ -65,23 +84,32 @@ const Performance = () => {
     setValidationIssue("");
 
     try {
-      let list = [];
-      if (currentRole === "Employee") {
-        if (!currentUserId) {
-          throw new Error("No user id found. Set localStorage userId for employee view.");
+      try {
+        const accessRes = await performanceApi.getAccess();
+        const access = accessRes?.data || {};
+        if (access.role) {
+          setResolvedRole(access.role);
         }
-        const res = await performanceApi.getByEmployee(currentUserId);
-        list = res.data ? [res.data] : [];
-      } else {
-        const res = await performanceApi.getAll();
-        list = Array.isArray(res.data) ? res.data : [];
+        if (typeof access.canManage === "boolean") {
+          setResolvedCanManage(access.canManage);
+        }
+      } catch {
+        // keep local fallback role/canManage
       }
+
+      const res = await performanceApi.getAll();
+      const list = Array.isArray(res.data) ? res.data : [];
       setRecords(list);
     } catch (apiError) {
       if (!apiError.response) {
         setError(`Cannot connect to backend API (${apiBase}). Start backend and retry.`);
       } else {
-        setError(apiError.response?.data?.message || apiError.message || "Failed to load performance data.");
+        const apiMessage = apiError.response?.data?.message || apiError.message || "Failed to load performance data.";
+        if (apiError.response.status === 404 && /performance record not found/i.test(apiMessage)) {
+          setRecords([]);
+        } else {
+          setError(apiMessage);
+        }
       }
     } finally {
       setLoading(false);

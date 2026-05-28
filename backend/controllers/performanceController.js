@@ -4,7 +4,6 @@ import User from "../models/User.js";
 import { managerRoles } from "../middleware/roleMiddleware.js";
 
 const isManagerRole = (role) => managerRoles.includes(role);
-
 const validateObjectId = (value) => mongoose.Types.ObjectId.isValid(value);
 
 const employeePopulate = { path: "employee", select: "name email role" };
@@ -15,12 +14,20 @@ export const getAllPerformanceRecords = async (req, res) => {
     const { role, id } = req.user;
 
     if (role === "Employee") {
-      const ownRecord = await Performance.findOne({ employee: id })
+      let ownRecord = await Performance.findOne({ employee: id })
         .populate(employeePopulate)
         .populate(managerFeedbackPopulate);
 
       if (!ownRecord) {
-        return res.status(404).json({ message: "Performance record not found for employee." });
+        const employeeExists = await User.exists({ _id: id });
+        if (!employeeExists) {
+          return res.status(404).json({ message: "Employee user not found for performance profile." });
+        }
+
+        const created = await Performance.create({ employee: id });
+        ownRecord = await Performance.findById(created._id)
+          .populate(employeePopulate)
+          .populate(managerFeedbackPopulate);
       }
 
       return res.json([ownRecord]);
@@ -209,3 +216,7 @@ export const getPerformanceAccessSummary = (req, res) => {
     canManage
   });
 };
+
+// Compatibility aliases used by older routes/clients.
+export const getPerformanceByEmployee = getPerformanceByEmployeeId;
+export const getAllPerformances = getAllPerformanceRecords;

@@ -1,16 +1,23 @@
-export const authorizeRoles = (...allowedRoles) => {
+export const managerRoles = ["Manager", "Admin", "HR"];
+
+export const authorize = (...roles) => {
   return (req, res, next) => {
     if (!req.user) {
-      return res.status(401).json({ message: "Unauthorized." });
+      return res.status(401).json({
+        success: false,
+        message: "Not authorized. Please log in first."
+      });
     }
 
-    const isAllowed = allowedRoles.includes(req.user.role);
-    if (!isAllowed) {
-      return res.status(403).json({ message: "Forbidden: insufficient permissions." });
+    if (roles.length > 0 && !roles.includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: `Role '${req.user.role}' is not authorized to access this resource.`
+      });
     }
 
     next();
   };
 };
 
-export const managerRoles = ["Manager", "Admin", "HR"];
+export const authorizeRoles = authorize;

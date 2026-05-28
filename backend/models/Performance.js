@@ -100,6 +100,8 @@ performanceSchema.methods.calculateOverallScore = function () {
   return this.overallScore;
 };
 
+performanceSchema.methods.calculateOverall = performanceSchema.methods.calculateOverallScore;
+
 performanceSchema.pre("save", function () {
   this.calculateOverallScore();
 });
