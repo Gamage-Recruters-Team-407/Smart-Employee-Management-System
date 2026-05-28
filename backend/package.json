@@ -1,23 +1,35 @@
 {
-  "name": "backend",
+  "name": "sems-backend",
   "version": "1.0.0",
-  "description": "",
+  "description": "Smart Employee Management System API",
   "main": "server.js",
   "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "predev": "node scripts/free-port.js",
     "prestart": "node scripts/free-port.js",
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "nodemon": "nodemon server.js",
+    "seed:employees": "node scripts/seedEmployees.js",
+    "test:employees": "node scripts/testEmployees.js",
+    "test": "npm run test:employees"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "cors": "^2.8.5",
-    "dotenv": "^16.4.7",
-    "express": "^4.21.2",
-    "mongoose": "^8.9.5"
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.6.2",
+    "morgan": "^1.10.1",
+    "multer": "^2.1.1",
+    "nodemailer": "^8.0.8",
+    "pdfkit": "^0.18.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
   }
 }
