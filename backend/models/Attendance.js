@@ -1,31 +1,3 @@
-<<<<<<< HEAD
-import mongoose from "mongoose";
-
-const attendanceSchema=new mongoose.Schema(
-    {
-        employee:{
-            type:mongoose.Schema.Types.ObjectId,
-            ref:"Employee",
-        },
-        loginTime:Date,
-        logoutTime:Date,
-        status:{
-            type:String,
-            enum:["Present","Late","Absent","Inactive"]
-        },
-        location:String,
-        activityStatus:{
-            type:Boolean,
-            default:true
-        },
-    },
-    {
-        timestamps:true,
-    }
-);
-
-export default mongoose.model("Attendance",attendanceSchema);
-=======
 import mongoose from "mongoose";
 
 const attendanceSchema = new mongoose.Schema(
@@ -41,7 +13,7 @@ const attendanceSchema = new mongoose.Schema(
     },
     loginTime: Date,
     logoutTime: Date,
-    checkInTime: String,  // format: HH:MM
+    checkInTime: String, // format: HH:MM
     checkOutTime: String, // format: HH:MM
     status: {
       type: String,
@@ -63,4 +35,3 @@ const attendanceSchema = new mongoose.Schema(
 attendanceSchema.index({ employee: 1, date: 1 }, { unique: true });
 
 export default mongoose.model("Attendance", attendanceSchema);
->>>>>>> 93cfd01ca649ed6f9c452646925a0e90c0c049f0

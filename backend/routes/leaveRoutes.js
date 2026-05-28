@@ -1,19 +1,20 @@
-const express = require("express");
-const router = express.Router();
-const multer = require("multer");
-const path = require("path");
+import express from "express";
+import multer from "multer";
+import path from "path";
 
-const {
+const router = express.Router();
+
+import {
   applyLeave,
   getMyLeaves,
   getAllLeaves,
   updateLeaveStatus,
   cancelLeave,
   getLeaveBalance,
-} = require("../controllers/leaveController");
+} from "../controllers/leaveController.js";
 
-const { protect } = require("../middleware/authMiddleware");
-const { authorizeRoles } = require("../middleware/roleMiddleware");
+import { protect } from "../middleware/authMiddleware.js";
+import { authorize } from "../middleware/roleMiddleware.js";
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -39,7 +40,8 @@ router.post("/apply", protect, upload.single("medicalDocument"), applyLeave);
 router.get("/my-leaves", protect, getMyLeaves);
 router.get("/balance", protect, getLeaveBalance);
 router.put("/cancel/:id", protect, cancelLeave);
-router.get("/all", protect, authorizeRoles("HR", "Admin"), getAllLeaves);
-router.put("/status/:id", protect, authorizeRoles("HR", "Admin", "Manager"), updateLeaveStatus);
+router.get("/all", protect, authorize("HR", "Admin"), getAllLeaves);
+router.put("/status/:id", protect, authorize("HR", "Admin", "Manager"), updateLeaveStatus);
 
-module.exports = router;
+// module.exports = router;
+export default router;

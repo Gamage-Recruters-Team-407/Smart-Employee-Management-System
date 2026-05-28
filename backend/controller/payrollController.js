@@ -42,6 +42,8 @@ export const getAllPayrolls = async (req, res) => {
   }
 };
 
+
+
 // ─── GET /api/payroll/:id ─────────────────────────────────────────────────────
 export const getPayrollById = async (req, res) => {
   try {
