@@ -1,40 +1,12 @@
 {
-<<<<<<< HEAD
-  "name": "smart-employee-management-backend",
+  "name": "backend",
   "version": "1.0.0",
-  "description": "Smart Employee Management System Backend",
+  "description": "",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js"
   },
-  "dependencies": {
-    "express": "^4.18.2",
-    "mongoose": "^7.6.3",
-    "dotenv": "^16.3.1",
-    "cors": "^2.8.5",
-    "morgan": "^1.10.0",
-    "bcryptjs": "^2.4.3",
-    "jsonwebtoken": "^9.0.2",
-    "multer": "^1.4.5-lts.1",
-    "pdfkit": "^0.14.0"
-  },
-  "devDependencies": {
-    "nodemon": "^3.0.1"
-=======
-  "name": "backend",
-  "version": "1.0.0",
-  "description": "Smart Employee Management System Backend",
-  "main": "server.js",
-  "type": "module",
-  "scripts": {
-    "dev": "nodemon server.js",
-    "start": "node server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
@@ -48,6 +20,5 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.14"
->>>>>>> 31637a645ceedb5e1acd161bf7c33decfb0c6f91
   }
 }
