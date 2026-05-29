@@ -1,104 +1,222 @@
-﻿import Performance from "../models/Performance.js";
+import mongoose from "mongoose";
+import Performance from "../models/Performance.js";
 import User from "../models/User.js";
-import { sendPerformanceReviewEmail } from "../services/emailService.js";
+import { managerRoles } from "../middleware/roleMiddleware.js";
 
-const getEmployeeDisplayName = (employee) => {
-  if (!employee) return "Employee";
-  if (employee.firstName || employee.lastName) {
-    return `${employee.firstName || ""} ${employee.lastName || ""}`.trim();
-  }
-  return employee.name || "Employee";
-};
+const isManagerRole = (role) => managerRoles.includes(role);
+const validateObjectId = (value) => mongoose.Types.ObjectId.isValid(value);
 
-// Create performance record
-export const createPerformance = async (req, res) => {
+const employeePopulate = { path: "employee", select: "name email role" };
+const managerFeedbackPopulate = { path: "managerFeedback.manager", select: "name email role" };
+
+export const getAllPerformanceRecords = async (req, res) => {
   try {
-    const { employee, attendancePercent, tasksCompleted, tasksAssigned, qualityScore, managerFeedback } = req.body;
-    const perf = new Performance({ employee, attendancePercent, tasksCompleted, tasksAssigned, qualityScore, managerFeedback });
-    await perf.save();
-    const populated = await Performance.findById(perf._id).populate(
-      "employee",
-      "firstName lastName email name"
-    );
+    const { role, id } = req.user;
 
-    try {
-      const employee = populated?.employee;
-      if (employee?.email) {
-        const reviewPeriod = new Date().toLocaleString("en-US", {
-          month: "long",
-          year: "numeric",
-        });
+    if (role === "Employee") {
+      let ownRecord = await Performance.findOne({ employee: id })
+        .populate(employeePopulate)
+        .populate(managerFeedbackPopulate);
 
-        await sendPerformanceReviewEmail({
-          to: employee.email,
-          employeeName: getEmployeeDisplayName(employee),
-          reviewPeriod,
-          rating: perf.overallScore ?? perf.qualityScore,
-          reviewerName: req.user?.name,
-          summary: perf.managerFeedback,
-        });
+      if (!ownRecord) {
+        const employeeExists = await User.exists({ _id: id });
+        if (!employeeExists) {
+          return res.status(404).json({ message: "Employee user not found for performance profile." });
+        }
+
+        const created = await Performance.create({ employee: id });
+        ownRecord = await Performance.findById(created._id)
+          .populate(employeePopulate)
+          .populate(managerFeedbackPopulate);
       }
-    } catch (emailError) {
-      console.error(
-        "[email] Performance review email failed:",
-        emailError.message
-      );
+
+      return res.json([ownRecord]);
     }
 
-    res.status(201).json(populated);
+    const records = await Performance.find()
+      .populate(employeePopulate)
+      .populate(managerFeedbackPopulate)
+      .sort({ overallScore: -1 });
+
+    return res.json(records);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: "Failed to fetch performance records.", error: error.message });
   }
 };
 
-// Get performance by employeeId
-export const getPerformanceByEmployee = async (req, res) => {
+export const getPerformanceByEmployeeId = async (req, res) => {
   try {
     const { employeeId } = req.params;
-    const records = await Performance.find({ employee: employeeId }).populate("employee", "name email");
-    res.json(records);
+
+    if (!validateObjectId(employeeId)) {
+      return res.status(400).json({ message: "Invalid employee id." });
+    }
+
+    if (req.user.role === "Employee" && req.user.id !== employeeId) {
+      return res.status(403).json({ message: "Employees can only view their own performance score." });
+    }
+
+    const record = await Performance.findOne({ employee: employeeId })
+      .populate(employeePopulate)
+      .populate(managerFeedbackPopulate);
+
+    if (!record) {
+      return res.status(404).json({ message: "Performance record not found." });
+    }
+
+    return res.json(record);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: "Failed to fetch performance record.", error: error.message });
   }
 };
 
-// Get all performances (admin/manager view)
-export const getAllPerformances = async (req, res) => {
+export const createPerformance = async (req, res) => {
   try {
-    const records = await Performance.find().populate("employee", "name email");
-    res.json(records);
+    const { employee } = req.body;
+
+    if (!validateObjectId(employee)) {
+      return res.status(400).json({ message: "Valid employee id is required." });
+    }
+
+    const user = await User.findById(employee);
+    if (!user) {
+      return res.status(404).json({ message: "Employee user not found." });
+    }
+
+    const existing = await Performance.findOne({ employee });
+    if (existing) {
+      return res.status(409).json({ message: "Performance record already exists for this employee." });
+    }
+
+    const newPerformance = await Performance.create({
+      employee,
+      attendanceScore: req.body.attendanceScore,
+      tasksCompleted: req.body.tasksCompleted,
+      tasksAssigned: req.body.tasksAssigned,
+      qualityScore: req.body.qualityScore,
+      notes: req.body.notes || ""
+    });
+
+    if (req.body.feedback) {
+      newPerformance.managerFeedback.push({
+        manager: req.user.id,
+        feedback: req.body.feedback,
+        rating: req.body.feedbackRating || 3
+      });
+      await newPerformance.save();
+    }
+
+    const saved = await Performance.findById(newPerformance._id)
+      .populate(employeePopulate)
+      .populate(managerFeedbackPopulate);
+
+    return res.status(201).json(saved);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return res.status(400).json({ message: "Failed to create performance record.", error: error.message });
   }
 };
 
-// Update performance
 export const updatePerformance = async (req, res) => {
   try {
     const { id } = req.params;
-    const perf = await Performance.findById(id);
-    if (!perf) return res.status(404).json({ message: "Performance record not found" });
-    const fields = ["attendancePercent", "tasksCompleted", "tasksAssigned", "qualityScore", "managerFeedback"];
-    fields.forEach((f) => {
-      if (req.body[f] !== undefined) perf[f] = req.body[f];
-    });
-    perf.calculateOverall();
-    await perf.save();
-    const populated = await Performance.findById(perf._id).populate("employee", "name email");
-    res.json(populated);
+    if (!validateObjectId(id)) {
+      return res.status(400).json({ message: "Invalid performance record id." });
+    }
+
+    const performance = await Performance.findById(id);
+    if (!performance) {
+      return res.status(404).json({ message: "Performance record not found." });
+    }
+
+    const fields = ["attendanceScore", "tasksCompleted", "tasksAssigned", "qualityScore", "notes"];
+    for (const key of fields) {
+      if (req.body[key] !== undefined) {
+        performance[key] = req.body[key];
+      }
+    }
+
+    if (req.body.feedback) {
+      performance.managerFeedback.push({
+        manager: req.user.id,
+        feedback: req.body.feedback,
+        rating: req.body.feedbackRating || 3
+      });
+    }
+
+    await performance.save();
+
+    const updated = await Performance.findById(id)
+      .populate(employeePopulate)
+      .populate(managerFeedbackPopulate);
+
+    return res.json(updated);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return res.status(400).json({ message: "Failed to update performance record.", error: error.message });
   }
 };
 
-// Delete performance
+export const addManagerFeedback = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!validateObjectId(id)) {
+      return res.status(400).json({ message: "Invalid performance record id." });
+    }
+
+    const { feedback, rating } = req.body;
+    if (!feedback) {
+      return res.status(400).json({ message: "Feedback text is required." });
+    }
+
+    const performance = await Performance.findById(id);
+    if (!performance) {
+      return res.status(404).json({ message: "Performance record not found." });
+    }
+
+    performance.managerFeedback.push({
+      manager: req.user.id,
+      feedback,
+      rating: rating || 3
+    });
+
+    await performance.save();
+
+    const updated = await Performance.findById(id)
+      .populate(employeePopulate)
+      .populate(managerFeedbackPopulate);
+
+    return res.json(updated);
+  } catch (error) {
+    return res.status(400).json({ message: "Failed to add manager feedback.", error: error.message });
+  }
+};
+
 export const deletePerformance = async (req, res) => {
   try {
     const { id } = req.params;
-    const perf = await Performance.findByIdAndDelete(id);
-    if (!perf) return res.status(404).json({ message: "Performance record not found" });
-    res.json({ message: "Deleted" });
+    if (!validateObjectId(id)) {
+      return res.status(400).json({ message: "Invalid performance record id." });
+    }
+
+    const deleted = await Performance.findByIdAndDelete(id);
+    if (!deleted) {
+      return res.status(404).json({ message: "Performance record not found." });
+    }
+
+    return res.json({ message: "Performance record deleted successfully." });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: "Failed to delete performance record.", error: error.message });
   }
 };
+
+export const getPerformanceAccessSummary = (req, res) => {
+  const canManage = isManagerRole(req.user.role);
+  return res.json({
+    role: req.user.role,
+    canViewOwn: true,
+    canManage
+  });
+};
+
+// Compatibility aliases used by older routes/clients.
+export const getPerformanceByEmployee = getPerformanceByEmployeeId;
+export const getAllPerformances = getAllPerformanceRecords;

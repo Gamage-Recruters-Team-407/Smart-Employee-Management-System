@@ -10,10 +10,12 @@ const DEFAULT_ADMIN = {
 
 export const seedDefaultUser = async () => {
   const hashed = await bcrypt.hash(DEFAULT_ADMIN.password, 10);
-  const existing = await User.findOne({ email: DEFAULT_ADMIN.email });
+  const existing = await User.findOne({ email: DEFAULT_ADMIN.email }).select("+password");
 
   if (existing) {
-    const valid = await bcrypt.compare(DEFAULT_ADMIN.password, existing.password);
+    const valid = existing.password
+      ? await bcrypt.compare(DEFAULT_ADMIN.password, existing.password)
+      : false;
     if (!valid) {
       existing.password = hashed;
       existing.role = DEFAULT_ADMIN.role;

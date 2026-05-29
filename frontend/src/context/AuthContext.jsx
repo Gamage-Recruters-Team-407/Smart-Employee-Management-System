@@ -282,13 +282,14 @@ export const AuthProvider = ({ children }) => {
     setError(null);
     try {
       const data = await authService.login(email, password);
+      const authUser = data?.user || data;
       const storage = rememberMe ? localStorage : sessionStorage;
 
       const userObj = {
-        _id: data._id,
-        name: data.name,
-        email: data.email,
-        role: data.role
+        _id: authUser?._id,
+        name: authUser?.name,
+        email: authUser?.email,
+        role: authUser?.role
       };
 
       storage.setItem("token", data.token);
@@ -329,11 +330,12 @@ export const AuthProvider = ({ children }) => {
     setError(null);
     try {
       const data = await authService.register({ name, email, password });
+      const authUser = data?.user || data;
       const userObj = {
-        _id: data._id,
-        name: data.name,
-        email: data.email,
-        role: data.role
+        _id: authUser?._id,
+        name: authUser?.name,
+        email: authUser?.email,
+        role: authUser?.role
       };
 
       localStorage.setItem("token", data.token);

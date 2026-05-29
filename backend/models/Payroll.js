@@ -66,7 +66,7 @@ const payrollSchema = new mongoose.Schema(
 );
 
 // Auto-calculate net salary before saving
-payrollSchema.pre("save", function (next) {
+payrollSchema.pre("save", function () {
   this.netSalary =
     this.basicSalary +
     this.allowances -
@@ -76,8 +76,6 @@ payrollSchema.pre("save", function (next) {
   if (this.netSalary < 0) {
     this.netSalary = 0;
   }
-
-  next();
 });
 
 // Prevent duplicate payrolls for same employee/month
