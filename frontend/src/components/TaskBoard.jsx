@@ -10,7 +10,12 @@ const columnStyles = {
   Completed: "border-green-200 bg-green-50",
 };
 
-const TaskBoard = ({ tasks, onEdit, onAddComment, onDelete }) => {
+const TaskBoard = ({
+  tasks,
+  onEdit,
+  onAddComment,
+  onDelete,
+}) => {
   const tasksByStatus = COLUMNS.reduce((acc, status) => {
     acc[status] = tasks.filter((t) => t.status === status);
     return acc;
@@ -37,6 +42,8 @@ const TaskBoard = ({ tasks, onEdit, onAddComment, onDelete }) => {
                 onEdit={onEdit}
                 onAddComment={onAddComment}
                 onDelete={onDelete}
+                canManage
+                canEditProgress={false}
               />
             ))}
             {tasksByStatus[status].length === 0 && (

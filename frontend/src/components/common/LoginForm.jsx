@@ -2,7 +2,14 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Eye, EyeOff, Loader2, AlertCircle, User, Mail, Lock } from "lucide-react";
 
-const AuthForm = ({ mode, onSubmit, onGoogleSignUp, loading, error, onClearError }) => {
+const AuthForm = ({
+  mode,
+  onSubmit,
+  onGoogleSignUp,
+  loading,
+  error,
+  onClearError,
+}) => {
   const isSignUp = mode === "signup";
 
   const [formData, setFormData] = useState({
@@ -229,7 +236,8 @@ const AuthForm = ({ mode, onSubmit, onGoogleSignUp, loading, error, onClearError
         <button
           type="button"
           onClick={handleGoogleClick}
-          className="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-700 font-medium py-3 rounded-xl shadow-sm transition duration-200 text-sm"
+          disabled={loading}
+          className="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 hover:border-gray-400 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 font-medium py-3 rounded-xl shadow-sm transition duration-200 text-sm"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path

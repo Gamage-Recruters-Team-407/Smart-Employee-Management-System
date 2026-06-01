@@ -54,12 +54,17 @@ export const authService = {
   },
 
   /**
-   * GET /api/auth/google — Initiates Google OAuth flow
+   * POST /api/auth/google/token — Sign in with Google ID token from GIS button
    */
-  initiateGoogleAuth: () => {
-    const apiBase = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-    window.location.href = `${apiBase}/auth/google`;
+  googleLogin: async (credential) => {
+    const { data } = await API.post("/auth/google/token", { credential });
+    return data;
   },
+
+  /**
+   * GET /api/auth/google/status
+   */
+  getGoogleStatus: () => API.get("/auth/google/status"),
 
   /**
    * POST /api/auth/logout - invalidate token and check out employee

@@ -354,8 +354,28 @@ import mongoose from "mongoose";
 import Task from "../models/Task.js";
 import Employee from "../models/Employee.js";
 import { sendTaskAssignedEmail } from "../services/emailService.js";
+import {
+  getEmployeeIdForRequest,
+  resolveEmployeeForAuthUser,
+} from "../utils/employeeUserLink.js";
+import {
+  TASK_STATUSES,
+  buildTaskCapabilities,
+} from "../utils/taskPermissions.js";
 
-const STATUSES = ["To Do", "In Progress", "Review", "Completed"];
+const STATUSES = TASK_STATUSES;
+
+/** GET /api/tasks/capabilities */
+export const getTaskCapabilities = async (req, res) => {
+  try {
+    const employee = await resolveEmployeeForAuthUser(req.user, {
+      createIfMissing: true,
+    });
+    res.json(buildTaskCapabilities(req.user, employee));
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 
 const getEmployeeDisplayName = (employee) => {
   if (!employee) return "Employee";
@@ -463,14 +483,29 @@ export const getTasks = async (req, res) => {
   }
 };
 
-// Get tasks assigned to logged-in employee
+// Get tasks assigned to logged-in employee (matched by Employee email / id)
 export const getMyTasks = async (req, res) => {
   try {
-    const employeeId = req.user?._id || req.user?.id;
+    const employee = await resolveEmployeeForAuthUser(req.user, {
+      createIfMissing: true,
+    });
+
+    if (!employee) {
+      return res.status(404).json({
+        message:
+          "No employee profile for this account. Sign out and sign in again, or ask HR to add your email to the employee list.",
+      });
+    }
+
+    const employeeId = employee._id;
+    const email = employee?.email?.toLowerCase().trim();
 
     const filter = {
-      assignedTo: employeeId,
+      $or: [{ assignedTo: employeeId }],
     };
+    if (email) {
+      filter.$or.push({ assignedToEmail: email });
+    }
 
     if (req.query.status && STATUSES.includes(req.query.status)) {
       filter.status = req.query.status;
@@ -737,7 +772,7 @@ export const addTaskComment = async (req, res) => {
 
     task.comments.push({
       text: text.trim(),
-      author: author || req.user?.name || "Admin",
+      author: author || req.user?.name || req.user?.role || "HR/Manager",
     });
 
     await task.save();

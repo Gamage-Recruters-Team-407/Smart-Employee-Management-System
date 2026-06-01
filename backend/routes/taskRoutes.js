@@ -9,19 +9,31 @@ import {
   updateTaskProgress,
   addTaskComment,
   deleteTask,
+  getTaskCapabilities,
 } from "../controllers/taskController.js";
-import { resolveUser } from "../middleware/resolveUser.js";
+import { protect } from "../middleware/authMiddleware.js";
+import {
+  authorizeTaskManager,
+  authorizeTaskParticipant,
+  authorizeTaskProgressAssignee,
+  authorizeTaskStatusAssignee,
+} from "../middleware/taskMiddleware.js";
 
 const router = express.Router();
 
-router.get("/", getTasks);
-router.get("/my", resolveUser, getMyTasks);
-router.get("/:id", getTaskById);
-router.post("/", createTask);
-router.put("/:id", updateTask);
-router.patch("/:id/status", updateTaskStatus);
-router.patch("/:id/progress", updateTaskProgress);
-router.post("/:id/comments", addTaskComment);
-router.delete("/:id", deleteTask);
+// Employee: own tasks | HR Manager (dept HR + designation Manager): full management
+router.get("/capabilities", protect, getTaskCapabilities);
+router.get("/my", protect, getMyTasks);
+
+router.get("/", protect, authorizeTaskManager, getTasks);
+router.post("/", protect, authorizeTaskManager, createTask);
+
+router.patch("/:id/status", protect, authorizeTaskStatusAssignee, updateTaskStatus);
+router.patch("/:id/progress", protect, authorizeTaskProgressAssignee, updateTaskProgress);
+router.post("/:id/comments", protect, authorizeTaskParticipant, addTaskComment);
+
+router.get("/:id", protect, authorizeTaskManager, getTaskById);
+router.put("/:id", protect, authorizeTaskManager, updateTask);
+router.delete("/:id", protect, authorizeTaskManager, deleteTask);
 
 export default router;

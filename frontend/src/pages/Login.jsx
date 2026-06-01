@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation,  } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -43,9 +42,9 @@ const Login = () => {
   };
 
   const handleGoogleSignUp = () => {
-    // Redirect to backend Google OAuth endpoint
-    const apiBase = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-    window.location.href = `${apiBase}/auth/google`;
+    clearError();
+    const url = new URL("/api/auth/google", window.location.origin);
+    window.location.assign(url.href);
   };
 
   const handleTabChange = (tab) => {

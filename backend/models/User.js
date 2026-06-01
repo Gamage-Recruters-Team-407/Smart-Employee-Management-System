@@ -5,50 +5,70 @@ const userSchema = new mongoose.Schema(
     name: {
       type: String,
       required: [true, "Name is required"],
-      trim: true
+      trim: true,
     },
+
     email: {
       type: String,
       required: [true, "Email is required"],
       unique: true,
       lowercase: true,
-      trim: true
+      trim: true,
     },
+
     password: {
       type: String,
-      required: [true, "Password is required"],
       minlength: 6,
-      select: false
+      select: false,
+      required: function requiredPassword() {
+        return !this.googleId;
+      },
     },
+
     role: {
       type: String,
       enum: ["Admin", "HR", "Manager", "Employee"],
-      default: "Employee"
+      default: "Employee",
     },
+
+    // Password reset support
     resetPasswordToken: {
       type: String,
-      select: false
+      select: false,
     },
+
     resetPasswordExpire: {
       type: Date,
-      select: false
+      select: false,
     },
+
+    // Optional Google login support
     googleId: {
       type: String,
       sparse: true,
-      select: false
+      select: false,
     },
+
+    // Account verification
     isVerified: {
       type: Boolean,
-      default: true
+      default: true,
     },
+
+    // Last login tracking
     lastLogin: {
-      type: Date
-    }
+      type: Date,
+    },
   },
   {
-    timestamps: true
+    timestamps: true,
   }
+);
+
+// Auto-remove expired reset tokens
+userSchema.index(
+  { resetPasswordExpire: 1 },
+  { expireAfterSeconds: 0 }
 );
 
 export default mongoose.model("User", userSchema);

@@ -1,4 +1,5 @@
 import api from "./api";
+import { notifyEmployeeProfileUpdated } from "../utils/employeeProfileEvents";
 
 /**
  * Employee Service
@@ -62,7 +63,10 @@ export const fetchEmployeeStatsDetailed = () =>
  * @returns {Promise<{ success, message, data }>}
  */
 export const addEmployee = (employeeData) =>
-  api.post("/employees", employeeData).then((res) => res.data);
+  api.post("/employees", employeeData).then((res) => {
+    if (res.data?.data) notifyEmployeeProfileUpdated(res.data.data);
+    return res.data;
+  });
 
 /**
  * Update an existing employee.
@@ -72,7 +76,10 @@ export const addEmployee = (employeeData) =>
  * @returns {Promise<{ success, message, data }>}
  */
 export const updateEmployee = (id, updateData) =>
-  api.put(`/employees/${id}`, updateData).then((res) => res.data);
+  api.put(`/employees/${id}`, updateData).then((res) => {
+    if (res.data?.data) notifyEmployeeProfileUpdated(res.data.data);
+    return res.data;
+  });
 
 /**
  * Permanently delete an employee.
