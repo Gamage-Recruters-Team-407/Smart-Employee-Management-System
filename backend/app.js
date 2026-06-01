@@ -4,6 +4,11 @@ import path from "path";
 import { fileURLToPath } from "url";
 import employeeRoutes from "./routes/employeeRoutes.js";
 import documentRoutes from "./routes/documentRoutes.js";
+import {
+  getGoogleAuthStatus,
+  redirectToGoogle,
+  handleGoogleCallback,
+} from "./controllers/googleAuthController.js";
 
 const app = express();
 
@@ -13,6 +18,10 @@ const __dirname = path.dirname(__filename);
 app.use(cors());
 app.use(express.json());
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+app.get("/api/auth/google/status", getGoogleAuthStatus);
+app.get("/api/auth/google/callback", handleGoogleCallback);
+app.get("/api/auth/google", redirectToGoogle);
 
 app.use("/api/employees", employeeRoutes);
 app.use("/api/employees/:id/documents", documentRoutes);

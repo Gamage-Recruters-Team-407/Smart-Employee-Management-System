@@ -2079,6 +2079,7 @@ import {
   bulkDeleteEmployees,
   updateEmployee,
 } from "../services/employeeService";
+import { notifyEmployeeProfileUpdated } from "../utils/employeeProfileEvents";
 
 // ─── COMPONENTS ──────────────────────────────────────────────────────────────
 import EmployeeTable from "../components/EmployeeTable";
@@ -2448,9 +2449,12 @@ const Employees = () => {
 
   const handleInlineUpdate = async (empId, field, value) => {
     try {
-      await updateEmployee(empId, { [field]: value });
+      const result = await updateEmployee(empId, { [field]: value });
+      const updated = result?.data;
       setEmployees((prev) =>
-        prev.map((emp) => (emp._id === empId ? { ...emp, [field]: value } : emp))
+        prev.map((emp) =>
+          emp._id === empId ? (updated ? { ...emp, ...updated } : { ...emp, [field]: value }) : emp
+        )
       );
       loadStats();
       setAnalyticsData(null);
@@ -2465,6 +2469,7 @@ const Employees = () => {
     setEmployees((prev) =>
       prev.map((emp) => (emp._id === updatedEmployee._id ? updatedEmployee : emp))
     );
+    notifyEmployeeProfileUpdated(updatedEmployee);
   };
 
   const handleExportCSV = () => {

@@ -397,11 +397,15 @@ import { Outlet, useNavigate, Link } from "react-router-dom";
 import { Menu, X, LogOut } from "lucide-react";
 import Sidebar from "../components/common/Sidebar";
 import { useAuth } from "../context/AuthContext";
+import { useEmployeeProfile } from "../hooks/useEmployeeProfile";
 
 const Dashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const { employee } = useEmployeeProfile({
+    enabled: user?.role === "Employee",
+  });
 
   // ─── STORAGE එකෙන් දත්ත ආරක්ෂිතව කියවීම ─────────────────────────────────
   let storedUser = {};
@@ -424,9 +428,20 @@ const Dashboard = () => {
     console.error("Failed to parse user data from storage:", e);
   }
 
-  // ─── USERNAME සහ ROLE තීරණය කිරීම (Context එකට ප්‍රමුඛතාවය දේ) ────────────────
-  const userName = user?.name || storedUser.name || "User";
-  const userRole = user?.role || storedUser.role || "Employee";
+  const employeeFullName = employee
+    ? [employee.firstName, employee.lastName].filter(Boolean).join(" ").trim()
+    : "";
+
+  const userName =
+    (user?.role === "Employee" && employeeFullName) ||
+    user?.name ||
+    storedUser.name ||
+    "User";
+
+  const userRole =
+    user?.role === "Employee"
+      ? employee?.designation || employee?.department || user?.role || storedUser.role || "Employee"
+      : user?.role || storedUser.role || "Employee";
   const isLoggedIn = !!(user || storedUser?.email);
 
   // Avatar එක සඳහා නමේ මුල් අකුරු (Initials) සකස් කිරීම

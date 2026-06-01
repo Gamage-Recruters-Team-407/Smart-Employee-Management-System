@@ -8,7 +8,7 @@
     "predev": "node scripts/free-port.js",
     "prestart": "node scripts/free-port.js",
     "start": "node server.js",
-    "dev": "nodemon server.js",
+    "dev": "node --watch server.js",
     "nodemon": "nodemon server.js",
     "seed": "node seed/performanceSeed.js",
     "seed:employees": "node scripts/seedEmployees.js",

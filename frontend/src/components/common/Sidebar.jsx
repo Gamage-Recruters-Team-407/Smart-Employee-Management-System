@@ -276,7 +276,8 @@
 // import React from "react";
 
 import { Link, useLocation } from "react-router-dom";
-// import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/AuthContext";
+import useTaskCapabilities from "../../hooks/useTaskCapabilities";
 import {
   Home,
   Users,
@@ -291,9 +292,16 @@ import {
 
 const Sidebar = ({ isOpen }) => {
   const location = useLocation();
-  // const { user } = useAuth();
+  const { user } = useAuth();
+  const { canManageTasks, isHrManager } = useTaskCapabilities();
 
-  // Branches දෙකේම තිබ්බ ඔක්කොම navigation items එකතු කර සකස් කරන ලදී
+  const taskNavItems = canManageTasks
+    ? [
+        { icon: CheckSquare, label: "Task Management", path: "/tasks/manage" },
+        ...(isHrManager ? [] : [{ icon: CheckSquare, label: "My Tasks", path: "/tasks" }]),
+      ]
+    : [{ icon: CheckSquare, label: "My Tasks", path: "/tasks" }];
+
   const navItems = [
     { icon: Home, label: "Dashboard", path: "/" },
     { icon: Users, label: "Employees", path: "/employees" },
@@ -301,8 +309,7 @@ const Sidebar = ({ isOpen }) => {
     { icon: Calendar, label: "Leaves", path: "/leaves" },
     { icon: DollarSign, label: "Payroll", path: "/payroll" },
     { icon: Award, label: "Performance", path: "/performance" },
-    { icon: CheckSquare, label: "Tasks", path: "/tasks" },
-    { icon: CheckSquare, label: "My Tasks", path: "/my-tasks" },
+    ...taskNavItems,
     { icon: Bell, label: "Notifications", path: "/notifications" },
     { icon: Settings, label: "Settings", path: "/settings" },
   ];

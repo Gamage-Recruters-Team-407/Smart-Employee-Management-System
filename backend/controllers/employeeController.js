@@ -1787,6 +1787,7 @@ import Employee from "../models/Employee.js";
 import Task from "../models/Task.js";
 import AuditLog from "../models/AuditLog.js";
 import generateEmployeeId from "../utils/generateEmployeeId.js";
+import { resolveEmployeeForAuthUser } from "../utils/employeeUserLink.js";
 
 // ─── HELPERS & CONFIGURATIONS ───────────────────────────────────────────────
 
@@ -2306,25 +2307,9 @@ export const getEmployeeHistory = async (req, res) => {
 
 export const getMyProfile = async (req, res) => {
   try {
-    let employee = await Employee.findOne({ email: req.user.email });
+    const employee = await resolveEmployeeForAuthUser(req.user, { createIfMissing: true });
     if (!employee) {
-      // Profile එකක් නොමැති නම් ස්වයංක්‍රීයව සාදයි (Fallback)
-      const employeeCount = await Employee.countDocuments();
-      const newEmpId = `emp-${String(employeeCount + 1).padStart(3, '0')}`;
-      
-      const names = (req.user.name || "Test User").split(' ');
-      const firstName = names[0];
-      const lastName = names.slice(1).join(' ') || 'User';
-
-      employee = new Employee({
-        employeeId: newEmpId,
-        firstName,
-        lastName,
-        email: req.user.email,
-        joiningDate: new Date(),
-        status: "Active",
-      });
-      await employee.save();
+      return res.status(404).json({ message: "Employee profile not found for this account." });
     }
     return res.status(200).json(employee);
   } catch (error) {

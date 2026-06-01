@@ -208,8 +208,9 @@
 // };
 
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useState, useCallback } from "react";
+import { createContext, useContext, useState, useCallback, useEffect } from "react";
 import { authService } from "../services/authService";
+import { EMPLOYEE_PROFILE_UPDATED } from "../utils/employeeProfileEvents";
 
 const AuthContext = createContext(null);
 
@@ -262,6 +263,39 @@ export const AuthProvider = ({ children }) => {
     setToken(null);
     setUser(null);
   }, []);
+
+  const patchStoredUser = useCallback((patch) => {
+    for (const storage of [localStorage, sessionStorage]) {
+      const raw = storage.getItem("user");
+      if (!raw) continue;
+      try {
+        const parsed = JSON.parse(raw);
+        storage.setItem("user", JSON.stringify({ ...parsed, ...patch }));
+      } catch {
+        /* ignore */
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    const onEmployeeUpdated = (event) => {
+      const emp = event.detail;
+      if (!emp?.email) return;
+
+      setUser((prev) => {
+        if (!prev?.email || prev.email.toLowerCase() !== emp.email.toLowerCase()) {
+          return prev;
+        }
+        const name = [emp.firstName, emp.lastName].filter(Boolean).join(" ").trim();
+        const next = { ...prev, name: name || prev.name };
+        patchStoredUser({ name: next.name });
+        return next;
+      });
+    };
+
+    window.addEventListener(EMPLOYEE_PROFILE_UPDATED, onEmployeeUpdated);
+    return () => window.removeEventListener(EMPLOYEE_PROFILE_UPDATED, onEmployeeUpdated);
+  }, [patchStoredUser]);
 
   const getBrowserDateTime = () => {
     const now = new Date();
@@ -318,9 +352,11 @@ export const AuthProvider = ({ children }) => {
       }
       return data;
     } catch (err) {
-      const message = err.response?.data?.message || "Login failed. Please try again.";
+      const message =
+        err.response?.data?.message ||
+        err.message ||
+        "Login failed. Please try again.";
       setError(message);
-      // 💡 FIX: Error එකක් විසි කරද්දී සැබෑ දෝෂයට හේතුව (cause) මෙලෙස අමුණන ලදී
       throw new Error(message, { cause: err });
     }
   };
@@ -364,9 +400,11 @@ export const AuthProvider = ({ children }) => {
       }
       return data;
     } catch (err) {
-      const message = err.response?.data?.message || "Registration failed. Please try again.";
+      const message =
+        err.response?.data?.message ||
+        err.message ||
+        "Registration failed. Please try again.";
       setError(message);
-      // 💡 FIX: Signup error එකටත් 'cause' එක මෙලෙස අමුණන ලදී
       throw new Error(message, { cause: err });
     }
   };
@@ -393,6 +431,56 @@ export const AuthProvider = ({ children }) => {
     }
   }, [clearSession, user]);
 
+  const persistSession = (data, rememberMe = true) => {
+    const authUser = data?.user || data;
+    const userObj = {
+      _id: authUser?._id,
+      name: authUser?.name,
+      email: authUser?.email,
+      role: authUser?.role,
+    };
+    const storage = rememberMe ? localStorage : sessionStorage;
+
+    storage.setItem("token", data.token);
+    storage.setItem("user", JSON.stringify(userObj));
+    setToken(data.token);
+    setUser(userObj);
+    return userObj;
+  };
+
+  const loginWithGoogle = async (credential, rememberMe = true) => {
+    setError(null);
+    try {
+      const data = await authService.googleLogin(credential);
+      const userObj = persistSession(data, rememberMe);
+
+      if (userObj) {
+        setTimeout(async () => {
+          try {
+            const { date, time } = getBrowserDateTime();
+            const checkInRes = await authService.checkIn({
+              date,
+              checkInTime: time,
+              location: "Office",
+            });
+            if (checkInRes?.attendance) {
+              const storage = rememberMe ? localStorage : sessionStorage;
+              storage.setItem("attendanceId", checkInRes.attendance._id);
+            }
+          } catch (checkInErr) {
+            console.error("Auto check-in failed after Google login:", checkInErr);
+          }
+        }, 100);
+      }
+      return data;
+    } catch (err) {
+      const message =
+        err.response?.data?.message || "Google sign-in failed. Please try again.";
+      setError(message);
+      throw new Error(message, { cause: err });
+    }
+  };
+
   const clearError = () => {
     setError(null);
   };
@@ -406,6 +494,7 @@ export const AuthProvider = ({ children }) => {
         error,
         login,
         register,
+        loginWithGoogle,
         logout,
         clearError,
         isAuthenticated: !!token,

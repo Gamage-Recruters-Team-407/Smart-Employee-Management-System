@@ -4,6 +4,11 @@ import cors from "cors";
 import path from "path";
 import { connectDB } from "./config/db.js";
 import authRoutes from "./routes/authRoutes.js";
+import {
+  getGoogleAuthStatus,
+  redirectToGoogle,
+  handleGoogleCallback,
+} from "./controllers/googleAuthController.js";
 import employeeRoutes from "./routes/employeeRoutes.js";
 import attendanceRoutes from "./routes/attendanceRoutes.js";
 import taskRoutes from "./routes/taskRoutes.js";
@@ -63,6 +68,11 @@ app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 app.get("/", (_req, res) => res.send("SEMS Backend Running"));
 app.get("/api", (_req, res) => res.json({ message: "Smart Employee Management API" }));
 
+// Google OAuth (explicit routes so GET /api/auth/google always works)
+app.get("/api/auth/google/status", getGoogleAuthStatus);
+app.get("/api/auth/google/callback", handleGoogleCallback);
+app.get("/api/auth/google", redirectToGoogle);
+
 app.use("/api/auth", authRoutes);
 app.use("/api/employees", employeeRoutes);
 app.use("/api/attendance", attendanceRoutes);
@@ -74,7 +84,8 @@ app.use("/api/leaves", leaveRoutes);
 app.use("/api/performance", performanceRoutes);
 
 const PORT = process.env.PORT || 5000;
-const HOST = process.env.HOST || (isProduction ? "0.0.0.0" : "127.0.0.1");
+// Listen on all interfaces in dev so http://localhost:5000 and http://127.0.0.1:5000 both work
+const HOST = process.env.HOST || "0.0.0.0";
 let serverInstance = null;
 let isStarting = false;
 

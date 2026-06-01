@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const API_URL = import.meta.env.VITE_API_URL || "/api";
 
 const API = axios.create({
   baseURL: API_URL,
@@ -38,9 +38,9 @@ API.interceptors.response.use(
     }
 
     if (!error.response) {
-      return Promise.reject(
-        new Error("Cannot reach the backend. Start it with: cd backend && npm run dev")
-      );
+      error.message =
+        "Cannot reach the backend. Start it with: cd backend && npm run dev, then open http://127.0.0.1:5173/login";
+      return Promise.reject(error);
     }
 
     return Promise.reject(error);

@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import API from "../services/api";
+import { fetchEmployees as fetchEmployeesList } from "../services/employeeService";
 import TaskBoard from "../components/TaskBoard";
+import { useAuth } from "../context/AuthContext";
 
 const TASK_STATUSES = ["To Do", "In Progress", "Review", "Completed"];
 
@@ -55,6 +57,7 @@ const validateTaskForm = (data, employees, { isEdit = false } = {}) => {
 };
 
 const Tasks = () => {
+  const { user } = useAuth();
   const [tasks, setTasks] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -68,8 +71,8 @@ const Tasks = () => {
 
   const fetchTasks = useCallback(async () => {
     try {
-      const data = await API.get("/tasks");
-      setTasks(data);
+      const { data } = await API.get("/tasks");
+      setTasks(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Failed to load tasks:", err);
     } finally {
@@ -79,10 +82,20 @@ const Tasks = () => {
 
   const fetchEmployees = useCallback(async () => {
     try {
-      const data = await API.get("/employees");
-      setEmployees(data);
+      const result = await fetchEmployeesList({
+        page: 1,
+        limit: 500,
+        sortField: "firstName",
+        sortDir: "asc",
+      });
+      const list = Array.isArray(result?.data) ? result.data : [];
+      const assignable = list.filter(
+        (emp) => emp.status !== "Terminated" && emp.status !== "Inactive"
+      );
+      setEmployees(assignable);
     } catch (err) {
       console.error("Failed to load employees:", err);
+      setEmployees([]);
     }
   }, []);
 
@@ -191,12 +204,12 @@ const Tasks = () => {
       };
 
       if (isEdit) {
-        const updated = await API.put(`/tasks/${editingTaskId}`, payload);
+        const { data: updated } = await API.put(`/tasks/${editingTaskId}`, payload);
         setTasks((prev) =>
           prev.map((t) => (t._id === editingTaskId ? updated : t))
         );
       } else {
-        const created = await API.post("/tasks", payload);
+        const { data: created } = await API.post("/tasks", payload);
         setTasks((prev) => [created, ...prev]);
       }
       closeModal();
@@ -230,9 +243,9 @@ const Tasks = () => {
   const todayStr = new Date().toISOString().split("T")[0];
 
   const handleAddComment = async (taskId, text) => {
-    const updated = await API.post(`/tasks/${taskId}/comments`, {
+    const { data: updated } = await API.post(`/tasks/${taskId}/comments`, {
       text,
-      author: "Admin",
+      author: user?.name || "HR/Manager",
     });
     setTasks((prev) => prev.map((t) => (t._id === taskId ? updated : t)));
   };
@@ -252,6 +265,7 @@ const Tasks = () => {
     total: tasks.length,
     todo: tasks.filter((t) => t.status === "To Do").length,
     inProgress: tasks.filter((t) => t.status === "In Progress").length,
+    review: tasks.filter((t) => t.status === "Review").length,
     completed: tasks.filter((t) => t.status === "Completed").length,
   };
 
@@ -260,8 +274,8 @@ const Tasks = () => {
       <div className="flex flex-wrap justify-between items-center gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-800">Task Management</h1>
-          <p className="text-gray-500 mt-1">
-            Assign and edit tasks. Assigned tasks appear on each employee&apos;s account.
+          <p className="text-gray-500 mt-1 max-w-2xl">
+            Create and assign tasks to employees and add comments. Employees update progress and status from the My Tasks page.
           </p>
         </div>
         <button
@@ -272,11 +286,22 @@ const Tasks = () => {
         </button>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      <div className="mb-4 flex flex-wrap gap-2 text-xs text-gray-500">
+        <span className="font-medium text-gray-700">Workflow:</span>
+        {TASK_STATUSES.map((s, i) => (
+          <span key={s} className="flex items-center gap-2">
+            {i > 0 && <span>→</span>}
+            <span className="px-2 py-0.5 bg-gray-100 rounded-md">{s}</span>
+          </span>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
         {[
           { label: "Total Tasks", value: stats.total, color: "bg-indigo-50 text-indigo-700" },
           { label: "To Do", value: stats.todo, color: "bg-slate-50 text-slate-700" },
           { label: "In Progress", value: stats.inProgress, color: "bg-blue-50 text-blue-700" },
+          { label: "Review", value: stats.review, color: "bg-amber-50 text-amber-700" },
           { label: "Completed", value: stats.completed, color: "bg-green-50 text-green-700" },
         ].map((s) => (
           <div key={s.label} className={`rounded-xl p-4 ${s.color}`}>

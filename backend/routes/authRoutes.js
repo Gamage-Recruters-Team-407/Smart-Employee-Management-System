@@ -1,362 +1,77 @@
+// <<<<<<< HEAD
+// import express from "express";
+// import { login, getMe } from "../controllers/authController.js";
+// =======
+// // import express from "express";
 // // <<<<<<< HEAD
-// // import express from "express";
-// // import { login, getMe } from "../controllers/authController.js";
+
+// // import {
+// //   registerUser,
+// //   loginUser,
+// //   logoutUser,
+// // } from "../controllers/authController.js";
+
+// // const router = express.Router();
+
+
+
+// // router.post("/register", registerUser);
+
+// // router.post("/login", loginUser);
+
+// // router.post("/logout", logoutUser);
 // // =======
-// // // import express from "express";
-// // // <<<<<<< HEAD
-
-// // // import {
-// // //   registerUser,
-// // //   loginUser,
-// // //   logoutUser,
-// // // } from "../controllers/authController.js";
-
-// // // const router = express.Router();
-
-
-
-// // // router.post("/register", registerUser);
-
-// // // router.post("/login", loginUser);
-
-// // // router.post("/logout", logoutUser);
-// // // =======
-// // // import bcrypt from "bcryptjs";
-// // // import jwt from "jsonwebtoken";
-// // // import crypto from "crypto";
-// // // import User from "../models/User.js";
-// // // import { protect } from "../middleware/authMiddleware.js";
-
-// // // const router = express.Router();
-
-// // // // Utility: sign a JWT
-// // // const signToken = (id) =>
-// // //   jwt.sign({ id }, process.env.JWT_SECRET, {
-// // //     expiresIn: process.env.JWT_EXPIRES_IN || "7d",
-// // //   });
-
-// // // // Utility: Send email (you need to implement this)
-// // // // For now, we'll log the code to console for testing
-// // // const sendResetCodeEmail = async (email, code) => {
-// // //   // In production, use nodemailer to send actual email
-// // //   console.log(`=========================================`);
-// // //   console.log(`Password Reset Request for: ${email}`);
-// // //   console.log(`Your 6-digit reset code: ${code}`);
-// // //   console.log(`This code expires in 10 minutes`);
-// // //   console.log(`=========================================`);
-  
-// // //   // For development, you can also return the code in response
-// // //   // DON'T do this in production!
-// // //   return true;
-// // // };
-
-// // // // ─── POST /api/auth/register ────────────────────────────────────────────────
-// // // router.post("/register", async (req, res) => {
-// // //   const { name, email, password, role } = req.body;
-
-// // //   if (!name || !email || !password) {
-// // //     return res.status(400).json({ message: "Name, email and password are required." });
-// // //   }
-
-// // //   try {
-// // //     const exists = await User.findOne({ email });
-// // //     if (exists) {
-// // //       return res.status(409).json({ message: "An account with that email already exists." });
-// // //     }
-
-// // //     const hashed = await bcrypt.hash(password, 12);
-// // //     const user = await User.create({ name, email, password: hashed, role });
-
-// // //     const token = signToken(user._id);
-
-// // //     res.status(201).json({
-// // //       token,
-// // //       user: { _id: user._id, name: user.name, email: user.email, role: user.role },
-// // //     });
-// // //   } catch (err) {
-// // //     console.error("Register error:", err);
-// // //     res.status(500).json({ message: "Server error during registration." });
-// // //   }
-// // // });
-
-// // // // ─── POST /api/auth/login ────────────────────────────────────────────────────
-// // // router.post("/login", async (req, res) => {
-// // //   const { email, password } = req.body;
-
-// // //   if (!email || !password) {
-// // //     return res.status(400).json({ message: "Email and password are required." });
-// // //   }
-
-// // //   try {
-// // //     const user = await User.findOne({ email }).select("+password");
-// // //     if (!user) {
-// // //       return res.status(401).json({ message: "Invalid email or password." });
-// // //     }
-
-// // //     const match = await bcrypt.compare(password, user.password);
-// // //     if (!match) {
-// // //       return res.status(401).json({ message: "Invalid email or password." });
-// // //     }
-
-// // //     const token = signToken(user._id);
-
-// // //     res.status(200).json({
-// // //       token,
-// // //       user: { _id: user._id, name: user.name, email: user.email, role: user.role },
-// // //     });
-// // //   } catch (err) {
-// // //     console.error("Login error:", err);
-// // //     res.status(500).json({ message: "Server error during login." });
-// // //   }
-// // // });
-
-// // // // ─── POST /api/auth/forgot-password ─────────────────────────────────────────
-// // // // Sends a 6-digit reset code to user's email
-// // // router.post("/forgot-password", async (req, res) => {
-// // //   const { email } = req.body;
-
-// // //   if (!email) {
-// // //     return res.status(400).json({ message: "Email is required." });
-// // //   }
-
-// // //   try {
-// // //     const user = await User.findOne({ email });
-    
-// // //     // For security, always return success even if email doesn't exist
-// // //     if (!user) {
-// // //       return res.status(200).json({ 
-// // //         message: "If an account exists with this email, a reset code has been sent." 
-// // //       });
-// // //     }
-
-// // //     // Generate 6-digit random code
-// // //     const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
-    
-// // //     // Hash the code before storing (for security)
-// // //     const hashedCode = crypto
-// // //       .createHash("sha256")
-// // //       .update(resetCode)
-// // //       .digest("hex");
-    
-// // //     // Store hashed code and expiry in database
-// // //     user.resetPasswordToken = hashedCode;
-// // //     user.resetPasswordExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
-    
-// // //     await user.save();
-    
-// // //     // Send email with the actual code
-// // //     await sendResetCodeEmail(email, resetCode);
-    
-// // //     res.status(200).json({ 
-// // //       message: "If an account exists with this email, a reset code has been sent." 
-// // //     });
-// // //   } catch (err) {
-// // //     console.error("Forgot password error:", err);
-// // //     res.status(500).json({ message: "Server error. Please try again later." });
-// // //   }
-// // // });
-
-// // // // ─── POST /api/auth/verify-reset-code ────────────────────────────────────────
-// // // // Verifies the 6-digit reset code
-// // // router.post("/verify-reset-code", async (req, res) => {
-// // //   const { email, code } = req.body;
-
-// // //   if (!email || !code) {
-// // //     return res.status(400).json({ message: "Email and reset code are required." });
-// // //   }
-
-// // //   if (!/^\d{6}$/.test(code)) {
-// // //     return res.status(400).json({ message: "Invalid code format. Please enter a 6-digit code." });
-// // //   }
-
-// // //   try {
-// // //     const hashedCode = crypto
-// // //       .createHash("sha256")
-// // //       .update(code)
-// // //       .digest("hex");
-    
-// // //     const user = await User.findOne({
-// // //       email,
-// // //       resetPasswordToken: hashedCode,
-// // //       resetPasswordExpire: { $gt: Date.now() }
-// // //     });
-    
-// // //     if (!user) {
-// // //       return res.status(400).json({ 
-// // //         message: "Invalid or expired reset code. Please request a new one." 
-// // //       });
-// // //     }
-    
-// // //     res.status(200).json({ 
-// // //       message: "Code verified successfully. You can now reset your password." 
-// // //     });
-// // //   } catch (err) {
-// // //     console.error("Verify code error:", err);
-// // //     res.status(500).json({ message: "Server error. Please try again." });
-// // //   }
-// // // });
-
-// // // // ─── POST /api/auth/reset-password-with-code ─────────────────────────────────
-// // // // Resets password using email, code, and new password
-// // // router.post("/reset-password-with-code", async (req, res) => {
-// // //   const { email, code, password } = req.body;
-
-// // //   if (!email || !code || !password) {
-// // //     return res.status(400).json({ 
-// // //       message: "Email, reset code, and new password are required." 
-// // //     });
-// // //   }
-
-// // //   // Password validation
-// // //   if (password.length < 6) {
-// // //     return res.status(400).json({ 
-// // //       message: "Password must be at least 6 characters long." 
-// // //     });
-// // //   }
-
-// // //   if (!/[A-Z]/.test(password)) {
-// // //     return res.status(400).json({ 
-// // //       message: "Password must contain at least one uppercase letter." 
-// // //     });
-// // //   }
-
-// // //   if (!/[a-z]/.test(password)) {
-// // //     return res.status(400).json({ 
-// // //       message: "Password must contain at least one lowercase letter." 
-// // //     });
-// // //   }
-
-// // //   if (!/[0-9]/.test(password)) {
-// // //     return res.status(400).json({ 
-// // //       message: "Password must contain at least one number." 
-// // //     });
-// // //   }
-
-// // //   try {
-// // //     const hashedCode = crypto
-// // //       .createHash("sha256")
-// // //       .update(code)
-// // //       .digest("hex");
-    
-// // //     const user = await User.findOne({
-// // //       email,
-// // //       resetPasswordToken: hashedCode,
-// // //       resetPasswordExpire: { $gt: Date.now() }
-// // //     });
-    
-// // //     if (!user) {
-// // //       return res.status(400).json({ 
-// // //         message: "Invalid or expired reset code. Please request a new one." 
-// // //       });
-// // //     }
-    
-// // //     // Hash new password
-// // //     const hashedPassword = await bcrypt.hash(password, 12);
-    
-// // //     // Update user password and clear reset fields
-// // //     user.password = hashedPassword;
-// // //     user.resetPasswordToken = undefined;
-// // //     user.resetPasswordExpire = undefined;
-    
-// // //     await user.save();
-    
-// // //     res.status(200).json({ 
-// // //       message: "Password reset successful. You can now login with your new password." 
-// // //     });
-// // //   } catch (err) {
-// // //     console.error("Reset password error:", err);
-// // //     res.status(500).json({ message: "Server error. Please try again." });
-// // //   }
-// // // });
-
-// // // // ─── GET /api/auth/me ────────────────────────────────────────────────────────
-// // // router.get("/me", protect, async (req, res) => {
-// // //   res.status(200).json({
-// // //     user: {
-// // //       _id: req.user._id,
-// // //       name: req.user.name,
-// // //       email: req.user.email,
-// // //       role: req.user.role,
-// // //     },
-// // //   });
-// // // });
-
-// // // // ─── POST /api/auth/logout ───────────────────────────────────────────────────
-// // // router.post("/logout", protect, async (req, res) => {
-// // //   // Client-side token removal is enough for JWT
-// // //   res.status(200).json({ message: "Logged out successfully." });
-// // // });
-// // // >>>>>>> d9a15a9db0be8ea95b979aff342d68141b4a01ba
-
-// // // export default router;
-
-
-// // import express from "express";
 // // import bcrypt from "bcryptjs";
 // // import jwt from "jsonwebtoken";
 // // import crypto from "crypto";
-
 // // import User from "../models/User.js";
-// // >>>>>>> 1fb63b3360fb66ed30b436aa24ad432255b11aea
 // // import { protect } from "../middleware/authMiddleware.js";
 
 // // const router = express.Router();
 
-// // <<<<<<< HEAD
-// // router.post("/login", login);
-// // router.get("/me", protect, getMe);
-
-// // export default router;
-// // =======
+// // // Utility: sign a JWT
 // // const signToken = (id) =>
 // //   jwt.sign({ id }, process.env.JWT_SECRET, {
 // //     expiresIn: process.env.JWT_EXPIRES_IN || "7d",
 // //   });
 
+// // // Utility: Send email (you need to implement this)
+// // // For now, we'll log the code to console for testing
 // // const sendResetCodeEmail = async (email, code) => {
-// //   console.log("=========================================");
+// //   // In production, use nodemailer to send actual email
+// //   console.log(`=========================================`);
 // //   console.log(`Password Reset Request for: ${email}`);
 // //   console.log(`Your 6-digit reset code: ${code}`);
-// //   console.log("This code expires in 10 minutes");
-// //   console.log("=========================================");
+// //   console.log(`This code expires in 10 minutes`);
+// //   console.log(`=========================================`);
+  
+// //   // For development, you can also return the code in response
+// //   // DON'T do this in production!
 // //   return true;
 // // };
 
+// // // ─── POST /api/auth/register ────────────────────────────────────────────────
 // // router.post("/register", async (req, res) => {
 // //   const { name, email, password, role } = req.body;
 
 // //   if (!name || !email || !password) {
-// //     return res
-// //       .status(400)
-// //       .json({ message: "Name, email and password are required." });
+// //     return res.status(400).json({ message: "Name, email and password are required." });
 // //   }
 
 // //   try {
 // //     const exists = await User.findOne({ email });
 // //     if (exists) {
-// //       return res
-// //         .status(409)
-// //         .json({ message: "An account with that email already exists." });
+// //       return res.status(409).json({ message: "An account with that email already exists." });
 // //     }
 
 // //     const hashed = await bcrypt.hash(password, 12);
-// //     const user = await User.create({
-// //       name,
-// //       email,
-// //       password: hashed,
-// //       role,
-// //     });
+// //     const user = await User.create({ name, email, password: hashed, role });
 
 // //     const token = signToken(user._id);
 
 // //     res.status(201).json({
 // //       token,
-// //       user: {
-// //         _id: user._id,
-// //         name: user.name,
-// //         email: user.email,
-// //         role: user.role,
-// //       },
+// //       user: { _id: user._id, name: user.name, email: user.email, role: user.role },
 // //     });
 // //   } catch (err) {
 // //     console.error("Register error:", err);
@@ -364,13 +79,12 @@
 // //   }
 // // });
 
+// // // ─── POST /api/auth/login ────────────────────────────────────────────────────
 // // router.post("/login", async (req, res) => {
 // //   const { email, password } = req.body;
 
 // //   if (!email || !password) {
-// //     return res
-// //       .status(400)
-// //       .json({ message: "Email and password are required." });
+// //     return res.status(400).json({ message: "Email and password are required." });
 // //   }
 
 // //   try {
@@ -388,12 +102,7 @@
 
 // //     res.status(200).json({
 // //       token,
-// //       user: {
-// //         _id: user._id,
-// //         name: user.name,
-// //         email: user.email,
-// //         role: user.role,
-// //       },
+// //       user: { _id: user._id, name: user.name, email: user.email, role: user.role },
 // //     });
 // //   } catch (err) {
 // //     console.error("Login error:", err);
@@ -401,10 +110,166 @@
 // //   }
 // // });
 
-// // router.post("/logout", protect, async (req, res) => {
-// //   res.status(200).json({ message: "Logged out successfully." });
+// // // ─── POST /api/auth/forgot-password ─────────────────────────────────────────
+// // // Sends a 6-digit reset code to user's email
+// // router.post("/forgot-password", async (req, res) => {
+// //   const { email } = req.body;
+
+// //   if (!email) {
+// //     return res.status(400).json({ message: "Email is required." });
+// //   }
+
+// //   try {
+// //     const user = await User.findOne({ email });
+    
+// //     // For security, always return success even if email doesn't exist
+// //     if (!user) {
+// //       return res.status(200).json({ 
+// //         message: "If an account exists with this email, a reset code has been sent." 
+// //       });
+// //     }
+
+// //     // Generate 6-digit random code
+// //     const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+    
+// //     // Hash the code before storing (for security)
+// //     const hashedCode = crypto
+// //       .createHash("sha256")
+// //       .update(resetCode)
+// //       .digest("hex");
+    
+// //     // Store hashed code and expiry in database
+// //     user.resetPasswordToken = hashedCode;
+// //     user.resetPasswordExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
+    
+// //     await user.save();
+    
+// //     // Send email with the actual code
+// //     await sendResetCodeEmail(email, resetCode);
+    
+// //     res.status(200).json({ 
+// //       message: "If an account exists with this email, a reset code has been sent." 
+// //     });
+// //   } catch (err) {
+// //     console.error("Forgot password error:", err);
+// //     res.status(500).json({ message: "Server error. Please try again later." });
+// //   }
 // // });
 
+// // // ─── POST /api/auth/verify-reset-code ────────────────────────────────────────
+// // // Verifies the 6-digit reset code
+// // router.post("/verify-reset-code", async (req, res) => {
+// //   const { email, code } = req.body;
+
+// //   if (!email || !code) {
+// //     return res.status(400).json({ message: "Email and reset code are required." });
+// //   }
+
+// //   if (!/^\d{6}$/.test(code)) {
+// //     return res.status(400).json({ message: "Invalid code format. Please enter a 6-digit code." });
+// //   }
+
+// //   try {
+// //     const hashedCode = crypto
+// //       .createHash("sha256")
+// //       .update(code)
+// //       .digest("hex");
+    
+// //     const user = await User.findOne({
+// //       email,
+// //       resetPasswordToken: hashedCode,
+// //       resetPasswordExpire: { $gt: Date.now() }
+// //     });
+    
+// //     if (!user) {
+// //       return res.status(400).json({ 
+// //         message: "Invalid or expired reset code. Please request a new one." 
+// //       });
+// //     }
+    
+// //     res.status(200).json({ 
+// //       message: "Code verified successfully. You can now reset your password." 
+// //     });
+// //   } catch (err) {
+// //     console.error("Verify code error:", err);
+// //     res.status(500).json({ message: "Server error. Please try again." });
+// //   }
+// // });
+
+// // // ─── POST /api/auth/reset-password-with-code ─────────────────────────────────
+// // // Resets password using email, code, and new password
+// // router.post("/reset-password-with-code", async (req, res) => {
+// //   const { email, code, password } = req.body;
+
+// //   if (!email || !code || !password) {
+// //     return res.status(400).json({ 
+// //       message: "Email, reset code, and new password are required." 
+// //     });
+// //   }
+
+// //   // Password validation
+// //   if (password.length < 6) {
+// //     return res.status(400).json({ 
+// //       message: "Password must be at least 6 characters long." 
+// //     });
+// //   }
+
+// //   if (!/[A-Z]/.test(password)) {
+// //     return res.status(400).json({ 
+// //       message: "Password must contain at least one uppercase letter." 
+// //     });
+// //   }
+
+// //   if (!/[a-z]/.test(password)) {
+// //     return res.status(400).json({ 
+// //       message: "Password must contain at least one lowercase letter." 
+// //     });
+// //   }
+
+// //   if (!/[0-9]/.test(password)) {
+// //     return res.status(400).json({ 
+// //       message: "Password must contain at least one number." 
+// //     });
+// //   }
+
+// //   try {
+// //     const hashedCode = crypto
+// //       .createHash("sha256")
+// //       .update(code)
+// //       .digest("hex");
+    
+// //     const user = await User.findOne({
+// //       email,
+// //       resetPasswordToken: hashedCode,
+// //       resetPasswordExpire: { $gt: Date.now() }
+// //     });
+    
+// //     if (!user) {
+// //       return res.status(400).json({ 
+// //         message: "Invalid or expired reset code. Please request a new one." 
+// //       });
+// //     }
+    
+// //     // Hash new password
+// //     const hashedPassword = await bcrypt.hash(password, 12);
+    
+// //     // Update user password and clear reset fields
+// //     user.password = hashedPassword;
+// //     user.resetPasswordToken = undefined;
+// //     user.resetPasswordExpire = undefined;
+    
+// //     await user.save();
+    
+// //     res.status(200).json({ 
+// //       message: "Password reset successful. You can now login with your new password." 
+// //     });
+// //   } catch (err) {
+// //     console.error("Reset password error:", err);
+// //     res.status(500).json({ message: "Server error. Please try again." });
+// //   }
+// // });
+
+// // // ─── GET /api/auth/me ────────────────────────────────────────────────────────
 // // router.get("/me", protect, async (req, res) => {
 // //   res.status(200).json({
 // //     user: {
@@ -416,209 +281,15 @@
 // //   });
 // // });
 
-// // router.post("/forgot-password", async (req, res) => {
-// //   const { email } = req.body;
-
-// //   if (!email) {
-// //     return res.status(400).json({ message: "Email is required." });
-// //   }
-
-// //   try {
-// //     const user = await User.findOne({ email });
-
-// //     if (!user) {
-// //       return res.status(200).json({
-// //         message: "If an account exists with this email, a reset code has been sent.",
-// //       });
-// //     }
-
-// //     const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
-
-// //     const hashedCode = crypto
-// //       .createHash("sha256")
-// //       .update(resetCode)
-// //       .digest("hex");
-
-// //     user.resetPasswordToken = hashedCode;
-// //     user.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
-
-// //     await user.save();
-// //     await sendResetCodeEmail(email, resetCode);
-
-// //     res.status(200).json({
-// //       message: "If an account exists with this email, a reset code has been sent.",
-// //     });
-// //   } catch (err) {
-// //     console.error("Forgot password error:", err);
-// //     res.status(500).json({ message: "Server error. Please try again later." });
-// //   }
+// // // ─── POST /api/auth/logout ───────────────────────────────────────────────────
+// // router.post("/logout", protect, async (req, res) => {
+// //   // Client-side token removal is enough for JWT
+// //   res.status(200).json({ message: "Logged out successfully." });
 // // });
-
-// // router.post("/verify-reset-code", async (req, res) => {
-// //   const { email, code } = req.body;
-
-// //   if (!email || !code) {
-// //     return res
-// //       .status(400)
-// //       .json({ message: "Email and reset code are required." });
-// //   }
-
-// //   if (!/^\d{6}$/.test(code)) {
-// //     return res
-// //       .status(400)
-// //       .json({ message: "Invalid code format. Please enter a 6-digit code." });
-// //   }
-
-// //   try {
-// //     const hashedCode = crypto.createHash("sha256").update(code).digest("hex");
-
-// //     const user = await User.findOne({
-// //       email,
-// //       resetPasswordToken: hashedCode,
-// //       resetPasswordExpire: { $gt: Date.now() },
-// //     });
-
-// //     if (!user) {
-// //       return res.status(400).json({
-// //         message: "Invalid or expired reset code. Please request a new one.",
-// //       });
-// //     }
-
-// //     res.status(200).json({
-// //       message: "Code verified successfully. You can now reset your password.",
-// //     });
-// //   } catch (err) {
-// //     console.error("Verify code error:", err);
-// //     res.status(500).json({ message: "Server error. Please try again." });
-// //   }
-// // });
-
-// // router.post("/reset-password-with-code", async (req, res) => {
-// //   const { email, code, password } = req.body;
-
-// //   if (!email || !code || !password) {
-// //     return res.status(400).json({
-// //       message: "Email, reset code, and new password are required.",
-// //     });
-// //   }
-
-// //   if (password.length < 6) {
-// //     return res.status(400).json({
-// //       message: "Password must be at least 6 characters long.",
-// //     });
-// //   }
-
-// //   if (!/[A-Z]/.test(password)) {
-// //     return res.status(400).json({
-// //       message: "Password must contain at least one uppercase letter.",
-// //     });
-// //   }
-
-// //   if (!/[a-z]/.test(password)) {
-// //     return res.status(400).json({
-// //       message: "Password must contain at least one lowercase letter.",
-// //     });
-// //   }
-
-// //   if (!/[0-9]/.test(password)) {
-// //     return res.status(400).json({
-// //       message: "Password must contain at least one number.",
-// //     });
-// //   }
-
-// //   try {
-// //     const hashedCode = crypto.createHash("sha256").update(code).digest("hex");
-
-// //     const user = await User.findOne({
-// //       email,
-// //       resetPasswordToken: hashedCode,
-// //       resetPasswordExpire: { $gt: Date.now() },
-// //     });
-
-// //     if (!user) {
-// //       return res.status(400).json({
-// //         message: "Invalid or expired reset code. Please request a new one.",
-// //       });
-// //     }
-
-// //     const hashedPassword = await bcrypt.hash(password, 12);
-
-// //     user.password = hashedPassword;
-// //     user.resetPasswordToken = undefined;
-// //     user.resetPasswordExpire = undefined;
-
-// //     await user.save();
-
-// //     res.status(200).json({
-// //       message: "Password reset successful. You can now login with your new password.",
-// //     });
-// //   } catch (err) {
-// //     console.error("Reset password error:", err);
-// //     res.status(500).json({ message: "Server error. Please try again." });
-// //   }
-// // });
-
-// // router.put("/reset-password/:token", async (req, res) => {
-// //   const { token } = req.params;
-// //   const { password } = req.body;
-
-// //   if (!password) {
-// //     return res.status(400).json({ message: "Password is required." });
-// //   }
-
-// //   try {
-// //     const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
-
-// //     const user = await User.findOne({
-// //       resetPasswordToken: hashedToken,
-// //       resetPasswordExpire: { $gt: Date.now() },
-// //     });
-
-// //     if (!user) {
-// //       return res.status(400).json({
-// //         message: "Invalid or expired reset token.",
-// //       });
-// //     }
-
-// //     user.password = await bcrypt.hash(password, 12);
-// //     user.resetPasswordToken = undefined;
-// //     user.resetPasswordExpire = undefined;
-
-// //     await user.save();
-
-// //     res.status(200).json({ message: "Password reset successful." });
-// //   } catch (err) {
-// //     console.error("Reset password token error:", err);
-// //     res.status(500).json({ message: "Server error. Please try again." });
-// //   }
-// // });
-
-// // router.get("/reset-password/:token/verify", async (req, res) => {
-// //   const { token } = req.params;
-
-// //   try {
-// //     const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
-
-// //     const user = await User.findOne({
-// //       resetPasswordToken: hashedToken,
-// //       resetPasswordExpire: { $gt: Date.now() },
-// //     });
-
-// //     if (!user) {
-// //       return res.status(400).json({
-// //         message: "Invalid or expired reset token.",
-// //       });
-// //     }
-
-// //     res.status(200).json({ message: "Reset token is valid." });
-// //   } catch (err) {
-// //     console.error("Verify reset token error:", err);
-// //     res.status(500).json({ message: "Server error. Please try again." });
-// //   }
-// // });
+// // >>>>>>> d9a15a9db0be8ea95b979aff342d68141b4a01ba
 
 // // export default router;
-// // >>>>>>> 1fb63b3360fb66ed30b436aa24ad432255b11aea
+
 
 // import express from "express";
 // import bcrypt from "bcryptjs";
@@ -626,536 +297,328 @@
 // import crypto from "crypto";
 
 // import User from "../models/User.js";
+// >>>>>>> 1fb63b3360fb66ed30b436aa24ad432255b11aea
 // import { protect } from "../middleware/authMiddleware.js";
 
 // const router = express.Router();
 
-// // ─────────────────────────────────────────────
-// // Generate JWT
-// // ─────────────────────────────────────────────
+// <<<<<<< HEAD
+// router.post("/login", login);
+// router.get("/me", protect, getMe);
 
+// export default router;
+// =======
 // const signToken = (id) =>
-//   jwt.sign(
-//     { id },
-//     process.env.JWT_SECRET,
-//     {
-//       expiresIn:
-//         process.env.JWT_EXPIRES_IN || "7d",
-//     }
-//   );
+//   jwt.sign({ id }, process.env.JWT_SECRET, {
+//     expiresIn: process.env.JWT_EXPIRES_IN || "7d",
+//   });
 
-// // ─────────────────────────────────────────────
-// // Mock email sender
-// // Replace with nodemailer later
-// // ─────────────────────────────────────────────
-
-// const sendResetCodeEmail = async (
-//   email,
-//   code
-// ) => {
-//   console.log("=================================");
-//   console.log(
-//     `Password Reset Request: ${email}`
-//   );
-//   console.log(`Reset Code: ${code}`);
-//   console.log("Expires in 10 minutes");
-//   console.log("=================================");
-
+// const sendResetCodeEmail = async (email, code) => {
+//   console.log("=========================================");
+//   console.log(`Password Reset Request for: ${email}`);
+//   console.log(`Your 6-digit reset code: ${code}`);
+//   console.log("This code expires in 10 minutes");
+//   console.log("=========================================");
 //   return true;
 // };
 
-// // ─────────────────────────────────────────────
-// // Register
-// // ─────────────────────────────────────────────
+// router.post("/register", async (req, res) => {
+//   const { name, email, password, role } = req.body;
 
-// router.post(
-//   "/register",
-//   async (req, res) => {
-//     const {
+//   if (!name || !email || !password) {
+//     return res
+//       .status(400)
+//       .json({ message: "Name, email and password are required." });
+//   }
+
+//   try {
+//     const exists = await User.findOne({ email });
+//     if (exists) {
+//       return res
+//         .status(409)
+//         .json({ message: "An account with that email already exists." });
+//     }
+
+//     const hashed = await bcrypt.hash(password, 12);
+//     const user = await User.create({
 //       name,
 //       email,
-//       password,
+//       password: hashed,
 //       role,
-//     } = req.body;
-
-//     if (!name || !email || !password) {
-//       return res.status(400).json({
-//         message:
-//           "Name, email and password are required.",
-//       });
-//     }
-
-//     try {
-//       const exists = await User.findOne({
-//         email,
-//       });
-
-//       if (exists) {
-//         return res.status(409).json({
-//           message:
-//             "An account with that email already exists.",
-//         });
-//       }
-
-//       const hashed =
-//         await bcrypt.hash(password, 12);
-
-//       const user = await User.create({
-//         name,
-//         email,
-//         password: hashed,
-//         role,
-//       });
-
-//       const token = signToken(user._id);
-
-//       res.status(201).json({
-//         token,
-//         user: {
-//           _id: user._id,
-//           name: user.name,
-//           email: user.email,
-//           role: user.role,
-//         },
-//       });
-//     } catch (err) {
-//       console.error(
-//         "Register error:",
-//         err
-//       );
-
-//       res.status(500).json({
-//         message:
-//           "Server error during registration.",
-//       });
-//     }
-//   }
-// );
-
-// // ─────────────────────────────────────────────
-// // Login
-// // ─────────────────────────────────────────────
-
-// router.post(
-//   "/login",
-//   async (req, res) => {
-//     const { email, password } = req.body;
-
-//     if (!email || !password) {
-//       return res.status(400).json({
-//         message:
-//           "Email and password are required.",
-//       });
-//     }
-
-//     try {
-//       const user = await User.findOne({
-//         email,
-//       }).select("+password");
-
-//       if (!user) {
-//         return res.status(401).json({
-//           message:
-//             "Invalid email or password.",
-//         });
-//       }
-
-//       const match = await bcrypt.compare(
-//         password,
-//         user.password
-//       );
-
-//       if (!match) {
-//         return res.status(401).json({
-//           message:
-//             "Invalid email or password.",
-//         });
-//       }
-
-//       user.lastLogin = new Date();
-//       await user.save();
-
-//       const token = signToken(user._id);
-
-//       res.status(200).json({
-//         token,
-//         user: {
-//           _id: user._id,
-//           name: user.name,
-//           email: user.email,
-//           role: user.role,
-//         },
-//       });
-//     } catch (err) {
-//       console.error("Login error:", err);
-
-//       res.status(500).json({
-//         message:
-//           "Server error during login.",
-//       });
-//     }
-//   }
-// );
-
-// // ─────────────────────────────────────────────
-// // Logout
-// // ─────────────────────────────────────────────
-
-// router.post(
-//   "/logout",
-//   protect,
-//   async (req, res) => {
-//     res.status(200).json({
-//       message: "Logged out successfully.",
 //     });
-//   }
-// );
 
-// // ─────────────────────────────────────────────
-// // Current User
-// // ─────────────────────────────────────────────
+//     const token = signToken(user._id);
 
-// router.get(
-//   "/me",
-//   protect,
-//   async (req, res) => {
-//     res.status(200).json({
+//     res.status(201).json({
+//       token,
 //       user: {
-//         _id: req.user._id,
-//         name: req.user.name,
-//         email: req.user.email,
-//         role: req.user.role,
+//         _id: user._id,
+//         name: user.name,
+//         email: user.email,
+//         role: user.role,
 //       },
 //     });
+//   } catch (err) {
+//     console.error("Register error:", err);
+//     res.status(500).json({ message: "Server error during registration." });
 //   }
-// );
+// });
 
-// // ─────────────────────────────────────────────
-// // Forgot Password
-// // ─────────────────────────────────────────────
+// router.post("/login", async (req, res) => {
+//   const { email, password } = req.body;
 
-// router.post(
-//   "/forgot-password",
-//   async (req, res) => {
-//     const { email } = req.body;
-
-//     if (!email) {
-//       return res.status(400).json({
-//         message: "Email is required.",
-//       });
-//     }
-
-//     try {
-//       const user = await User.findOne({
-//         email,
-//       });
-
-//       // Security response
-//       if (!user) {
-//         return res.status(200).json({
-//           message:
-//             "If an account exists with this email, a reset code has been sent.",
-//         });
-//       }
-
-//       const resetCode = Math.floor(
-//         100000 +
-//           Math.random() * 900000
-//       ).toString();
-
-//       const hashedCode = crypto
-//         .createHash("sha256")
-//         .update(resetCode)
-//         .digest("hex");
-
-//       user.resetPasswordToken =
-//         hashedCode;
-
-//       user.resetPasswordExpire =
-//         Date.now() + 10 * 60 * 1000;
-
-//       await user.save();
-
-//       await sendResetCodeEmail(
-//         email,
-//         resetCode
-//       );
-
-//       res.status(200).json({
-//         message:
-//           "If an account exists with this email, a reset code has been sent.",
-//       });
-//     } catch (err) {
-//       console.error(
-//         "Forgot password error:",
-//         err
-//       );
-
-//       res.status(500).json({
-//         message:
-//           "Server error. Please try again later.",
-//       });
-//     }
+//   if (!email || !password) {
+//     return res
+//       .status(400)
+//       .json({ message: "Email and password are required." });
 //   }
-// );
 
-// // ─────────────────────────────────────────────
-// // Verify Reset Code
-// // ─────────────────────────────────────────────
-
-// router.post(
-//   "/verify-reset-code",
-//   async (req, res) => {
-//     const { email, code } = req.body;
-
-//     if (!email || !code) {
-//       return res.status(400).json({
-//         message:
-//           "Email and reset code are required.",
-//       });
+//   try {
+//     const user = await User.findOne({ email }).select("+password");
+//     if (!user) {
+//       return res.status(401).json({ message: "Invalid email or password." });
 //     }
 
-//     try {
-//       const hashedCode = crypto
-//         .createHash("sha256")
-//         .update(code)
-//         .digest("hex");
-
-//       const user = await User.findOne({
-//         email,
-//         resetPasswordToken:
-//           hashedCode,
-//         resetPasswordExpire: {
-//           $gt: Date.now(),
-//         },
-//       });
-
-//       if (!user) {
-//         return res.status(400).json({
-//           message:
-//             "Invalid or expired reset code.",
-//         });
-//       }
-
-//       res.status(200).json({
-//         message:
-//           "Code verified successfully.",
-//       });
-//     } catch (err) {
-//       console.error(
-//         "Verify code error:",
-//         err
-//       );
-
-//       res.status(500).json({
-//         message:
-//           "Server error. Please try again.",
-//       });
+//     const match = await bcrypt.compare(password, user.password);
+//     if (!match) {
+//       return res.status(401).json({ message: "Invalid email or password." });
 //     }
+
+//     const token = signToken(user._id);
+
+//     res.status(200).json({
+//       token,
+//       user: {
+//         _id: user._id,
+//         name: user.name,
+//         email: user.email,
+//         role: user.role,
+//       },
+//     });
+//   } catch (err) {
+//     console.error("Login error:", err);
+//     res.status(500).json({ message: "Server error during login." });
 //   }
-// );
+// });
 
-// // ─────────────────────────────────────────────
-// // Reset Password With Code
-// // ─────────────────────────────────────────────
-
-// router.post(
-//   "/reset-password-with-code",
-//   async (req, res) => {
-//     const {
-//       email,
-//       code,
-//       password,
-//     } = req.body;
-
-//     if (
-//       !email ||
-//       !code ||
-//       !password
-//     ) {
-//       return res.status(400).json({
-//         message:
-//           "Email, code and password are required.",
-//       });
-//     }
-
-//     try {
-//       const hashedCode = crypto
-//         .createHash("sha256")
-//         .update(code)
-//         .digest("hex");
-
-//       const user = await User.findOne({
-//         email,
-//         resetPasswordToken:
-//           hashedCode,
-//         resetPasswordExpire: {
-//           $gt: Date.now(),
-//         },
-//       });
-
-//       if (!user) {
-//         return res.status(400).json({
-//           message:
-//             "Invalid or expired reset code.",
-//         });
-//       }
-
-//       user.password =
-//         await bcrypt.hash(password, 12);
-
-//       user.resetPasswordToken =
-//         undefined;
-
-//       user.resetPasswordExpire =
-//         undefined;
-
-//       await user.save();
-
-//       res.status(200).json({
-//         message:
-//           "Password reset successful.",
-//       });
-//     } catch (err) {
-//       console.error(
-//         "Reset password error:",
-//         err
-//       );
-
-//       res.status(500).json({
-//         message:
-//           "Server error. Please try again.",
-//       });
-//     }
-//   }
-// );
-
-// // ─────────────────────────────────────────────
-// // Verify Token Reset Link
-// // ─────────────────────────────────────────────
-
-// <<<<<<< HEAD
-// // ─── POST /api/auth/logout ───────────────────────────────────────────────────
 // router.post("/logout", protect, async (req, res) => {
-//   // Client-side token removal is enough for JWT
 //   res.status(200).json({ message: "Logged out successfully." });
 // });
 
-// =======
-// router.get(
-//   "/reset-password/:token/verify",
-//   async (req, res) => {
-//     const { token } = req.params;
+// router.get("/me", protect, async (req, res) => {
+//   res.status(200).json({
+//     user: {
+//       _id: req.user._id,
+//       name: req.user.name,
+//       email: req.user.email,
+//       role: req.user.role,
+//     },
+//   });
+// });
 
-//     try {
-//       const hashedToken = crypto
-//         .createHash("sha256")
-//         .update(token)
-//         .digest("hex");
+// router.post("/forgot-password", async (req, res) => {
+//   const { email } = req.body;
 
-//       const user = await User.findOne({
-//         resetPasswordToken:
-//           hashedToken,
-//         resetPasswordExpire: {
-//           $gt: Date.now(),
-//         },
-//       });
+//   if (!email) {
+//     return res.status(400).json({ message: "Email is required." });
+//   }
 
-//       if (!user) {
-//         return res.status(400).json({
-//           message:
-//             "Invalid or expired reset token.",
-//         });
-//       }
+//   try {
+//     const user = await User.findOne({ email });
 
-//       res.status(200).json({
-//         message:
-//           "Reset token is valid.",
-//       });
-//     } catch (err) {
-//       console.error(
-//         "Verify token error:",
-//         err
-//       );
-
-//       res.status(500).json({
-//         message:
-//           "Server error. Please try again.",
+//     if (!user) {
+//       return res.status(200).json({
+//         message: "If an account exists with this email, a reset code has been sent.",
 //       });
 //     }
+
+//     const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+//     const hashedCode = crypto
+//       .createHash("sha256")
+//       .update(resetCode)
+//       .digest("hex");
+
+//     user.resetPasswordToken = hashedCode;
+//     user.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
+
+//     await user.save();
+//     await sendResetCodeEmail(email, resetCode);
+
+//     res.status(200).json({
+//       message: "If an account exists with this email, a reset code has been sent.",
+//     });
+//   } catch (err) {
+//     console.error("Forgot password error:", err);
+//     res.status(500).json({ message: "Server error. Please try again later." });
 //   }
-// );
+// });
 
-// // ─────────────────────────────────────────────
-// // Reset Password By Token
-// // ─────────────────────────────────────────────
+// router.post("/verify-reset-code", async (req, res) => {
+//   const { email, code } = req.body;
 
-// router.put(
-//   "/reset-password/:token",
-//   async (req, res) => {
-//     const { token } = req.params;
-//     const { password } = req.body;
+//   if (!email || !code) {
+//     return res
+//       .status(400)
+//       .json({ message: "Email and reset code are required." });
+//   }
 
-//     if (!password) {
+//   if (!/^\d{6}$/.test(code)) {
+//     return res
+//       .status(400)
+//       .json({ message: "Invalid code format. Please enter a 6-digit code." });
+//   }
+
+//   try {
+//     const hashedCode = crypto.createHash("sha256").update(code).digest("hex");
+
+//     const user = await User.findOne({
+//       email,
+//       resetPasswordToken: hashedCode,
+//       resetPasswordExpire: { $gt: Date.now() },
+//     });
+
+//     if (!user) {
 //       return res.status(400).json({
-//         message:
-//           "Password is required.",
+//         message: "Invalid or expired reset code. Please request a new one.",
 //       });
 //     }
 
-//     try {
-//       const hashedToken = crypto
-//         .createHash("sha256")
-//         .update(token)
-//         .digest("hex");
-
-//       const user = await User.findOne({
-//         resetPasswordToken:
-//           hashedToken,
-//         resetPasswordExpire: {
-//           $gt: Date.now(),
-//         },
-//       });
-
-//       if (!user) {
-//         return res.status(400).json({
-//           message:
-//             "Invalid or expired reset token.",
-//         });
-//       }
-
-//       user.password =
-//         await bcrypt.hash(password, 12);
-
-//       user.resetPasswordToken =
-//         undefined;
-
-//       user.resetPasswordExpire =
-//         undefined;
-
-//       await user.save();
-
-//       res.status(200).json({
-//         message:
-//           "Password reset successful.",
-//       });
-//     } catch (err) {
-//       console.error(
-//         "Reset token error:",
-//         err
-//       );
-
-//       res.status(500).json({
-//         message:
-//           "Server error. Please try again.",
-//       });
-//     }
+//     res.status(200).json({
+//       message: "Code verified successfully. You can now reset your password.",
+//     });
+//   } catch (err) {
+//     console.error("Verify code error:", err);
+//     res.status(500).json({ message: "Server error. Please try again." });
 //   }
-// );
+// });
 
-// >>>>>>> 97b4a3cbfff56a943485607dbd37af753d1149f5
+// router.post("/reset-password-with-code", async (req, res) => {
+//   const { email, code, password } = req.body;
+
+//   if (!email || !code || !password) {
+//     return res.status(400).json({
+//       message: "Email, reset code, and new password are required.",
+//     });
+//   }
+
+//   if (password.length < 6) {
+//     return res.status(400).json({
+//       message: "Password must be at least 6 characters long.",
+//     });
+//   }
+
+//   if (!/[A-Z]/.test(password)) {
+//     return res.status(400).json({
+//       message: "Password must contain at least one uppercase letter.",
+//     });
+//   }
+
+//   if (!/[a-z]/.test(password)) {
+//     return res.status(400).json({
+//       message: "Password must contain at least one lowercase letter.",
+//     });
+//   }
+
+//   if (!/[0-9]/.test(password)) {
+//     return res.status(400).json({
+//       message: "Password must contain at least one number.",
+//     });
+//   }
+
+//   try {
+//     const hashedCode = crypto.createHash("sha256").update(code).digest("hex");
+
+//     const user = await User.findOne({
+//       email,
+//       resetPasswordToken: hashedCode,
+//       resetPasswordExpire: { $gt: Date.now() },
+//     });
+
+//     if (!user) {
+//       return res.status(400).json({
+//         message: "Invalid or expired reset code. Please request a new one.",
+//       });
+//     }
+
+//     const hashedPassword = await bcrypt.hash(password, 12);
+
+//     user.password = hashedPassword;
+//     user.resetPasswordToken = undefined;
+//     user.resetPasswordExpire = undefined;
+
+//     await user.save();
+
+//     res.status(200).json({
+//       message: "Password reset successful. You can now login with your new password.",
+//     });
+//   } catch (err) {
+//     console.error("Reset password error:", err);
+//     res.status(500).json({ message: "Server error. Please try again." });
+//   }
+// });
+
+// router.put("/reset-password/:token", async (req, res) => {
+//   const { token } = req.params;
+//   const { password } = req.body;
+
+//   if (!password) {
+//     return res.status(400).json({ message: "Password is required." });
+//   }
+
+//   try {
+//     const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
+//     const user = await User.findOne({
+//       resetPasswordToken: hashedToken,
+//       resetPasswordExpire: { $gt: Date.now() },
+//     });
+
+//     if (!user) {
+//       return res.status(400).json({
+//         message: "Invalid or expired reset token.",
+//       });
+//     }
+
+//     user.password = await bcrypt.hash(password, 12);
+//     user.resetPasswordToken = undefined;
+//     user.resetPasswordExpire = undefined;
+
+//     await user.save();
+
+//     res.status(200).json({ message: "Password reset successful." });
+//   } catch (err) {
+//     console.error("Reset password token error:", err);
+//     res.status(500).json({ message: "Server error. Please try again." });
+//   }
+// });
+
+// router.get("/reset-password/:token/verify", async (req, res) => {
+//   const { token } = req.params;
+
+//   try {
+//     const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
+//     const user = await User.findOne({
+//       resetPasswordToken: hashedToken,
+//       resetPasswordExpire: { $gt: Date.now() },
+//     });
+
+//     if (!user) {
+//       return res.status(400).json({
+//         message: "Invalid or expired reset token.",
+//       });
+//     }
+
+//     res.status(200).json({ message: "Reset token is valid." });
+//   } catch (err) {
+//     console.error("Verify reset token error:", err);
+//     res.status(500).json({ message: "Server error. Please try again." });
+//   }
+// });
+
 // export default router;
-
+// >>>>>>> 1fb63b3360fb66ed30b436aa24ad432255b11aea
 
 import express from "express";
 import bcrypt from "bcryptjs";
@@ -1164,362 +627,534 @@ import crypto from "crypto";
 
 import User from "../models/User.js";
 import { protect } from "../middleware/authMiddleware.js";
+import { resolveEmployeeForAuthUser } from "../utils/employeeUserLink.js";
+import { getJwtSecret } from "../utils/jwtSecret.js";
 
 const router = express.Router();
 
 // ─────────────────────────────────────────────
-// Utility: Generate JWT Token
+// Generate JWT
 // ─────────────────────────────────────────────
+
 const signToken = (id) =>
-  jwt.sign(
-    { id },
-    process.env.JWT_SECRET || "dev_secret",
-    {
-      expiresIn: process.env.JWT_EXPIRES_IN || "7d",
-    }
-  );
+  jwt.sign({ id }, getJwtSecret(), {
+    expiresIn: process.env.JWT_EXPIRES_IN || "7d",
+  });
 
 // ─────────────────────────────────────────────
-// Utility: Mock Email Sender (Console Log)
+// Mock email sender
+// Replace with nodemailer later
 // ─────────────────────────────────────────────
-const sendResetCodeEmail = async (email, code) => {
+
+const sendResetCodeEmail = async (
+  email,
+  code
+) => {
   console.log("=================================");
-  console.log(`Password Reset Request: ${email}`);
+  console.log(
+    `Password Reset Request: ${email}`
+  );
   console.log(`Reset Code: ${code}`);
   console.log("Expires in 10 minutes");
   console.log("=================================");
+
   return true;
 };
 
 // ─────────────────────────────────────────────
-// 1. REGISTER USER
+// Register
 // ─────────────────────────────────────────────
-router.post("/register", async (req, res) => {
-  const { name, email, password, role } = req.body;
 
-  if (!name || !email || !password) {
-    return res.status(400).json({
-      message: "Name, email and password are required.",
-    });
-  }
-
-  try {
-    const exists = await User.findOne({ email });
-
-    if (exists) {
-      return res.status(409).json({
-        message: "An account with that email already exists.",
-      });
-    }
-
-    const hashed = await bcrypt.hash(password, 12);
-
-    const user = await User.create({
+router.post(
+  "/register",
+  async (req, res) => {
+    const {
       name,
       email,
-      password: hashed,
-      role: role || "Employee",
+      password,
+      role,
+    } = req.body;
+
+    if (!name || !email || !password) {
+      return res.status(400).json({
+        message:
+          "Name, email and password are required.",
+      });
+    }
+
+    try {
+      const normalizedEmail = String(email).toLowerCase().trim();
+
+      const exists = await User.findOne({
+        email: normalizedEmail,
+      });
+
+      if (exists) {
+        return res.status(409).json({
+          message:
+            "An account with that email already exists.",
+        });
+      }
+
+      const hashed =
+        await bcrypt.hash(password, 12);
+
+      const user = await User.create({
+        name: String(name).trim(),
+        email: normalizedEmail,
+        password: hashed,
+        role: role || "Employee",
+      });
+
+      await resolveEmployeeForAuthUser(user, { createIfMissing: true });
+
+      const token = signToken(user._id);
+
+      res.status(201).json({
+        token,
+        user: {
+          _id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+        },
+      });
+    } catch (err) {
+      console.error(
+        "Register error:",
+        err
+      );
+
+      res.status(500).json({
+        message:
+          "Server error during registration.",
+      });
+    }
+  }
+);
+
+// ─────────────────────────────────────────────
+// Login
+// ─────────────────────────────────────────────
+
+router.post(
+  "/login",
+  async (req, res) => {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({
+        message:
+          "Email and password are required.",
+      });
+    }
+
+    try {
+      const normalizedEmail = String(email).toLowerCase().trim();
+
+      const user = await User.findOne({
+        email: normalizedEmail,
+      }).select("+password");
+
+      if (!user) {
+        return res.status(401).json({
+          message:
+            "Invalid email or password. Sign up first if you do not have an account.",
+        });
+      }
+
+      if (!user.password) {
+        return res.status(401).json({
+          message:
+            "This account uses Google sign-in. Click Sign in with Google.",
+        });
+      }
+
+      const match = await bcrypt.compare(
+        password,
+        user.password
+      );
+
+      if (!match) {
+        return res.status(401).json({
+          message:
+            "Invalid email or password.",
+        });
+      }
+
+      user.lastLogin = new Date();
+      await user.save();
+
+      await resolveEmployeeForAuthUser(user, { createIfMissing: true });
+
+      const token = signToken(user._id);
+
+      res.status(200).json({
+        token,
+        user: {
+          _id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+        },
+      });
+    } catch (err) {
+      console.error("Login error:", err);
+
+      res.status(500).json({
+        message:
+          "Server error during login.",
+      });
+    }
+  }
+);
+
+// ─────────────────────────────────────────────
+// Logout
+// ─────────────────────────────────────────────
+
+router.post(
+  "/logout",
+  protect,
+  async (req, res) => {
+    res.status(200).json({
+      message: "Logged out successfully.",
     });
+  }
+);
 
-    const token = signToken(user._id);
+// ─────────────────────────────────────────────
+// Current User
+// ─────────────────────────────────────────────
 
-    res.status(201).json({
-      token,
+router.get(
+  "/me",
+  protect,
+  async (req, res) => {
+    res.status(200).json({
       user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
+        _id: req.user._id,
+        name: req.user.name,
+        email: req.user.email,
+        role: req.user.role,
       },
     });
-  } catch (err) {
-    console.error("Register error:", err);
-    res.status(500).json({
-      message: "Server error during registration.",
-    });
   }
-});
+);
 
 // ─────────────────────────────────────────────
-// 2. LOGIN USER
+// Forgot Password
 // ─────────────────────────────────────────────
-router.post("/login", async (req, res) => {
-  const { email, password } = req.body;
 
-  if (!email || !password) {
-    return res.status(400).json({
-      message: "Email and password are required.",
-    });
-  }
+router.post(
+  "/forgot-password",
+  async (req, res) => {
+    const { email } = req.body;
 
-  try {
-    const user = await User.findOne({ email }).select("+password");
-
-    if (!user) {
-      return res.status(401).json({
-        message: "Invalid email or password.",
+    if (!email) {
+      return res.status(400).json({
+        message: "Email is required.",
       });
     }
 
-    const match = await bcrypt.compare(password, user.password);
+    try {
+      const user = await User.findOne({
+        email,
+      });
 
-    if (!match) {
-      return res.status(401).json({
-        message: "Invalid email or password.",
+      // Security response
+      if (!user) {
+        return res.status(200).json({
+          message:
+            "If an account exists with this email, a reset code has been sent.",
+        });
+      }
+
+      const resetCode = Math.floor(
+        100000 +
+          Math.random() * 900000
+      ).toString();
+
+      const hashedCode = crypto
+        .createHash("sha256")
+        .update(resetCode)
+        .digest("hex");
+
+      user.resetPasswordToken =
+        hashedCode;
+
+      user.resetPasswordExpire =
+        Date.now() + 10 * 60 * 1000;
+
+      await user.save();
+
+      await sendResetCodeEmail(
+        email,
+        resetCode
+      );
+
+      res.status(200).json({
+        message:
+          "If an account exists with this email, a reset code has been sent.",
+      });
+    } catch (err) {
+      console.error(
+        "Forgot password error:",
+        err
+      );
+
+      res.status(500).json({
+        message:
+          "Server error. Please try again later.",
+      });
+    }
+  }
+);
+
+// ─────────────────────────────────────────────
+// Verify Reset Code
+// ─────────────────────────────────────────────
+
+router.post(
+  "/verify-reset-code",
+  async (req, res) => {
+    const { email, code } = req.body;
+
+    if (!email || !code) {
+      return res.status(400).json({
+        message:
+          "Email and reset code are required.",
       });
     }
 
-    // Login වෙන හැම වතාවකම ලොග් වුණු වෙලාව අප්ඩේට් කරයි
-    user.lastLogin = new Date();
-    await user.save();
+    try {
+      const hashedCode = crypto
+        .createHash("sha256")
+        .update(code)
+        .digest("hex");
 
-    const token = signToken(user._id);
+      const user = await User.findOne({
+        email,
+        resetPasswordToken:
+          hashedCode,
+        resetPasswordExpire: {
+          $gt: Date.now(),
+        },
+      });
 
-    res.status(200).json({
-      token,
-      user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-      },
-    });
-  } catch (err) {
-    console.error("Login error:", err);
-    res.status(500).json({
-      message: "Server error during login.",
-    });
-  }
-});
+      if (!user) {
+        return res.status(400).json({
+          message:
+            "Invalid or expired reset code.",
+        });
+      }
 
-// ─────────────────────────────────────────────
-// 3. LOGOUT USER
-// ─────────────────────────────────────────────
-router.post("/logout", protect, async (req, res) => {
-  // Client-side එකෙන් token එක ඉවත් කිරීම සෑහෙන මුත්, backend response එකක් ලබා දේ
-  res.status(200).json({
-    message: "Logged out successfully.",
-  });
-});
+      res.status(200).json({
+        message:
+          "Code verified successfully.",
+      });
+    } catch (err) {
+      console.error(
+        "Verify code error:",
+        err
+      );
 
-// ─────────────────────────────────────────────
-// 4. GET CURRENT USER (ME)
-// ─────────────────────────────────────────────
-router.get("/me", protect, async (req, res) => {
-  res.status(200).json({
-    user: {
-      _id: req.user._id,
-      name: req.user.name,
-      email: req.user.email,
-      role: req.user.role,
-    },
-  });
-});
-
-// ─────────────────────────────────────────────
-// 5. FORGOT PASSWORD (Generates 6-Digit Code)
-// ─────────────────────────────────────────────
-router.post("/forgot-password", async (req, res) => {
-  const { email } = req.body;
-
-  if (!email) {
-    return res.status(400).json({
-      message: "Email is required.",
-    });
-  }
-
-  try {
-    const user = await User.findOne({ email });
-
-    // Security Response: Email එක නැතත් හැකර්වරුන්ගෙන් ආරක්ෂා වීමට success පෙන්වයි
-    if (!user) {
-      return res.status(200).json({
-        message: "If an account exists with this email, a reset code has been sent.",
+      res.status(500).json({
+        message:
+          "Server error. Please try again.",
       });
     }
-
-    // ඉලක්කම් 6ක random කෝඩ් එකක් සාදයි
-    const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const hashedCode = crypto.createHash("sha256").update(resetCode).digest("hex");
-
-    user.resetPasswordToken = hashedCode;
-    user.resetPasswordExpire = Date.now() + 10 * 60 * 1000; // විනාඩි 10 කින් කල් ඉකුත් වේ
-
-    await user.save();
-    await sendResetCodeEmail(email, resetCode);
-
-    res.status(200).json({
-      message: "If an account exists with this email, a reset code has been sent.",
-    });
-  } catch (err) {
-    console.error("Forgot password error:", err);
-    res.status(500).json({
-      message: "Server error. Please try again later.",
-    });
   }
-});
+);
 
 // ─────────────────────────────────────────────
-// 6. VERIFY RESET CODE (For 6-Digit Mobile/Web Code)
+// Reset Password With Code
 // ─────────────────────────────────────────────
-router.post("/verify-reset-code", async (req, res) => {
-  const { email, code } = req.body;
 
-  if (!email || !code) {
-    return res.status(400).json({
-      message: "Email and reset code are required.",
-    });
-  }
-
-  try {
-    const hashedCode = crypto.createHash("sha256").update(code).digest("hex");
-
-    const user = await User.findOne({
+router.post(
+  "/reset-password-with-code",
+  async (req, res) => {
+    const {
       email,
-      resetPasswordToken: hashedCode,
-      resetPasswordExpire: { $gt: Date.now() },
-    });
+      code,
+      password,
+    } = req.body;
 
-    if (!user) {
+    if (
+      !email ||
+      !code ||
+      !password
+    ) {
       return res.status(400).json({
-        message: "Invalid or expired reset code.",
+        message:
+          "Email, code and password are required.",
       });
     }
 
-    res.status(200).json({
-      message: "Code verified successfully.",
-    });
-  } catch (err) {
-    console.error("Verify code error:", err);
-    res.status(500).json({
-      message: "Server error. Please try again.",
-    });
+    try {
+      const hashedCode = crypto
+        .createHash("sha256")
+        .update(code)
+        .digest("hex");
+
+      const user = await User.findOne({
+        email,
+        resetPasswordToken:
+          hashedCode,
+        resetPasswordExpire: {
+          $gt: Date.now(),
+        },
+      });
+
+      if (!user) {
+        return res.status(400).json({
+          message:
+            "Invalid or expired reset code.",
+        });
+      }
+
+      user.password =
+        await bcrypt.hash(password, 12);
+
+      user.resetPasswordToken =
+        undefined;
+
+      user.resetPasswordExpire =
+        undefined;
+
+      await user.save();
+
+      res.status(200).json({
+        message:
+          "Password reset successful.",
+      });
+    } catch (err) {
+      console.error(
+        "Reset password error:",
+        err
+      );
+
+      res.status(500).json({
+        message:
+          "Server error. Please try again.",
+      });
+    }
   }
-});
+);
 
 // ─────────────────────────────────────────────
-// 7. RESET PASSWORD WITH CODE
+// Verify Token Reset Link
 // ─────────────────────────────────────────────
-router.post("/reset-password-with-code", async (req, res) => {
-  const { email, code, password } = req.body;
 
-  if (!email || !code || !password) {
-    return res.status(400).json({
-      message: "Email, code and password are required.",
-    });
+router.get(
+  "/reset-password/:token/verify",
+  async (req, res) => {
+    const { token } = req.params;
+
+    try {
+      const hashedToken = crypto
+        .createHash("sha256")
+        .update(token)
+        .digest("hex");
+
+      const user = await User.findOne({
+        resetPasswordToken:
+          hashedToken,
+        resetPasswordExpire: {
+          $gt: Date.now(),
+        },
+      });
+
+      if (!user) {
+        return res.status(400).json({
+          message:
+            "Invalid or expired reset token.",
+        });
+      }
+
+      res.status(200).json({
+        message:
+          "Reset token is valid.",
+      });
+    } catch (err) {
+      console.error(
+        "Verify token error:",
+        err
+      );
+
+      res.status(500).json({
+        message:
+          "Server error. Please try again.",
+      });
+    }
   }
+);
 
-  if (password.length < 6) {
-    return res.status(400).json({
-      message: "Password must be at least 6 characters long.",
-    });
-  }
+// ─────────────────────────────────────────────
+// Reset Password By Token
+// ─────────────────────────────────────────────
 
-  try {
-    const hashedCode = crypto.createHash("sha256").update(code).digest("hex");
+router.put(
+  "/reset-password/:token",
+  async (req, res) => {
+    const { token } = req.params;
+    const { password } = req.body;
 
-    const user = await User.findOne({
-      email,
-      resetPasswordToken: hashedCode,
-      resetPasswordExpire: { $gt: Date.now() },
-    });
-
-    if (!user) {
+    if (!password) {
       return res.status(400).json({
-        message: "Invalid or expired reset code.",
+        message:
+          "Password is required.",
       });
     }
 
-    user.password = await bcrypt.hash(password, 12);
-    user.resetPasswordToken = undefined;
-    user.resetPasswordExpire = undefined;
+    try {
+      const hashedToken = crypto
+        .createHash("sha256")
+        .update(token)
+        .digest("hex");
 
-    await user.save();
+      const user = await User.findOne({
+        resetPasswordToken:
+          hashedToken,
+        resetPasswordExpire: {
+          $gt: Date.now(),
+        },
+      });
 
-    res.status(200).json({
-      message: "Password reset successful.",
-    });
-  } catch (err) {
-    console.error("Reset password error:", err);
-    res.status(500).json({
-      message: "Server error. Please try again.",
-    });
-  }
-});
+      if (!user) {
+        return res.status(400).json({
+          message:
+            "Invalid or expired reset token.",
+        });
+      }
 
-// ─────────────────────────────────────────────
-// 8. VERIFY TRADITIONAL TOKEN LINK (Optional Email Link Support)
-// ─────────────────────────────────────────────
-router.get("/reset-password/:token/verify", async (req, res) => {
-  const { token } = req.params;
+      user.password =
+        await bcrypt.hash(password, 12);
 
-  try {
-    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+      user.resetPasswordToken =
+        undefined;
 
-    const user = await User.findOne({
-      resetPasswordToken: hashedToken,
-      resetPasswordExpire: { $gt: Date.now() },
-    });
+      user.resetPasswordExpire =
+        undefined;
 
-    if (!user) {
-      return res.status(400).json({
-        message: "Invalid or expired reset token.",
+      await user.save();
+
+      res.status(200).json({
+        message:
+          "Password reset successful.",
+      });
+    } catch (err) {
+      console.error(
+        "Reset token error:",
+        err
+      );
+
+      res.status(500).json({
+        message:
+          "Server error. Please try again.",
       });
     }
-
-    res.status(200).json({
-      message: "Reset token is valid.",
-    });
-  } catch (err) {
-    console.error("Verify token error:", err);
-    res.status(500).json({
-      message: "Server error. Please try again.",
-    });
   }
-});
-
-// ─────────────────────────────────────────────
-// 9. RESET PASSWORD BY TRADITIONAL LINK
-// ─────────────────────────────────────────────
-router.put("/reset-password/:token", async (req, res) => {
-  const { token } = req.params;
-  const { password } = req.body;
-
-  if (!password) {
-    return res.status(400).json({
-      message: "Password is required.",
-    });
-  }
-
-  try {
-    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
-
-    const user = await User.findOne({
-      resetPasswordToken: hashedToken,
-      resetPasswordExpire: { $gt: Date.now() },
-    });
-
-    if (!user) {
-      return res.status(400).json({
-        message: "Invalid or expired reset token.",
-      });
-    }
-
-    user.password = await bcrypt.hash(password, 12);
-    user.resetPasswordToken = undefined;
-    user.resetPasswordExpire = undefined;
-
-    await user.save();
-
-    res.status(200).json({
-      message: "Password reset successful.",
-    });
-  } catch (err) {
-    console.error("Reset token error:", err);
-    res.status(500).json({
-      message: "Server error. Please try again.",
-    });
-  }
-});
+);
 
 export default router;

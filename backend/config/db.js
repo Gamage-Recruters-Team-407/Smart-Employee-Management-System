@@ -1,6 +1,5 @@
 import mongoose from "mongoose";
 import dns from "dns";
-import { MongoMemoryServer } from "mongodb-memory-server";
 
 // Fix SRV lookup issues on some Windows systems
 dns.setServers(["8.8.8.8", "8.8.4.4", "1.1.1.1"]);
@@ -55,11 +54,11 @@ export const connectDB = async () => {
       connectionAttempts.push({ uri: primaryUri, label: "primary" });
     }
   } else {
-    if (localFallbackUri && localFallbackUri !== primaryUri) {
-      connectionAttempts.push({ uri: localFallbackUri, label: "local fallback" });
-    }
     if (primaryUri && tryPrimaryInDev) {
       connectionAttempts.push({ uri: primaryUri, label: "primary" });
+    }
+    if (localFallbackUri && localFallbackUri !== primaryUri) {
+      connectionAttempts.push({ uri: localFallbackUri, label: "local fallback" });
     }
     if (primaryUri && !tryPrimaryInDev) {
       console.warn("Skipping primary MongoDB URI in development. Set MONGO_TRY_PRIMARY_IN_DEV=true to use it.");
@@ -78,6 +77,7 @@ export const connectDB = async () => {
   }
 
   if (!isProduction) {
+    const { MongoMemoryServer } = await import("mongodb-memory-server");
     inMemoryServer = await MongoMemoryServer.create();
     await connectWithUri(inMemoryServer.getUri(), "in-memory fallback");
     registerCleanupHandlers();

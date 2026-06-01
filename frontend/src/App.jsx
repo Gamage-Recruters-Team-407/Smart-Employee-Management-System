@@ -310,6 +310,7 @@ import { MockAuthProvider } from "./context/MockAuthContext";
 
 // ─── PAGES & COMPONENTS IMPORTS ─────────────────────────────────────────────
 import Login from "./pages/Login";
+import GoogleAuthCallback from "./pages/GoogleAuthCallback";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
@@ -320,8 +321,9 @@ import Attendance from "./pages/Attendance";
 import Leave from "./pages/Leave";
 import Payroll from "./pages/Payroll";
 import Performance from "./pages/Performance";
+import TasksRouter from "./pages/TasksRouter";
 import Tasks from "./pages/Tasks";
-import MyTasks from "./pages/MyTasks";
+import ManagerRoute from "./components/ManagerRoute";
 import Notifications from "./pages/Notifications";
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -355,6 +357,7 @@ function App() {
       <Routes>
         {/* 🔓 Public Routes (ඕනෑම අයෙකුට පිවිසිය හැක) */}
         <Route path="/login" element={<Login />} />
+        <Route path="/auth/google/callback" element={<GoogleAuthCallback />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password/:token" element={<ResetPassword />} />
 
@@ -375,8 +378,16 @@ function App() {
           <Route path="leaves" element={<Leave />} />
           <Route path="payroll" element={<Payroll />} />
           <Route path="performance" element={<Performance />} />
-          <Route path="tasks" element={<Tasks />} />
-          <Route path="my-tasks" element={<MyTasks />} />
+          <Route path="tasks" element={<TasksRouter />} />
+          <Route
+            path="tasks/manage"
+            element={
+              <ManagerRoute>
+                <Tasks />
+              </ManagerRoute>
+            }
+          />
+          <Route path="my-tasks" element={<TasksRouter />} />
           <Route path="notifications" element={<Notifications />} />
         </Route>
 
