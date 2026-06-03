@@ -1,0 +1,2 @@
+export const getJwtSecret = () =>
+  process.env.JWT_SECRET || "dev_jwt_secret_change_in_production";
