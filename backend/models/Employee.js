@@ -1,25 +1,5 @@
 import mongoose from "mongoose";
 
-// <<<<<<< HEAD
-// const employeeSchema = new mongoose.Schema(
-//   {
-//     employeeId: String,
-//     firstName: String,
-//     lastName: String,
-//     email: {
-//       type: String,
-//       unique: true,
-//     },
-//     phone: String,
-//     department: String,
-//     designation: String,
-//     salary: Number,
-//     joiningDate: Date,
-//     address: String,
-//     documents: [String],
-//     status: {
-//       type: String,
-// =======
 const documentSchema = new mongoose.Schema(
   {
     name: {

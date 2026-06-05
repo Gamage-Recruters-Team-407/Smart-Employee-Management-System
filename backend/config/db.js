@@ -43,47 +43,17 @@ const connectWithUri = async (uri, label) => {
 };
 
 export const connectDB = async () => {
-  const primaryUri = (process.env.MONGO_URI || "").trim();
-  const localFallbackUri = (process.env.MONGO_FALLBACK_URI || "mongodb://127.0.0.1:27017/sems_local").trim();
-  const isProduction = process.env.NODE_ENV === "production";
-  const tryPrimaryInDev = process.env.MONGO_TRY_PRIMARY_IN_DEV === "true";
-  const connectionAttempts = [];
+  try {
+    const mongoUri = process.env.MONGO_URI;
 
-  if (isProduction) {
-    if (primaryUri) {
-      connectionAttempts.push({ uri: primaryUri, label: "primary" });
+    if (!mongoUri) {
+      throw new Error("MONGO_URI is not defined in environment variables");
     }
-  } else {
-    if (primaryUri && tryPrimaryInDev) {
-      connectionAttempts.push({ uri: primaryUri, label: "primary" });
-    }
-    if (localFallbackUri && localFallbackUri !== primaryUri) {
-      connectionAttempts.push({ uri: localFallbackUri, label: "local fallback" });
-    }
-    if (primaryUri && !tryPrimaryInDev) {
-      console.warn("Skipping primary MongoDB URI in development. Set MONGO_TRY_PRIMARY_IN_DEV=true to use it.");
-    }
+
+    await mongoose.connect(mongoUri);
+    console.log("MongoDB connected successfully");
+  } catch (err) {
+    console.error("MongoDB connection failed.", err);
+    process.exit(1);
   }
-
-  let lastError = null;
-  for (const attempt of connectionAttempts) {
-    try {
-      await connectWithUri(attempt.uri, attempt.label);
-      return;
-    } catch (error) {
-      lastError = error;
-      console.warn(`MongoDB ${attempt.label} connection failed: ${error.message}`);
-    }
-  }
-
-  if (!isProduction) {
-    const { MongoMemoryServer } = await import("mongodb-memory-server");
-    inMemoryServer = await MongoMemoryServer.create();
-    await connectWithUri(inMemoryServer.getUri(), "in-memory fallback");
-    registerCleanupHandlers();
-    console.warn("Using in-memory MongoDB because configured database is unreachable.");
-    return;
-  }
-
-  throw lastError || new Error("No MongoDB connection URI available.");
 };
