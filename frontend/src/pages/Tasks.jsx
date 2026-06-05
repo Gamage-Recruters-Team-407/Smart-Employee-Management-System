@@ -285,7 +285,6 @@ const Tasks = () => {
           + Assign Task
         </button>
       </div>
-
       <div className="mb-4 flex flex-wrap gap-2 text-xs text-gray-500">
         <span className="font-medium text-gray-700">Workflow:</span>
         {TASK_STATUSES.map((s, i) => (

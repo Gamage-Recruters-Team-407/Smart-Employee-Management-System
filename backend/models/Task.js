@@ -34,8 +34,6 @@ const taskSchema = new mongoose.Schema(
       ref: "Employee",
       required: true,
     },
-
-    // Stored for easier filtering/searching
     assignedToEmail: {
       type: String,
       lowercase: true,

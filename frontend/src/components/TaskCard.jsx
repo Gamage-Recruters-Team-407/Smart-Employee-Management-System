@@ -76,7 +76,6 @@ const TaskCard = ({
           <span>{new Date(task.dueDate).toLocaleDateString()}</span>
         </div>
       )}
-
       <div className="flex items-center justify-between gap-2 mb-2">
         <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full">
           {task.status}
@@ -92,7 +91,6 @@ const TaskCard = ({
           style={{ width: `${task.progress ?? 0}%` }}
         />
       </div>
-
       {canEditProgress && onProgressChange && (
         <div className="mb-3">
           <label className="text-xs text-gray-500 block mb-1">Update progress</label>
@@ -133,7 +131,6 @@ const TaskCard = ({
           ))}
         </div>
       )}
-
       <button
         type="button"
         onClick={() => setShowComments(!showComments)}
