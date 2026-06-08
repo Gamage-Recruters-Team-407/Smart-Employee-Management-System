@@ -56,7 +56,9 @@ const Attendance = () => {
           API.get("/employees"),
           API.get(`/attendance?date=${selectedDate}`)
         ]);
-        setEmployees(empRes.data || empRes);
+        console.log("Employees Response:", empRes.data);
+        console.log("Is Array:", Array.isArray(empRes.data));
+        setEmployees(empRes.data?.data || []);
         setAttendanceData(attRes.data || attRes);
       } catch (err) {
         console.error("Admin Fetch Error:", err);
@@ -68,10 +70,7 @@ const Attendance = () => {
     fetchAdminData();
   }, [selectedDate, isAdminOrHR]);
 
-  // ─── FETCH: Employee Profile & Personal History (100% Loop-Safe Fix) ─────────
-  // ─── FETCH: Employee Profile & Personal History (100% Loop-Safe Fix) ─────────
   const fetchEmployeeData = useCallback(async () => {
-    // 💡 ආරක්ෂක පියවරක්: පරිශීලකයා Admin හෝ HR නම්, නැතහොත් email එකක් නැත්නම් මෙතනින්ම නවතින්න
     if (isAdminOrHR || !user?.email) return;
     
     try {
@@ -83,7 +82,6 @@ const Attendance = () => {
       const profileData = profileRes.data || profileRes;
       const historyData = historyRes.data || historyRes || [];
 
-      // 💡 FIX: React Event Loop එකෙන් පිටතට තල්ලු කිරීමෙන් රෙන්ඩර් හැප්පීම 100% ක්ම වැළකේ!
       setTimeout(() => {
         setEmployeeProfile(profileData);
         setEmployeeHistory(historyData);
@@ -100,24 +98,20 @@ const Attendance = () => {
     }
   }, [isAdminOrHR, user?.email]);
 
-  // ─── 💡 100% ක්ම ස්ථාවර සහ සුරක්ෂිත TRIGGER EFFECT (Line 112 FIX) ───────────
   useEffect(() => {
     let isMounted = true;
 
-    // 💡 පිටුව මුලින්ම ලෝඩ් වෙද්දී (Mount) තත්පරයෙන් පංගුවක් ප්‍රමාද කර පසුබිමෙන් දත්ත කියවයි
     const timer = setTimeout(() => {
       if (isMounted && user?.email && !isAdminOrHR) {
         fetchEmployeeData();
       }
-    }, 50); // මිලිසෙකන්ඩ් 50ක පොඩි විරාමයක් දීමෙන් ප්‍රධාන Auth Render එක නිදහසේ අවසන් වේ!
+    }, 50);
 
-    // CLEANUP FUNCTION: Strict Mode double-render එක සහමුලින්ම පාලනය කරයි
     return () => {
       isMounted = false;
       clearTimeout(timer);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.email]); // 👈 Dependency එක ලෙස 'user?.email' පමණක් තැබීමෙන් අනන්ත රෙන්ඩර් සයිකල් සදහටම නතර වේ!
+  }, [user?.email]);
   // ─── Trigger Effect ────────────────────────────────────────────────────────
   // useEffect(() => {
   //   if (user?.email && !isAdminOrHR) {
