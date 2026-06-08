@@ -7,7 +7,8 @@ import {
   CheckCircle, 
   RefreshCw, 
   Info, 
-  MapPin 
+  MapPin,
+  Download
 } from "lucide-react";
 
 const Attendance = () => {
@@ -27,7 +28,7 @@ const Attendance = () => {
 
   const isAdminOrHR = user?.role === "Admin" || user?.role === "HR";
 
-  // 💡 DERIVED STATE FIX: දත්ත ලැබෙනකන් loading ද යන්න කෙලින්ම මෙලෙස තීරණය කරමු
+  // 💡 DERIVED STATE FIX
   const isDataLoading = isAdminOrHR 
     ? adminLoading || employees.length === 0 
     : employeeHistory === null;
@@ -36,6 +37,44 @@ const Attendance = () => {
   const showNotification = (message, type = "success") => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 4000);
+  };
+
+  // ─── Export CSV Handler ──────────────────────────────────────────────────
+  const handleExportCSV = () => {
+    if (employees.length === 0) return;
+
+    const headers = ["Employee ID", "Employee Name", "Department", "Status", "Check In", "Check Out"];
+
+    const rows = employees.map((emp) => {
+      const record = attendanceData.find(
+        (a) => a.employee?._id === emp._id || a.employee === emp._id
+      );
+      const empStatus = record?.status || "Not Marked";
+      const checkIn = record?.checkInTime || "—";
+      const checkOut = record?.checkOutTime || "—";
+      const fullName = `${emp.firstName} ${emp.lastName}`;
+      const department = emp.department || "—";
+
+      return [
+        emp.employeeId,
+        fullName,
+        department,
+        empStatus,
+        checkIn,
+        checkOut
+      ].map(val => `"${String(val).replace(/"/g, '""')}"`);
+    });
+
+    const csvContent = [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Attendance_Sheet_${selectedDate}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   // ─── Ticking Clock Effect ──────────────────────────────────────────────────
@@ -163,6 +202,15 @@ const Attendance = () => {
               className="px-5 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 shadow-sm transition-all"
             >
               Today
+            </button>
+            <button
+              onClick={handleExportCSV}
+              disabled={employees.length === 0}
+              className="flex items-center gap-2 px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-sm transition-all disabled:bg-gray-300 disabled:cursor-not-allowed"
+              title="Export attendance sheet as CSV"
+            >
+              <Download size={18} />
+              <span>Export CSV</span>
             </button>
           </div>
         </div>

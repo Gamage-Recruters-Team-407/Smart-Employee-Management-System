@@ -13,7 +13,7 @@ const Dashboard = () => {
     enabled: user?.role === "Employee",
   });
 
-  // ─── STORAGE එකෙන් දත්ත ආරක්ෂිතව කියවීම ─────────────────────────────────
+  // ─── STORAGE ─────────────────────────────────
   let storedUser = {};
   let attendanceId = "";
 
@@ -50,7 +50,7 @@ const Dashboard = () => {
       : user?.role || storedUser.role || "Employee";
   const isLoggedIn = !!(user || storedUser?.email);
 
-  // Avatar එක සඳහා නමේ මුල් අකුරු (Initials) සකස් කිරීම
+  // Avatar 
   const initials = userName
     ? userName
         .split(" ")
@@ -61,17 +61,23 @@ const Dashboard = () => {
     : "U";
 
   // ─── LOGOUT HANDLER ────────────────────────────────────────────────────────
-  const handleLogout = () => {
-    logout?.();
+  const handleLogout = async () => {
+    try {
+      if (logout) {
+        await logout();
+      }
+    } catch (err) {
+      console.error("Logout failed:", err);
+    } finally {
+      // සෙස්ෂන් දත්ත සම්පූර්ණයෙන්ම පිරිසිදු කිරීම
+      localStorage.removeItem("user");
+      localStorage.removeItem("token");
+      localStorage.removeItem("attendanceId");
+      sessionStorage.removeItem("user");
+      sessionStorage.removeItem("token");
 
-    // සෙස්ෂන් දත්ත සම්පූර්ණයෙන්ම පිරිසිදු කිරීම
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
-    localStorage.removeItem("attendanceId");
-    sessionStorage.removeItem("user");
-    sessionStorage.removeItem("token");
-
-    navigate("/login", { replace: true });
+      navigate("/login", { replace: true });
+    }
   };
 
   return (
