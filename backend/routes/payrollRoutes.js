@@ -15,6 +15,7 @@ import{getPayslipPDF} from "../controllers/payrollController.js";
 
 
 import { protect } from "../middleware/authMiddleware.js";
+import { authorizeRoles } from "../middleware/roleMiddleware.js";
 
 const router = express.Router();
 
@@ -42,6 +43,7 @@ router.get(
 // Bulk payroll generation
 router.post(
   "/bulk",
+  authorizeRoles("Admin", "HR"),
   generateBulkPayroll
 );
 
@@ -53,6 +55,7 @@ router.get(
 
 router.post(
   "/",
+  authorizeRoles("Admin", "HR"),
   createPayroll
 );
 

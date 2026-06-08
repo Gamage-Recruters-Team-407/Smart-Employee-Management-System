@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { payrollAPI } from '../services/api';
 import Payslip from '../components/common/Payslip';
+import { useAuth } from '../context/AuthContext';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const fmt = (val) =>
@@ -52,6 +53,9 @@ const StatusBadge = ({ status }) => {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 const Payroll = () => {
+  const { user } = useAuth();
+  const isAdminOrHR = user?.role === 'Admin' || user?.role === 'HR';
+
   const [payrolls, setPayrolls] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [summary, setSummary] = useState(null);
@@ -249,19 +253,23 @@ const Payroll = () => {
             <RefreshCw size={15} /> Refresh
           </button>
 
-          <button
-            onClick={() => setShowBulkModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-700 transition"
-          >
-            <Users size={15} /> Bulk Generate
-          </button>
+          {isAdminOrHR && (
+            <button
+              onClick={() => setShowBulkModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-700 transition"
+            >
+              <Users size={15} /> Bulk Generate
+            </button>
+          )}
 
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 transition"
-          >
-            <Plus size={15} /> Add Payroll
-          </button>
+          {isAdminOrHR && (
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 transition"
+            >
+              <Plus size={15} /> Add Payroll
+            </button>
+          )}
         </div>
       </div>
 
@@ -328,7 +336,9 @@ const Payroll = () => {
           <div className="flex flex-col items-center justify-center py-20 text-gray-400">
             <DollarSign size={48} strokeWidth={1} className="mb-3" />
             <p className="text-lg font-medium">No payroll records for {monthLabel(selectedMonth)}</p>
-            <p className="text-sm mt-1">Click "Add Payroll" or "Bulk Generate" to get started.</p>
+            <p className="text-sm mt-1">
+              {isAdminOrHR ? 'Click "Add Payroll" or "Bulk Generate" to get started.' : 'No payroll records found for this month.'}
+            </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -357,7 +367,10 @@ const Payroll = () => {
                         <div className="font-medium text-gray-800 text-sm">{fullName || '—'}</div>
                         <div className="text-xs text-gray-400 font-mono mt-0.5">{emp.employeeId || ''}</div>
                        </td>
-                      <td className="px-5 py-4 text-sm text-gray-600">{emp.department || '—'}</td>
+                      <td className="px-5 py-4 text-sm text-gray-600">
+                        <div>{emp.department || '—'}</div>
+                        <div className="text-xs text-gray-400 mt-0.5">{emp.designation || emp.position || emp.role || ''}</div>
+                      </td>
                       <td className="px-5 py-4 text-sm text-right text-gray-700">{fmt(p.basicSalary)}</td>
                       <td className="px-5 py-4 text-sm text-right text-emerald-600">{fmt(p.allowances)}</td>
                       <td className="px-5 py-4 text-sm text-right text-orange-600">{fmt(p.deductions)}</td>
@@ -376,20 +389,24 @@ const Payroll = () => {
                           >
                             <Eye size={16} />
                           </button>
-                          <button
-                            onClick={() => openEdit(p)}
-                            className="p-1.5 rounded-lg hover:bg-amber-50 text-amber-600 transition"
-                            title="Edit"
-                          >
-                            <Edit2 size={16} />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(p._id, fullName)}
-                            className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 transition"
-                            title="Delete"
-                          >
-                            <Trash2 size={16} />
-                          </button>
+                          {isAdminOrHR && (
+                            <button
+                              onClick={() => openEdit(p)}
+                              className="p-1.5 rounded-lg hover:bg-amber-50 text-amber-600 transition"
+                              title="Edit"
+                            >
+                              <Edit2 size={16} />
+                            </button>
+                          )}
+                          {isAdminOrHR && (
+                            <button
+                              onClick={() => handleDelete(p._id, fullName)}
+                              className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 transition"
+                              title="Delete"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

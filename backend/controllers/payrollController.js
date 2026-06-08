@@ -116,6 +116,14 @@ export const getPayrolls = async (req, res) => {
       filter.month = month; // Format: YYYY-MM
     }
 
+    // Employees can only see their own payroll
+    if (req.user.role === "Employee") {
+      const emp = await Employee.findOne({ user: req.user._id });
+      if (emp) {
+        filter.employee = emp._id;
+      }
+    }
+
     const payrolls = await Payroll.find(filter)
       .populate("employee")
       .sort({ createdAt: -1 });
