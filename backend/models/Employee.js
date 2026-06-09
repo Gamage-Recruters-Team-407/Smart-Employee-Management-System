@@ -13,6 +13,12 @@ const documentSchema = new mongoose.Schema(
     }, // uploads/<filename>
 
     mimetype: {
+      role: {
+        type: String,
+        enum: ["Admin", "HR", "Manager", "Employee"],
+        default: "Employee",
+        trim: true,
+      },
       type: String,
     },
 
