@@ -19,12 +19,35 @@ const Sidebar = ({ isOpen }) => {
   const { user } = useAuth();
   const { canManageTasks, isHrManager } = useTaskCapabilities();
 
-  const taskNavItems = canManageTasks
+  const taskNavItems = 
+    user?.role === "Admin"
     ? [
-        { icon: CheckSquare, label: "Task Management", path: "/tasks/manage" },
-        ...(isHrManager ? [] : [{ icon: CheckSquare, label: "My Tasks", path: "/tasks" }]),
+        {
+          icon: CheckSquare,
+          label: "Task Management",
+          path: "/tasks/manage",
+        },
       ]
-    : [{ icon: CheckSquare, label: "My Tasks", path: "/tasks" }];
+    : canManageTasks
+    ? [
+        {
+          icon: CheckSquare,
+          label: "Task Management",
+          path: "/tasks/manage",
+        },
+        {
+          icon: CheckSquare,
+          label: "My Tasks",
+          path: "/tasks",
+        },
+      ]
+    : [
+        {
+          icon: CheckSquare,
+          label: "My Tasks",
+          path: "/tasks",
+        },
+      ];
 
   const navItems = [
     { icon: Home, label: "Dashboard", path: "/" },
@@ -35,6 +58,7 @@ const Sidebar = ({ isOpen }) => {
 
     { icon: Clock, label: "Attendance", path: "/attendance" },
     { icon: Calendar, label: "Leaves", path: "/leaves" },
+
     
     ...(user?.role !== "Employee"
       ? [{ icon: DollarSign, label: "Payroll", path: "/payroll" }]
