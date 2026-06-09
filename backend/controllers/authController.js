@@ -2,6 +2,7 @@ import Attendance from "../models/Attendance.js";
 import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { resolveEmployeeForAuthUser } from "../utils/employeeUserLink.js";
 
 // ─────────────────────────────────────────────
 // Generate JWT
@@ -30,8 +31,9 @@ const formatUser = (user) => ({
 export const registerUser = async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
+    const normalizedEmail = String(email || "").toLowerCase().trim();
 
-    const userExists = await User.findOne({ email });
+    const userExists = await User.findOne({ email: normalizedEmail });
 
     if (userExists) {
       return res.status(400).json({
@@ -44,10 +46,12 @@ export const registerUser = async (req, res) => {
 
     const user = await User.create({
       name,
-      email,
+      email: normalizedEmail,
       password: hashedPassword,
       role: role || "Employee",
     });
+
+    await resolveEmployeeForAuthUser(user, { createIfMissing: true });
 
     res.status(201).json({
       token: generateToken(user._id, user.role),

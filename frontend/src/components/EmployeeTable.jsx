@@ -1,10 +1,10 @@
 import { useState } from "react";
 import {
-  UserCheck, UserX, Pencil, Trash2, Paperclip,
-  ChevronUp, ChevronDown, ChevronsUpDown, Clock, AlertTriangle, Loader2,
+  UserCheck, UserX, Pencil, Trash2, Paperclip, ShieldAlert,
+  ChevronUp, ChevronDown, ChevronsUpDown, Clock, Loader2, User, Shield, Briefcase
 } from "lucide-react";
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Constants & Badges ──────────────────────────────────────────────────────
 const STATUS_STYLES = {
   Active: "bg-emerald-100 text-emerald-700 border border-emerald-200",
   Inactive: "bg-gray-100 text-gray-600 border border-gray-200",
@@ -12,31 +12,44 @@ const STATUS_STYLES = {
   Terminated: "bg-red-100 text-red-700 border border-red-200",
 };
 
+const ROLE_STYLES = {
+  Admin: "bg-purple-100 text-purple-700 border border-purple-200",
+  HR: "bg-pink-100 text-pink-700 border border-pink-200",
+  Manager: "bg-blue-100 text-blue-700 border border-blue-200",
+  Employee: "bg-indigo-100 text-indigo-700 border border-indigo-200",
+};
+
 const StatusBadge = ({ status }) => (
-  <span
-    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
-      STATUS_STYLES[status] || STATUS_STYLES.Inactive
-    }`}
-  >
+  <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${STATUS_STYLES[status] || STATUS_STYLES.Inactive}`}>
     {status === "Active" ? <UserCheck size={11} /> : <UserX size={11} />}
     {status}
   </span>
 );
+
+const RoleBadge = ({ role }) => {
+  const getIcon = () => {
+    switch (role) {
+      case "Admin": return <ShieldAlert size={11} />;
+      case "Manager": return <Shield size={11} />;
+      case "HR": return <Briefcase size={11} />;
+      default: return <User size={11} />;
+    }
+  };
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${ROLE_STYLES[role] || ROLE_STYLES.Employee}`}>
+      {getIcon()}
+      {role || "Employee"}
+    </span>
+  );
+};
 
 const AVATAR_COLORS = [
   "bg-indigo-500", "bg-violet-500", "bg-pink-500", "bg-rose-500",
   "bg-orange-500", "bg-teal-500", "bg-cyan-500", "bg-sky-500",
 ];
 
-// Fix #9: derive color from stable emp._id instead of mutable row index
 const Avatar = ({ name, empId, profilePhoto }) => {
-  const initials = name
-    .split(" ")
-    .map((n) => n[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-  // Last char of MongoDB _id gives a stable, well-distributed color per employee
+  const initials = name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();
   const colorIndex = empId ? empId.charCodeAt(empId.length - 1) % AVATAR_COLORS.length : 0;
   const color = AVATAR_COLORS[colorIndex];
 
@@ -53,25 +66,19 @@ const Avatar = ({ name, empId, profilePhoto }) => {
             e.currentTarget.nextSibling.style.display = "flex";
           }}
         />
-        <div
-          className={`w-9 h-9 rounded-full ${color} items-center justify-center text-white text-sm font-bold absolute inset-0`}
-          style={{ display: "none" }}
-        >
+        <div className={`w-9 h-9 rounded-full ${color} items-center justify-center text-white text-sm font-bold absolute inset-0`} style={{ display: "none" }}>
           {initials}
         </div>
       </div>
     );
   }
   return (
-    <div
-      className={`w-9 h-9 rounded-full ${color} flex items-center justify-center text-white text-sm font-bold flex-shrink-0`}
-    >
+    <div className={`w-9 h-9 rounded-full ${color} flex items-center justify-center text-white text-sm font-bold flex-shrink-0`}>
       {initials}
     </div>
   );
 };
 
-// ─── Sort icon ────────────────────────────────────────────────────────────────
 const SortIcon = ({ field, sortField, sortDir }) => {
   if (sortField !== field) return <ChevronsUpDown size={13} className="text-gray-300 ml-1" />;
   return sortDir === "asc"
@@ -79,38 +86,23 @@ const SortIcon = ({ field, sortField, sortDir }) => {
     : <ChevronDown size={13} className="text-indigo-500 ml-1" />;
 };
 
-// ─── Column config ────────────────────────────────────────────────────────────
+// ─── Updated Grid Columns Configuration ───────────────────────────────────────
+// Added 100px explicit allocation for the Role badge component column
 const TABLE_GRID =
-  "grid-cols-[36px_130px_minmax(160px,1fr)_minmax(200px,1.2fr)_120px_110px_110px_1fr]";
+  "grid-cols-[36px_130px_minmax(160px,1fr)_minmax(180px,1fr)_120px_100px_110px_110px_1fr]";
 
 const COLUMNS = [
-  { key: null,          label: "" },            // checkbox
+  { key: null,          label: "" },
   { key: "employeeId",  label: "Employee ID" },
   { key: "firstName",   label: "Name" },
   { key: "email",       label: "Email" },
   { key: "department",  label: "Department" },
+  { key: "role",        label: "Role" }, // <-- New Column
   { key: "joiningDate", label: "Joined" },
   { key: "status",      label: "Status" },
   { key: null,          label: "Actions" },
 ];
 
-// ─── Main Component ───────────────────────────────────────────────────────────
-/**
- * EmployeeTable
- * Props:
- *   employees        array
- *   sortField        string
- *   sortDir          "asc" | "desc"
- *   onSort           fn(field)
- *   selectedIds      Set<string>
- *   onToggleSelect   fn(id)
- *   onSelectAll      fn()
- *   onEdit           fn(employee)
- *   onDelete         fn(employee)
- *   onDocuments      fn(employee)
- *   onViewProfile    fn(employee)
- *   onInlineUpdate   fn(empId, field, value) — optional, for inline quick-edit
- */
 const EmployeeTable = ({
   employees,
   sortField,
@@ -128,15 +120,15 @@ const EmployeeTable = ({
   const allSelected = employees.length > 0 && employees.every((e) => selectedIds.has(e._id));
   const someSelected = employees.some((e) => selectedIds.has(e._id));
 
-  // Phase 5: inline edit state — { empId, field } or null
   const [editingCell, setEditingCell] = useState(null);
-  const [inlineSaving, setInlineSaving] = useState(null); // empId+field key
+  const [inlineSaving, setInlineSaving] = useState(null);
 
   const DEPARTMENTS = [
     "Engineering", "HR", "Finance", "Marketing", "Sales",
     "Operations", "IT", "Design", "Legal", "Support",
   ];
   const STATUSES = ["Active", "Inactive", "On Leave", "Terminated"];
+  const ROLES = ["Admin", "HR", "Manager", "Employee"]; // Optional if inline editing roles
 
   const handleInlineCommit = async (empId, field, value) => {
     const key = `${empId}-${field}`;
@@ -155,10 +147,9 @@ const EmployeeTable = ({
 
   return (
     <div className="overflow-x-auto">
-      <div className="min-w-[960px]">
-        {/* ── Table header ───────────────────────────────────────────────── */}
+      <div className="min-w-[1020px]"> {/* Increased slightly to hold structural column safely */}
+        {/* Table Header */}
         <div className={`grid ${TABLE_GRID} gap-3 px-5 py-3 bg-gray-50 border-b border-gray-100 text-xs font-semibold text-gray-500 uppercase tracking-wider`}>
-          {/* Select-all checkbox */}
           <div className="flex items-center justify-center">
             <input
               type="checkbox"
@@ -185,7 +176,7 @@ const EmployeeTable = ({
           )}
         </div>
 
-        {/* ── Rows ───────────────────────────────────────────────────────── */}
+        {/* Rows Container */}
         <div className="divide-y divide-gray-50">
           {employees.map((emp) => {
             const isSelected = selectedIds.has(emp._id);
@@ -194,11 +185,9 @@ const EmployeeTable = ({
             return (
               <div
                 key={emp._id}
-                className={`grid ${TABLE_GRID} gap-3 items-center px-5 py-3.5 transition group ${
-                  isSelected ? "bg-indigo-50/60" : "hover:bg-indigo-50/20"
-                }`}
+                className={`grid ${TABLE_GRID} gap-3 items-center px-5 py-3.5 transition group ${isSelected ? "bg-indigo-50/60" : "hover:bg-indigo-50/20"}`}
               >
-                {/* Row checkbox */}
+                {/* Checkbox */}
                 <div className="flex items-center justify-center">
                   <input
                     type="checkbox"
@@ -208,17 +197,13 @@ const EmployeeTable = ({
                   />
                 </div>
 
-                {/* Employee ID */}
+                {/* ID */}
                 <span className="text-xs font-mono font-semibold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md w-fit">
                   {emp.employeeId}
                 </span>
 
-                {/* Name + Avatar — clickable to open profile */}
-                <button
-                  onClick={() => onViewProfile(emp)}
-                  className="flex items-center gap-3 min-w-0 text-left group/name"
-                >
-                  {/* Fix #9: pass empId (stable) instead of mutable row index */}
+                {/* Name + Avatar */}
+                <button onClick={() => onViewProfile(emp)} className="flex items-center gap-3 min-w-0 text-left group/name">
                   <Avatar name={fullName} empId={emp._id} profilePhoto={emp.profilePhoto} />
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-gray-900 truncate group-hover/name:text-indigo-600 transition">
@@ -231,7 +216,7 @@ const EmployeeTable = ({
                 {/* Email */}
                 <span className="text-sm text-gray-600 truncate">{emp.email}</span>
 
-                {/* Department — inline editable */}
+                {/* Department */}
                 {editingCell?.empId === emp._id && editingCell?.field === "department" ? (
                   <select
                     autoFocus
@@ -254,10 +239,16 @@ const EmployeeTable = ({
                   </button>
                 )}
 
-                {/* Joining Date */}
+                {/* ─── ROLE DISPLAY ─── */}
+                <div className="flex justify-start">
+                  {/* If you want inline role modification, you can switch this to a select identical to the department one above */}
+                  <RoleBadge role={emp.role} />
+                </div>
+
+                {/* Joined Date */}
                 <span className="text-xs text-gray-500">{formatDate(emp.joiningDate)}</span>
 
-                {/* Status — inline editable */}
+                {/* Status */}
                 {editingCell?.empId === emp._id && editingCell?.field === "status" ? (
                   <select
                     autoFocus
@@ -281,11 +272,9 @@ const EmployeeTable = ({
 
                 {/* Actions */}
                 <div className="flex items-center justify-start gap-1.5">
-                  {/* Documents */}
                   <button
                     onClick={() => onDocuments(emp)}
                     className="relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition text-xs font-semibold border border-indigo-100"
-                    title="Upload / manage documents"
                   >
                     <Paperclip size={13} />
                     <span>Docs</span>
@@ -296,21 +285,11 @@ const EmployeeTable = ({
                     )}
                   </button>
 
-                  {/* Edit */}
-                  <button
-                    onClick={() => onEdit(emp)}
-                    className="p-1.5 rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition"
-                    title="Edit employee"
-                  >
+                  <button onClick={() => onEdit(emp)} className="p-1.5 rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition">
                     <Pencil size={15} />
                   </button>
 
-                  {/* Delete */}
-                  <button
-                    onClick={() => onDelete(emp)}
-                    className="p-1.5 rounded-lg text-gray-300 hover:text-red-600 hover:bg-red-50 transition opacity-0 group-hover:opacity-100"
-                    title="Delete employee"
-                  >
+                  <button onClick={() => onDelete(emp)} className="p-1.5 rounded-lg text-gray-300 hover:text-red-600 hover:bg-red-50 transition opacity-0 group-hover:opacity-100">
                     <Trash2 size={15} />
                   </button>
                 </div>
