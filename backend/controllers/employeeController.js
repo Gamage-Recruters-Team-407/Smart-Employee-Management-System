@@ -298,7 +298,7 @@ export const getEmployeeTasks = async (req, res) => {
   }
 };
 
-// ─── 5. UPDATE EMPLOYEE (With Audit Log Diffs) ───────────────────────────────
+// ─── 5. UPDATE EMPLOYEE (With Audit Log Diffs - Email Immutable) ───────────────
 
 export const updateEmployee = async (req, res) => {
   try {
@@ -307,33 +307,31 @@ export const updateEmployee = async (req, res) => {
     }
 
     const oldEmployee = await Employee.findById(req.params.id);
-    if (!oldEmployee) return res.status(404).json({ success: false, message: "Employee not found." });
+    if (!oldEmployee) {
+      return res.status(404).json({ success: false, message: "Employee not found." });
+    }
 
     const updateData = { ...req.body };
 
-    if (updateData.email) {
-      updateData.email = String(updateData.email).toLowerCase().trim();
-      const duplicate = await Employee.findOne({
-        email: updateData.email,
-        _id: { $ne: req.params.id },
-      });
-
-      if (duplicate) {
-        return res.status(409).json({ success: false, message: "Another employee with this email already exists." });
-      }
+    // 🔒 SECURITY GUARDRAIL: Strip email field entirely out of the update payload.
+    // This silently drops any email change requests, allowing all other fields to update safely.
+    if ("email" in updateData) {
+      delete updateData.email;
     }
 
+    // Process and cast other valid numeric fields safely
     if (updateData.salary !== undefined && updateData.salary !== "") {
       updateData.salary = Number(updateData.salary);
     }
 
+    // Update everything else safely
     const updatedEmployee = await Employee.findByIdAndUpdate(
       req.params.id,
       { $set: updateData },
       { new: true, runValidators: true }
     );
 
-    // Audit Log සෑදීම සඳහා පැරණි සහ අලුත් දත්ත අතර වෙනස්කම් (Diffs) සොයයි
+    // Track Audit Log changes for the allowed modified parameters
     const changes = [];
     for (const key of Object.keys(updateData)) {
       if (String(oldEmployee[key]) !== String(updatedEmployee[key])) {
@@ -357,7 +355,7 @@ export const updateEmployee = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "Employee updated successfully.",
+      message: "Employee profile updated successfully. (Note: Email modifications are restricted)",
       data: updatedEmployee,
     });
   } catch (error) {
