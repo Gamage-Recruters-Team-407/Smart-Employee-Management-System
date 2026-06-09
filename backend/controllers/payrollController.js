@@ -116,13 +116,13 @@ export const getPayrolls = async (req, res) => {
       filter.month = month; // Format: YYYY-MM
     }
 
-    // Employees can only see their own payroll
-    if (req.user.role === "Employee") {
-      const emp = await Employee.findOne({ user: req.user._id });
-      if (emp) {
-        filter.employee = emp._id;
-      }
+  // Only Admin and HR can see all records, everyone else sees only their own
+  if (req.user.role !== "Admin" && req.user.role !== "HR") {
+    const emp = await Employee.findOne({ email: req.user.email });
+    if (emp) {
+      filter.employee = emp._id;
     }
+  }
 
     const payrolls = await Payroll.find(filter)
       .populate("employee")

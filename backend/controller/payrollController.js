@@ -29,7 +29,17 @@ export const getAllPayrolls = async (req, res) => {
   try {
     const filter = {};
     if (req.query.month) filter.month = req.query.month;
-    if (req.query.employeeId) filter.employee = req.query.employeeId;
+
+    if (req.user.role !== "Admin" && req.user.role !== "HR") {
+      const employee = await Employee.findOne({ email: req.user.email });
+      if (employee) {
+        filter.employee = employee._id;
+      } else {
+        return res.status(200).json({ success: true, count: 0, data: [] });
+      }
+    } else {
+      if (req.query.employeeId) filter.employee = req.query.employeeId;
+    }
 
     const payrolls = await Payroll.find(filter)
       .populate("employee", "firstName lastName employeeId department designation salary")
@@ -221,7 +231,13 @@ export const getPayrollSummary = async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid month format. Use YYYY-MM." });
     }
 
-    const payrolls = await Payroll.find({ month });
+    const summaryFilter = { month };
+    if (req.user.role !== "Admin" && req.user.role !== "HR") {
+      const employee = await Employee.findOne({ email: req.user.email });
+      if (employee) summaryFilter.employee = employee._id;
+    }
+
+    const payrolls = await Payroll.find(summaryFilter);
 
     const summary = {
       month,

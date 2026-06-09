@@ -60,9 +60,7 @@ const Sidebar = ({ isOpen }) => {
     { icon: Calendar, label: "Leaves", path: "/leaves" },
 
     
-    ...(user?.role !== "Employee"
-      ? [{ icon: DollarSign, label: "Payroll", path: "/payroll" }]
-    : []),
+    { icon: DollarSign, label: "Payroll", path: "/payroll" },
 
     // { icon: DollarSign, label: "Payroll", path: "/payroll" },
     { icon: Award, label: "Performance", path: "/performance" },
