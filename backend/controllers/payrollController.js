@@ -475,3 +475,131 @@ export const getPayslipPDF = async (req, res) => {
     return res.status(500).json({ message: "Failed to generate PDF." });
   }
 };
+
+export const getAllPayrolls = async (req, res) => {
+  try {
+    const { month } = req.query;
+
+    const loggedUser = req.user;
+
+    if (!loggedUser) {
+      return res.status(401).json({
+        success: false,
+        message: "Not authorized",
+      });
+    }
+
+    const filter = {};
+
+    if (month) {
+      filter.month = month;
+    }
+
+    let payrolls = await Payroll.find(filter)
+      .populate(
+        "employee",
+        "employeeId firstName lastName email salary department designation userId"
+      )
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Admin can view all payrolls
+    if (loggedUser.role === "Admin") {
+      return res.status(200).json({
+        success: true,
+        loggedUser: {
+          id: loggedUser._id,
+          name: loggedUser.name,
+          email: loggedUser.email,
+          role: loggedUser.role,
+        },
+        count: payrolls.length,
+        data: payrolls,
+      });
+    }
+
+    // HR can view all payrolls EXCEPT Admin user's payrolls
+    if (loggedUser.role === "HR") {
+      const employeeUserIds = payrolls
+        .map((payroll) => payroll.employee?.userId)
+        .filter(Boolean);
+
+      const users = await User.find({
+        _id: { $in: employeeUserIds },
+      })
+        .select("_id role name email")
+        .lean();
+
+      const userRoleMap = new Map(
+        users.map((user) => [user._id.toString(), user.role])
+      );
+
+      payrolls = payrolls.filter((payroll) => {
+        const employeeUserId = payroll.employee?.userId?.toString();
+
+        if (!employeeUserId) {
+          return true;
+        }
+
+        const employeeRole = userRoleMap.get(employeeUserId);
+
+        return employeeRole !== "Admin";
+      });
+
+      return res.status(200).json({
+        success: true,
+        loggedUser: {
+          id: loggedUser._id,
+          name: loggedUser.name,
+          email: loggedUser.email,
+          role: loggedUser.role,
+        },
+        rule: "HR can view all payrolls except Admin payrolls",
+        count: payrolls.length,
+        data: payrolls,
+      });
+    }
+
+    // Manager / Employee can view only their own payroll
+    const ownEmployee = await Employee.findOne({
+      userId: loggedUser._id,
+    }).select("_id");
+
+    if (!ownEmployee) {
+      return res.status(200).json({
+        success: true,
+        loggedUser: {
+          id: loggedUser._id,
+          name: loggedUser.name,
+          email: loggedUser.email,
+          role: loggedUser.role,
+        },
+        count: 0,
+        data: [],
+      });
+    }
+
+    payrolls = payrolls.filter((payroll) => {
+      return payroll.employee?._id?.toString() === ownEmployee._id.toString();
+    });
+
+    return res.status(200).json({
+      success: true,
+      loggedUser: {
+        id: loggedUser._id,
+        name: loggedUser.name,
+        email: loggedUser.email,
+        role: loggedUser.role,
+      },
+      rule: "User can view only own payroll",
+      count: payrolls.length,
+      data: payrolls,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch payrolls",
+      error: error.message,
+    });
+  }
+};
