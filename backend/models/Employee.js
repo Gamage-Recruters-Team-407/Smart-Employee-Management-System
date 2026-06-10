@@ -34,6 +34,17 @@ const documentSchema = new mongoose.Schema(
 
 const employeeSchema = new mongoose.Schema(
   {
+    // This saves User collection ObjectId.
+    // Not required, because manually created employees may not have a user account.
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+      index: true,
+      unique: true,
+      sparse: true,
+    },
+
     employeeId: {
       type: String,
       unique: true,

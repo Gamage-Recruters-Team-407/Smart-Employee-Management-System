@@ -13,6 +13,39 @@ const getEmployeeDisplayName = (employee) => {
   return `${employee.firstName || ""} ${employee.lastName || ""}`.trim() || "Employee";
 };
 
+
+export const getRoleByUserId = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({
+        message: "User ID is required",
+      });
+    }
+
+    const user = await User.findById(userId).select("role name email");
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    return res.status(200).json({
+      userId: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Server Error",
+      error: error.message,
+    });
+  }
+};
+
 const parseMonthYear = (month) => {
   if (month && /^\d{4}-\d{2}$/.test(month)) {
     const [year, monthNum] = month.split("-");
@@ -204,20 +237,76 @@ export const createPayroll = async (req, res) => {
     const { employeeId, month, loans, allowances, deductions } = req.body;
 
     const emp = await Employee.findById(employeeId);
+
     if (!emp) {
-      return res.status(404).json({ message: "Employee not found." });
+      return res.status(404).json({
+        success: false,
+        message: "Employee not found.",
+      });
     }
 
-    const existingPayroll = await Payroll.findOne({ employee: employeeId, month });
+    if (!emp.userId) {
+      return res.status(400).json({
+        success: false,
+        message: "This employee does not have a linked userId.",
+      });
+    }
+
+    const existingPayroll = await Payroll.findOne({
+      employee: employeeId,
+      month,
+    });
+
     if (existingPayroll) {
-      return res.status(400).json({ message: "Payroll already exists for this employee in the specified month." });
+      return res.status(400).json({
+        success: false,
+        message: "Payroll already exists for this employee in the specified month.",
+      });
     }
 
     const basicSalary = emp.salary || 0;
-    const comps = calculatePayrollComponents(basicSalary, loans || 0, allowances || null, deductions || null);
 
-    const payroll = new Payroll({
+    const comps = calculatePayrollComponents(
+      basicSalary,
+      loans || 0,
+      allowances || null,
+      deductions || null
+    );
+
+    const roleApiUrl = `http://localhost:5000/api/payroll/role/user/${emp.userId}`;
+
+    const roleResponse = await fetch(roleApiUrl, {
+      method: "GET",
+      headers: {
+        Authorization: req.headers.authorization,
+      },
+    });
+
+    if (!roleResponse.ok) {
+      const errorText = await roleResponse.text();
+
+      return res.status(400).json({
+        success: false,
+        message: "Failed to get role from role API.",
+        roleApiUrl,
+        error: errorText,
+      });
+    }
+
+    const roleData = await roleResponse.json();
+
+    if (!roleData.role) {
+      return res.status(400).json({
+        success: false,
+        message: "Role API did not return role.",
+        roleApiUrl,
+        roleData,
+      });
+    }
+
+    const payroll = await Payroll.create({
       employee: employeeId,
+      role: roleData.role,
       basicSalary: comps.basicSalary,
       allowances: comps.allowances,
       deductions: comps.deductions,
@@ -228,14 +317,22 @@ export const createPayroll = async (req, res) => {
       status: "Pending",
     });
 
-    const savedPayroll = await payroll.save();
-    await sendPayrollGeneratedEmailSafe(savedPayroll, emp);
-    res.status(201).json(savedPayroll);
+    await sendPayrollGeneratedEmailSafe(payroll, emp);
+
+    return res.status(201).json({
+      success: true,
+      message: "Payroll created successfully.",
+      roleApiUrl,
+      roleFromApi: roleData.role,
+      data: payroll,
+    });
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
-
 // @desc    Update a payroll record
 // @route   PUT /api/payroll/:id
 // @access  Public

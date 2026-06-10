@@ -51,11 +51,15 @@ export const registerUser = async (req, res) => {
       role: role || "Employee",
     });
 
-    await resolveEmployeeForAuthUser(user, { createIfMissing: true });
+    // This creates Employee and saves user._id into Employee.userId
+    const employee = await resolveEmployeeForAuthUser(user, {
+      createIfMissing: true,
+    });
 
     res.status(201).json({
       token: generateToken(user._id, user.role),
       user: formatUser(user),
+      employee,
     });
   } catch (error) {
     res.status(500).json({

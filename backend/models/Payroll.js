@@ -8,6 +8,13 @@ const payrollSchema = new mongoose.Schema(
       required: [true, "Employee is required"],
     },
 
+    role: {
+      type: String,
+      enum: ["Admin", "HR", "Manager", "Employee"],
+      default: "Employee",
+      trim: true,
+    },
+
     month: {
       type: String,
       required: [true, "Month is required"],
@@ -65,20 +72,17 @@ const payrollSchema = new mongoose.Schema(
   }
 );
 
-// Auto-calculate net salary before saving
 payrollSchema.pre("save", function () {
   this.netSalary =
     this.basicSalary +
     this.allowances -
     (this.deductions + this.tax + this.loans);
 
-  // Prevent negative salary
   if (this.netSalary < 0) {
     this.netSalary = 0;
   }
 });
 
-// Prevent duplicate payrolls for same employee/month
 payrollSchema.index({ employee: 1, month: 1 }, { unique: true });
 
 export default mongoose.model("Payroll", payrollSchema);

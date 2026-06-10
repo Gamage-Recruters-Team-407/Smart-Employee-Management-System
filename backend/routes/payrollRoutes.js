@@ -3,7 +3,6 @@ import express from "express";
 import {
   getAllPayrolls,
   getPayrollById,
-  createPayroll,
   generateBulkPayroll,
   updatePayroll,
   deletePayroll,
@@ -11,7 +10,7 @@ import {
   getEmployeesForPayroll,
 } from "../controller/payrollController.js";
 
-import{getPayslipPDF} from "../controllers/payrollController.js";
+import{getPayslipPDF,getRoleByUserId,createPayroll } from "../controllers/payrollController.js";
 
 
 import { protect } from "../middleware/authMiddleware.js";
@@ -60,6 +59,11 @@ router.post(
 );
 
 router.get(
+  "/role/user/:userId",
+  getRoleByUserId
+);
+
+router.get(
   "/:id",
   getPayrollById
 );
@@ -72,6 +76,12 @@ router.put(
 router.delete(
   "/:id",
   deletePayroll
+);
+
+router.get(
+  "/role/user/:userId",
+  authorizeRoles("Admin", "HR", "Manager"),
+  getRoleByUserId
 );
 
 export default router;
