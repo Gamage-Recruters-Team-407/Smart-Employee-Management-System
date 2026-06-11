@@ -73,6 +73,12 @@ const employeeSchema = new mongoose.Schema(
         "Please provide a valid email address.",
       ],
     },
+    role: {
+      type: String,
+      enum: ["Admin", "HR", "Manager", "Employee"],
+      default: "Employee",
+      trim: true,
+    },
 
     phone: {
       type: String,

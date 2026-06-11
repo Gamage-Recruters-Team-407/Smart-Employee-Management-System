@@ -56,6 +56,7 @@ export const resolveEmployeeForAuthUser = async (
 
   const email = normalizeEmail(authUser.email);
   const userObjectId = authUser?._id;
+  const userRole = authUser?.role || "Employee";
 
   // 1. First find employee by userId
   if (userObjectId && mongoose.Types.ObjectId.isValid(userObjectId)) {
@@ -64,6 +65,24 @@ export const resolveEmployeeForAuthUser = async (
     });
 
     if (employeeByUserId) {
+      let needSave = false;
+
+      // Update role from User to Employee
+      if (employeeByUserId.role !== userRole) {
+        employeeByUserId.role = userRole;
+        needSave = true;
+      }
+
+      // Safety: make sure email is normalized
+      if (employeeByUserId.email !== email) {
+        employeeByUserId.email = email;
+        needSave = true;
+      }
+
+      if (needSave) {
+        await employeeByUserId.save();
+      }
+
       return employeeByUserId;
     }
   }
@@ -71,10 +90,21 @@ export const resolveEmployeeForAuthUser = async (
   // 2. Then find employee by email
   let employee = await findEmployeeByEmail(email);
 
-  // 3. If employee already exists but userId is missing, save userId
+  // 3. If employee already exists, attach userId and role
   if (employee) {
+    let needSave = false;
+
     if (!employee.userId && userObjectId) {
       employee.userId = userObjectId;
+      needSave = true;
+    }
+
+    if (employee.role !== userRole) {
+      employee.role = userRole;
+      needSave = true;
+    }
+
+    if (needSave) {
       await employee.save();
     }
 
@@ -93,6 +123,7 @@ export const resolveEmployeeForAuthUser = async (
   try {
     employee = await Employee.create({
       userId: userObjectId || null,
+      role: userRole,
       employeeId,
       firstName,
       lastName,
@@ -107,8 +138,19 @@ export const resolveEmployeeForAuthUser = async (
       employee = await findEmployeeByEmail(email);
 
       if (employee) {
+        let needSave = false;
+
         if (!employee.userId && userObjectId) {
           employee.userId = userObjectId;
+          needSave = true;
+        }
+
+        if (employee.role !== userRole) {
+          employee.role = userRole;
+          needSave = true;
+        }
+
+        if (needSave) {
           await employee.save();
         }
 
