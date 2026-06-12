@@ -1,5 +1,6 @@
 import Leave from "../models/Leave.js";
 import { sendLeaveApprovalEmail } from "../services/emailService.js";
+import Employee from "../models/Employee.js";
 
 // ─────────────────────────────────────────────
 // Helpers
@@ -33,11 +34,16 @@ const getEmployeeDisplayName = (
 // Apply Leave
 // ─────────────────────────────────────────────
 
-export const applyLeave = async (
-  req,
-  res
-) => {
+export const applyLeave = async (req, res) => {
   try {
+    const employeeDoc = await Employee.findOne({ email: req.user.email });
+
+    if (!employeeDoc) {
+      return res.status(404).json({
+        message: "Employee profile not found for this user",
+      });
+    }
+
     const {
       leaveType,
       startDate,
@@ -49,26 +55,21 @@ export const applyLeave = async (
     const end = new Date(endDate);
 
     const totalDays =
-      Math.ceil(
-        (end - start) /
-          (1000 * 60 * 60 * 24)
-      ) + 1;
+      Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
 
     if (totalDays <= 0) {
       return res.status(400).json({
-        message:
-          "End date must be after start date",
+        message: "End date must be after start date",
       });
     }
 
     let medicalDocument = null;
-
     if (req.file) {
       medicalDocument = req.file.path;
     }
 
     const leave = new Leave({
-      employee: req.user._id,
+      employee: employeeDoc._id,
       leaveType,
       startDate,
       endDate,
@@ -80,8 +81,7 @@ export const applyLeave = async (
     await leave.save();
 
     res.status(201).json({
-      message:
-        "Leave application submitted successfully",
+      message: "Leave application submitted successfully",
       leave,
     });
   } catch (error) {
@@ -391,3 +391,40 @@ export const getLeaveBalance =
       });
     }
   };
+
+  export const revertLeaveStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const leave = await Leave.findById(id);
+
+    if (!leave) {
+      return res.status(404).json({
+        message: "Leave not found",
+      });
+    }
+
+    if (!["Approved", "Rejected"].includes(leave.status)) {
+      return res.status(400).json({
+        message: "Only approved or rejected leaves can be reverted",
+      });
+    }
+
+    leave.status = "Pending";
+    leave.reviewedBy = null;
+    leave.reviewedAt = null;
+    leave.reviewNote = null;
+
+    await leave.save();
+
+    res.status(200).json({
+      message: "Leave reverted to Pending successfully",
+      leave,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
