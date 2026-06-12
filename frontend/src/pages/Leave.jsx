@@ -21,7 +21,7 @@ const Leave = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  // ── Approve/Reject confirmation popup state ──────────────────────────────
+  // ── Approve/Reject/Revert confirmation popup state ────────────────────────
   const [confirmAction, setConfirmAction] = useState(null); // { id, status, employeeName }
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -93,7 +93,7 @@ const Leave = () => {
     }
   };
 
-  // ── Approve / Reject ──────────────────────────────────────────────────────
+  // ── Approve / Reject / Revert ──────────────────────────────────────────────
   const openConfirm = (leave, status) => {
     setConfirmAction({
       id: leave._id,
@@ -110,7 +110,11 @@ const Leave = () => {
     if (!confirmAction) return;
     setActionLoading(true);
     try {
-      await API.put(`/leaves/status/${confirmAction.id}`, { status: confirmAction.status });
+      if (confirmAction.status === 'Reverted') {
+        await API.put(`/leaves/revert/${confirmAction.id}`, {});
+      } else {
+        await API.put(`/leaves/status/${confirmAction.id}`, { status: confirmAction.status });
+      }
       await fetchAllLeaves();
       closeConfirm();
     } catch (err) {
@@ -278,6 +282,13 @@ const Leave = () => {
                                 Reject
                               </button>
                             </div>
+                          ) : ['Approved', 'Rejected'].includes(leave.status) ? (
+                            <button
+                              onClick={() => openConfirm(leave, 'Reverted')}
+                              className="text-amber-600 hover:underline text-sm font-medium"
+                            >
+                              Cancel
+                            </button>
                           ) : (
                             <span className="text-gray-400 text-sm">—</span>
                           )}
@@ -350,17 +361,27 @@ const Leave = () => {
         </div>
       )}
 
-      {/* ── APPROVE/REJECT CONFIRMATION MODAL ───────────────────────────────── */}
+      {/* ── APPROVE/REJECT/REVERT CONFIRMATION MODAL ─────────────────────────── */}
       {confirmAction && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-8">
             <h2 className="text-xl font-semibold mb-3">
-              {confirmAction.status === 'Approved' ? 'Approve Leave Request' : 'Reject Leave Request'}
+              {confirmAction.status === 'Approved'
+                ? 'Approve Leave Request'
+                : confirmAction.status === 'Rejected'
+                ? 'Reject Leave Request'
+                : 'Revert Leave to Pending'}
             </h2>
             <p className="text-gray-600 mb-6">
               Are you sure you want to{' '}
-              <strong>{confirmAction.status === 'Approved' ? 'approve' : 'reject'}</strong> the leave
-              request from <strong>{confirmAction.employeeName}</strong>?
+              <strong>
+                {confirmAction.status === 'Approved'
+                  ? 'approve'
+                  : confirmAction.status === 'Rejected'
+                  ? 'reject'
+                  : 'revert to pending'}
+              </strong>{' '}
+              the leave request from <strong>{confirmAction.employeeName}</strong>?
             </p>
             <div className="flex gap-4">
               <button
@@ -376,10 +397,18 @@ const Leave = () => {
                 className={`flex-1 py-3 rounded-xl font-semibold text-white transition ${
                   confirmAction.status === 'Approved'
                     ? 'bg-green-600 hover:bg-green-700 disabled:bg-green-400'
-                    : 'bg-red-600 hover:bg-red-700 disabled:bg-red-400'
+                    : confirmAction.status === 'Rejected'
+                    ? 'bg-red-600 hover:bg-red-700 disabled:bg-red-400'
+                    : 'bg-amber-600 hover:bg-amber-700 disabled:bg-amber-400'
                 }`}
               >
-                {actionLoading ? 'Processing...' : confirmAction.status === 'Approved' ? 'Approve' : 'Reject'}
+                {actionLoading
+                  ? 'Processing...'
+                  : confirmAction.status === 'Approved'
+                  ? 'Approve'
+                  : confirmAction.status === 'Rejected'
+                  ? 'Reject'
+                  : 'Revert'}
               </button>
             </div>
           </div>
