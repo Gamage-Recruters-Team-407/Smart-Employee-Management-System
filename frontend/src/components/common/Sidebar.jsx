@@ -19,26 +19,13 @@ const Sidebar = ({ isOpen }) => {
   const { user } = useAuth();
   const { canManageTasks, isHrManager } = useTaskCapabilities();
 
-  const taskNavItems = 
-    user?.role === "Admin"
+  const taskNavItems =
+  user?.role === "Admin" || canManageTasks
     ? [
         {
           icon: CheckSquare,
           label: "Task Management",
           path: "/tasks/manage",
-        },
-      ]
-    : canManageTasks
-    ? [
-        {
-          icon: CheckSquare,
-          label: "Task Management",
-          path: "/tasks/manage",
-        },
-        {
-          icon: CheckSquare,
-          label: "My Tasks",
-          path: "/tasks",
         },
       ]
     : [
