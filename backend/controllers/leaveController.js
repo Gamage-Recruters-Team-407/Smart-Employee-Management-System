@@ -127,13 +127,9 @@ export const getAllLeaves =
       const leaves = await Leave.find()
         .populate(
           "employee",
-          "name email department"
+          "firstName lastName email department"
         )
-        .populate(
-          "reviewedBy",
-          "name email"
-        )
-        .sort({ createdAt: -1 });
+        .sort({ createdAt: -1 });  
 
       res.status(200).json(leaves);
     } catch (error) {
