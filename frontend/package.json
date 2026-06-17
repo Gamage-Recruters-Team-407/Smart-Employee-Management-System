@@ -21,6 +21,7 @@
     "react-chartjs-2": "^5.3.1",
     "react-dom": "^19.2.6",
     "react-router-dom": "^7.15.1",
+    "socket.io-client": "^4.8.3",
     "three": "^0.184.0"
   },
   "devDependencies": {

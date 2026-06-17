@@ -46,7 +46,7 @@ export const recordLogout = async (req, res) => {
         status: "Inactive", // අනිත් branch එකෙන් ආපු වෙනස්කම
         activityStatus: false,
       },
-      { new: true }
+      { returnDocument: "after" }
     );
 
     if (!attendance) {
@@ -405,6 +405,53 @@ export const getMyAttendanceHistory = async (req, res) => {
     }
     const attendance = await Attendance.find({ employee: employee._id }).populate("employee").sort({ date: -1 });
     res.status(200).json(attendance);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * @desc Get weekly attendance report for an employee
+ * @route GET /api/attendance/report/weekly/:employeeId
+ */
+export const getWeeklyReport = async (req, res) => {
+  try {
+    // Ensure only Admin can access this report
+    if (req.user?.role !== "Admin") {
+      return res.status(403).json({ message: "Access denied. Admins only." });
+    }
+
+    const { employeeId } = req.params;
+    
+    const employee = await Employee.findOne({ employeeId });
+    if (!employee) {
+      return res.status(404).json({ message: "Employee not found" });
+    }
+
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    // Get all completed sessions from the last 7 days
+    const records = await Attendance.find({
+      employee: employee._id,
+      loginTime: { $gte: sevenDaysAgo },
+      logoutTime: { $ne: null }
+    });
+
+    if (records.length === 0) {
+      return res.status(200).json({ message: "No attendance found for this week." });
+    }
+
+    let totalDurationMs = 0;
+    records.forEach(record => {
+      if (record.loginTime && record.logoutTime) {
+        totalDurationMs += (new Date(record.logoutTime).getTime() - new Date(record.loginTime).getTime());
+      }
+    });
+
+    const totalHours = (totalDurationMs / (1000 * 60 * 60)).toFixed(2);
+
+    res.status(200).json({ totalHours, recordsCount: records.length, records });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

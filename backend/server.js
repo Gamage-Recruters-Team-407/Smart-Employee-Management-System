@@ -20,6 +20,8 @@ import performanceRoutes from "./routes/performanceRoutes.js";
 import { seedDefaultUser } from "./utils/seedDefaultUser.js";
 import { seedSamplePayroll } from "./utils/seedSamplePayroll.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
+import http from "http";
+import { initWebSocket } from "./services/websocketService.js";
 
 dotenv.config();
 
@@ -103,7 +105,10 @@ const startServer = async () => {
     await seedDefaultUser();
     await seedSamplePayroll();
 
-    serverInstance = app.listen(PORT, HOST, () => {
+    const server = http.createServer(app);
+    initWebSocket(server);
+
+    serverInstance = server.listen(PORT, HOST, () => {
       console.log(`Server running on http://${HOST}:${PORT}`);
     });
 

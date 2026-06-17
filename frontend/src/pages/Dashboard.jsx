@@ -1,9 +1,11 @@
-import  { useState } from "react";
+import { useState, useEffect } from "react";
 import { Outlet, useNavigate, Link } from "react-router-dom";
 import { Menu, X, LogOut } from "lucide-react";
 import Sidebar from "../components/common/Sidebar";
 import { useAuth } from "../context/AuthContext";
 import { useEmployeeProfile } from "../hooks/useEmployeeProfile";
+import useAttendanceSocket from "../hooks/useAttendanceSocket"; 
+
 
 const Dashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -12,6 +14,18 @@ const Dashboard = () => {
   const { employee } = useEmployeeProfile({
     enabled: user?.role === "Employee",
   });
+
+  // Keep a stable reference to prevent the socket hook from re-running unnecessarily
+  const [socketUser, setSocketUser] = useState(null);
+
+  useEffect(() => {
+    const target = user?.role === "Employee" ? employee : user;
+    if (target && !socketUser) {
+      setSocketUser(target);
+    }
+  }, [user, employee, socketUser]);
+
+  useAttendanceSocket(socketUser);
 
   // ─── STORAGE ─────────────────────────────────
   let storedUser = {};

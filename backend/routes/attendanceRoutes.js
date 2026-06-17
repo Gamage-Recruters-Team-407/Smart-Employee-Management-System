@@ -12,6 +12,7 @@ import {
   checkIn,
   checkOut,
   getMyAttendanceHistory,
+  getWeeklyReport
 } from "../controllers/attendanceController.js";
 
 const router = express.Router();
@@ -26,6 +27,7 @@ router.get("/today/:employeeId", protect, getTodayAttendance);
 router.get("/inactive-employees", protect, getInactiveEmployees);
 router.get("/my-history", protect, getMyAttendanceHistory);
 router.get("/employee/:employeeId", protect, getAttendanceByEmployeeId);
+router.get("/report/weekly/:employeeId", protect, getWeeklyReport);
 router.get("/", protect, getAttendance); // සාමාන්‍යයෙන් මුළු attendance list එකම ගන්න එකත් protect කරන එක හොඳයි
 
 // ─── Check-In / Check-Out & Manual Marking ────────────────────────────────────
