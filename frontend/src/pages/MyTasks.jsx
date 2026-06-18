@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import API from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import { CheckSquare, User } from "lucide-react";
+import DailyProgressForm from "../components/DailyProgressForm";
 
 const STATUS_STYLES = {
   "To Do": "bg-slate-100 text-slate-700",
@@ -217,6 +218,9 @@ const TaskRow = ({ task, onProgress, onComment }) => {
           </button>
         </form>
       )}
+
+      <DailyProgressForm />
+      
     </div>
   );
 };

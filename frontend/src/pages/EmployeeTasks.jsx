@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import API from "../services/api";
+import DailyProgressForm from "../components/DailyProgressForm";
 
 const STATUS_STYLES = {
   "To Do": "bg-slate-100 text-slate-700 border-slate-200",
@@ -238,6 +239,9 @@ const EmployeeTasks = () => {
           )}
         </div>
       )}
+
+      <DailyProgressForm />
+      
     </div>
   );
 };
