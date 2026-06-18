@@ -1,6 +1,7 @@
 import { Route, Routes, Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import { MockAuthProvider } from "./context/MockAuthContext";
+import { BadgeProvider } from "./context/BadgeContext";
 
 // ─── PAGES & COMPONENTS IMPORTS ─────────────────────────────────────────────
 import Login from "./pages/Login";
@@ -48,7 +49,8 @@ const ProtectedRoute = ({ children }) => {
 function App() {
   return (
     <MockAuthProvider>
-      <Routes>
+      <BadgeProvider>
+        <Routes>
         {/* 🔓 Public Routes (ඕනෑම අයෙකුට පිවිසිය හැක) */}
         <Route path="/login" element={<Login />} />
         <Route path="/auth/google/callback" element={<GoogleAuthCallback />} />
@@ -88,6 +90,7 @@ function App() {
         {/* 🔄 වැරදි Route එකක් ගැහුවොත් Auto මුල් පිටුවට හරවා යවයි (Catch-all) */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </BadgeProvider>
     </MockAuthProvider>
   );
 }

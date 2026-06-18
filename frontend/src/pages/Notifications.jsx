@@ -24,6 +24,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import API from "../services/api";
 import { hasAuthToken } from "../utils/authToken";
 import { useAuth } from "../context/AuthContext";
+import { useBadges } from "../context/BadgeContext";
 import heroImg from "../assets/hero_abstract.png";
 
 import {
@@ -899,6 +900,7 @@ const NotificationsDrawer = ({
 
 const Notifications = () => {
   const { user } = useAuth();
+  const { refreshBadges } = useBadges();
 
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -1073,6 +1075,7 @@ const Notifications = () => {
       );
 
       setUnreadCount((c) => Math.max(0, c - 1));
+      refreshBadges();
     } catch (err) {
       setError(
         err.response?.data?.message || "Failed to mark notification as read"
@@ -1089,6 +1092,7 @@ const Notifications = () => {
       await API.patch("/notifications/read-all");
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
       setUnreadCount(0);
+      refreshBadges();
     } catch (err) {
       setError(err.response?.data?.message || "Failed to mark all as read");
     } finally {
@@ -1108,6 +1112,7 @@ const Notifications = () => {
 
       if (removed && !removed.isRead) {
         setUnreadCount((c) => Math.max(0, c - 1));
+        refreshBadges();
       }
     } catch (err) {
       setError(err.response?.data?.message || "Failed to delete notification");
