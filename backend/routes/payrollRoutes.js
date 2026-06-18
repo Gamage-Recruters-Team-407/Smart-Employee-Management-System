@@ -1,17 +1,16 @@
-import express from "express";
+// backend/routes/payrollRoutes.js
 
+import express from "express";
 import {
-  getAllPayrolls,
+  getPayrolls,
   getPayrollById,
-  generateBulkPayroll,
+  createPayroll,
   updatePayroll,
   deletePayroll,
+  generateBulkPayroll,
   getPayrollSummary,
-  getEmployeesForPayroll,
-} from "../controller/payrollController.js";
-
-import{getPayslipPDF,getRoleByUserId,createPayroll } from "../controllers/payrollController.js";
-
+  getPayrollEmployees,
+} from "../controllers/payrollController.js";
 
 import { protect } from "../middleware/authMiddleware.js";
 import { authorizeRoles } from "../middleware/roleMiddleware.js";
@@ -24,19 +23,13 @@ router.use(protect);
 // Employee dropdown list
 router.get(
   "/employees",
-  getEmployeesForPayroll
+  getPayrollEmployees
 );
 
 // Payroll summary
 router.get(
-  "/summary/:month",
+  "/summary/:month/:year",
   getPayrollSummary
-);
-
-// Payslip PDF
-router.get(
-  "/payslip",
-  getPayslipPDF
 );
 
 // Bulk payroll generation
@@ -49,7 +42,7 @@ router.post(
 // CRUD routes
 router.get(
   "/",
-  getAllPayrolls
+  getPayrolls
 );
 
 router.post(
@@ -59,29 +52,20 @@ router.post(
 );
 
 router.get(
-  "/role/user/:userId",
-  getRoleByUserId
-);
-
-router.get(
   "/:id",
   getPayrollById
 );
 
 router.put(
   "/:id",
+  authorizeRoles("Admin", "HR"),
   updatePayroll
 );
 
 router.delete(
   "/:id",
+  authorizeRoles("Admin", "HR"),
   deletePayroll
-);
-
-router.get(
-  "/role/user/:userId",
-  authorizeRoles("Admin", "HR", "Manager"),
-  getRoleByUserId
 );
 
 export default router;

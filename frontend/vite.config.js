@@ -6,7 +6,16 @@ import path from "path";
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react({
+      // Configure Babel to support styled-jsx
+      babel: {
+        plugins: [
+          ["styled-jsx/babel", { "plugins": ["styled-jsx-plugin-sass"] }]
+        ]
+      }
+    })
+  ],
 
   resolve: {
     alias: {

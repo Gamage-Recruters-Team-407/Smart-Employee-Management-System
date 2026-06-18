@@ -1,605 +1,392 @@
-import Payroll from "../models/Payroll.js";
-import Employee from "../models/Employee.js";
-import Notification from "../models/Notification.js";
-import User from "../models/User.js";
-import { generatePayslipPDF } from "../services/pdfService.js";
-import {
-  sendPayrollGeneratedEmail,
-  sendPayslipAvailableEmail,
-} from "../services/emailService.js";
+import Payroll from '../models/Payroll.js';
+import Employee from '../models/Employee.js';
 
-const getEmployeeDisplayName = (employee) => {
-  if (!employee) return "Employee";
-  return `${employee.firstName || ""} ${employee.lastName || ""}`.trim() || "Employee";
-};
-
-
-export const getRoleByUserId = async (req, res) => {
-  try {
-    const { userId } = req.params;
-
-    if (!userId) {
-      return res.status(400).json({
-        message: "User ID is required",
-      });
-    }
-
-    const user = await User.findById(userId).select("role name email");
-
-    if (!user) {
-      return res.status(404).json({
-        message: "User not found",
-      });
-    }
-
-    return res.status(200).json({
-      userId: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-    });
-  } catch (error) {
-    return res.status(500).json({
-      message: "Server Error",
-      error: error.message,
-    });
-  }
-};
-
-const parseMonthYear = (month) => {
-  if (month && /^\d{4}-\d{2}$/.test(month)) {
-    const [year, monthNum] = month.split("-");
-    const monthLabel = new Date(`${month}-01`).toLocaleString("en-US", {
-      month: "long",
-    });
-    return { month: monthLabel, year };
-  }
-  return { month: month || "", year: "" };
-};
-
-const sendPayrollGeneratedEmailSafe = async (payroll, employee) => {
-  if (!employee?.email) return;
-
-  try {
-    const { month, year } = parseMonthYear(payroll.month);
-    await sendPayrollGeneratedEmail({
-      to: employee.email,
-      employeeName: getEmployeeDisplayName(employee),
-      month,
-      year,
-      netSalary: payroll.netSalary,
-    });
-  } catch (error) {
-    console.error("[email] Payroll generated email failed:", error.message);
-  }
-};
-
-const sendPayslipAvailableEmailSafe = async (payroll, employee, req) => {
-  if (!employee?.email) return;
-
-  try {
-    const { month, year } = parseMonthYear(payroll.month);
-    const baseUrl = process.env.APP_URL || `${req.protocol}://${req.get("host")}`;
-    const downloadLink = `${baseUrl}/api/payroll/${payroll._id}/payslip`;
-
-    await sendPayslipAvailableEmail({
-      to: employee.email,
-      employeeName: getEmployeeDisplayName(employee),
-      month,
-      year,
-      downloadLink,
-    });
-  } catch (error) {
-    console.error("[email] Payslip available email failed:", error.message);
-  }
-};
-
-// Helper for automated payroll calculations
-const calculatePayrollComponents = (basicSalary, loans = 0, customAllowances = null, customDeductions = null) => {
-  const allowances = customAllowances !== null ? Number(customAllowances) : Math.round(basicSalary * 0.20);
-  
-  // PF = 12% of basic
-  const pf = Math.round(basicSalary * 0.12);
-  const pt = 200; // Professional Tax
-  const defaultDeductions = pf + pt;
-  const deductions = customDeductions !== null ? Number(customDeductions) : defaultDeductions;
-  
-  // Calculate Monthly Tax (TDS) based on basic + allowances
-  const monthlyGross = basicSalary + allowances;
-  const annualGross = monthlyGross * 12;
-  
-  let annualTax = 0;
-  if (annualGross <= 300000) {
-    annualTax = 0;
-  } else if (annualGross <= 600000) {
-    annualTax = (annualGross - 300000) * 0.05;
-  } else if (annualGross <= 900000) {
-    annualTax = 15000 + (annualGross - 600000) * 0.10;
-  } else if (annualGross <= 1200000) {
-    annualTax = 45000 + (annualGross - 900000) * 0.15;
-  } else if (annualGross <= 1500000) {
-    annualTax = 90000 + (annualGross - 1200000) * 0.20;
-  } else {
-    annualTax = 150000 + (annualGross - 1500000) * 0.30;
-  }
-  
-  const tax = Math.round(annualTax / 12);
-  const loanDeduction = Number(loans) || 0;
-  
-  const netSalary = Math.max(0, basicSalary + allowances - deductions - tax - loanDeduction);
-  
-  return {
-    basicSalary,
-    allowances,
-    deductions,
-    tax,
-    loans: loanDeduction,
-    netSalary
-  };
-};
-
-// @desc    Get payroll records
-// @route   GET /api/payroll
-// @access  Public
+// ─── GET ALL PAYROLL RECORDS ──────────────────────────────────────────────
 export const getPayrolls = async (req, res) => {
   try {
-    const { month } = req.query;
+    const { month, year, employeeId } = req.query;
     const filter = {};
-    if (month) {
-      filter.month = month; // Format: YYYY-MM
-    }
-
-  // Only Admin and HR can see all records, everyone else sees only their own
-  if (req.user.role !== "Admin" && req.user.role !== "HR") {
-    const emp = await Employee.findOne({ email: req.user.email });
-    if (emp) {
-      filter.employee = emp._id;
-    }
-  }
-
+    
+    if (month) filter.month = month;
+    if (year) filter.year = parseInt(year);
+    if (employeeId) filter.employee = employeeId;
+    
     const payrolls = await Payroll.find(filter)
-      .populate("employee")
+      .populate('employee', 'firstName lastName email employeeId department designation')
       .sort({ createdAt: -1 });
-
-    res.status(200).json(payrolls);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-// @desc    Auto-generate payroll records for a specific month
-// @route   POST /api/payroll/generate
-// @access  Public
-export const generatePayroll = async (req, res) => {
-  try {
-    const { month } = req.body;
-    if (!month) {
-      return res.status(400).json({ message: "Month (YYYY-MM) is required." });
-    }
-
-    // Get all active employees
-    const employees = await Employee.find({ status: "Active" });
-    if (employees.length === 0) {
-      return res.status(400).json({ message: "No active employees found to generate payroll." });
-    }
-
-    let createdCount = 0;
-    let skippedCount = 0;
-    const generatedPayrolls = [];
-
-    for (const emp of employees) {
-      // Check if payroll already exists for this employee for this month
-      const existingPayroll = await Payroll.findOne({ employee: emp._id, month });
-      
-      if (existingPayroll) {
-        skippedCount++;
-        continue;
-      }
-
-      // Perform calculations
-      const basicSalary = emp.salary || 0;
-      const comps = calculatePayrollComponents(basicSalary, 0);
-
-      const payroll = new Payroll({
-        employee: emp._id,
-        basicSalary: comps.basicSalary,
-        allowances: comps.allowances,
-        deductions: comps.deductions,
-        tax: comps.tax,
-        loans: comps.loans,
-        netSalary: comps.netSalary,
-        month,
-        status: "Pending",
-      });
-
-      const savedPayroll = await payroll.save();
-      createdCount++;
-      generatedPayrolls.push(savedPayroll);
-
-      await sendPayrollGeneratedEmailSafe(savedPayroll, emp);
-    }
-
-    res.status(201).json({
-      message: `Payroll generation completed. Created: ${createdCount}, Skipped: ${skippedCount}`,
-      createdCount,
-      skippedCount,
+    
+    res.status(200).json({
+      success: true,
+      data: payrolls
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Get payrolls error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch payroll records',
+      error: error.message
+    });
   }
 };
 
-// @desc    Create a single payroll record manually
-// @route   POST /api/payroll
-// @access  Public
-export const createPayroll = async (req, res) => {
+// ─── GET SINGLE PAYROLL ────────────────────────────────────────────────────
+export const getPayrollById = async (req, res) => {
   try {
-    const { employeeId, month, loans, allowances, deductions } = req.body;
-
-    const emp = await Employee.findById(employeeId);
-
-    if (!emp) {
+    const { id } = req.params;
+    
+    const payroll = await Payroll.findById(id)
+      .populate('employee', 'firstName lastName email employeeId department designation');
+    
+    if (!payroll) {
       return res.status(404).json({
         success: false,
-        message: "Employee not found.",
+        message: 'Payroll record not found'
       });
     }
-
-    if (!emp.userId) {
-      return res.status(400).json({
-        success: false,
-        message: "This employee does not have a linked userId.",
-      });
-    }
-
-    const existingPayroll = await Payroll.findOne({
-      employee: employeeId,
-      month,
-    });
-
-    if (existingPayroll) {
-      return res.status(400).json({
-        success: false,
-        message: "Payroll already exists for this employee in the specified month.",
-      });
-    }
-
-    const basicSalary = emp.salary || 0;
-
-    const comps = calculatePayrollComponents(
-      basicSalary,
-      loans || 0,
-      allowances || null,
-      deductions || null
-    );
-
-    const roleApiUrl = `http://localhost:5000/api/payroll/role/user/${emp.userId}`;
-
-    const roleResponse = await fetch(roleApiUrl, {
-      method: "GET",
-      headers: {
-        Authorization: req.headers.authorization,
-      },
-    });
-
-    if (!roleResponse.ok) {
-      const errorText = await roleResponse.text();
-
-      return res.status(400).json({
-        success: false,
-        message: "Failed to get role from role API.",
-        roleApiUrl,
-        error: errorText,
-      });
-    }
-
-    const roleData = await roleResponse.json();
-
-    if (!roleData.role) {
-      return res.status(400).json({
-        success: false,
-        message: "Role API did not return role.",
-        roleApiUrl,
-        roleData,
-      });
-    }
-
-    const payroll = await Payroll.create({
-      employee: employeeId,
-      role: roleData.role,
-      basicSalary: comps.basicSalary,
-      allowances: comps.allowances,
-      deductions: comps.deductions,
-      tax: comps.tax,
-      loans: comps.loans,
-      netSalary: comps.netSalary,
-      month,
-      status: "Pending",
-    });
-
-    await sendPayrollGeneratedEmailSafe(payroll, emp);
-
-    return res.status(201).json({
+    
+    res.status(200).json({
       success: true,
-      message: "Payroll created successfully.",
-      roleApiUrl,
-      roleFromApi: roleData.role,
-      data: payroll,
+      data: payroll
     });
   } catch (error) {
-    return res.status(400).json({
+    console.error('Get payroll by id error:', error);
+    res.status(500).json({
       success: false,
-      message: error.message,
+      message: 'Failed to fetch payroll record',
+      error: error.message
     });
   }
 };
-// @desc    Update a payroll record
-// @route   PUT /api/payroll/:id
-// @access  Public
+
+// ─── CREATE PAYROLL ────────────────────────────────────────────────────────
+export const createPayroll = async (req, res) => {
+  try {
+    const { employeeId, month, year, basicSalary, allowances, deductions, bonus, tax } = req.body;
+    
+    // Check if employee exists
+    const employee = await Employee.findById(employeeId);
+    if (!employee) {
+      return res.status(404).json({
+        success: false,
+        message: 'Employee not found'
+      });
+    }
+    
+    // Check if payroll already exists for this employee/month/year
+    const existing = await Payroll.findOne({ employee: employeeId, month, year });
+    if (existing) {
+      return res.status(400).json({
+        success: false,
+        message: 'Payroll already exists for this employee and month'
+      });
+    }
+    
+    const netSalary = (basicSalary || 0) + (allowances || 0) + (bonus || 0) - (deductions || 0) - (tax || 0);
+    
+    const payroll = new Payroll({
+      employee: employeeId,
+      month,
+      year,
+      basicSalary: basicSalary || 0,
+      allowances: allowances || 0,
+      deductions: deductions || 0,
+      bonus: bonus || 0,
+      tax: tax || 0,
+      netSalary,
+      status: 'Pending'
+    });
+    
+    await payroll.save();
+    await payroll.populate('employee', 'firstName lastName email employeeId department designation');
+    
+    res.status(201).json({
+      success: true,
+      message: 'Payroll created successfully',
+      data: payroll
+    });
+  } catch (error) {
+    console.error('Create payroll error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create payroll record',
+      error: error.message
+    });
+  }
+};
+
+// ─── UPDATE PAYROLL ────────────────────────────────────────────────────────
 export const updatePayroll = async (req, res) => {
   try {
     const { id } = req.params;
-    const { basicSalary, allowances, deductions, tax, loans, status, paymentDate } = req.body;
-
+    const { basicSalary, allowances, deductions, bonus, tax, status } = req.body;
+    
     const payroll = await Payroll.findById(id);
     if (!payroll) {
-      return res.status(404).json({ message: "Payroll record not found." });
+      return res.status(404).json({
+        success: false,
+        message: 'Payroll record not found'
+      });
     }
-
-    // Update fields if provided, otherwise keep existing
-    if (basicSalary !== undefined) payroll.basicSalary = Number(basicSalary);
-    if (allowances !== undefined) payroll.allowances = Number(allowances);
-    if (deductions !== undefined) payroll.deductions = Number(deductions);
-    if (tax !== undefined) payroll.tax = Number(tax);
-    if (loans !== undefined) payroll.loans = Number(loans);
-    if (status !== undefined) payroll.status = status;
-    if (paymentDate !== undefined) payroll.paymentDate = paymentDate;
-
-    if (status === "Paid" && !payroll.paymentDate) {
-      payroll.paymentDate = new Date();
-    }
-
-    // Recalculate net salary based on updated components
-    payroll.netSalary = Math.max(
-      0,
-      payroll.basicSalary + payroll.allowances - payroll.deductions - payroll.tax - payroll.loans
-    );
-
-    const updatedPayroll = await payroll.save();
-    res.status(200).json(updatedPayroll);
+    
+    // Update fields
+    if (basicSalary !== undefined) payroll.basicSalary = basicSalary;
+    if (allowances !== undefined) payroll.allowances = allowances;
+    if (deductions !== undefined) payroll.deductions = deductions;
+    if (bonus !== undefined) payroll.bonus = bonus;
+    if (tax !== undefined) payroll.tax = tax;
+    if (status) payroll.status = status;
+    
+    // Recalculate net salary
+    payroll.netSalary = (payroll.basicSalary || 0) + (payroll.allowances || 0) + (payroll.bonus || 0) - (payroll.deductions || 0) - (payroll.tax || 0);
+    
+    await payroll.save();
+    await payroll.populate('employee', 'firstName lastName email employeeId department designation');
+    
+    res.status(200).json({
+      success: true,
+      message: 'Payroll updated successfully',
+      data: payroll
+    });
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    console.error('Update payroll error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update payroll record',
+      error: error.message
+    });
   }
 };
 
-// @desc    Delete a payroll record
-// @route   DELETE /api/payroll/:id
-// @access  Public
+// ─── DELETE PAYROLL ────────────────────────────────────────────────────────
 export const deletePayroll = async (req, res) => {
   try {
     const { id } = req.params;
-    const payroll = await Payroll.findByIdAndDelete(id);
-
-    if (!payroll) {
-      return res.status(404).json({ message: "Payroll record not found." });
-    }
-
-    res.status(200).json({ message: "Payroll record deleted successfully." });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-
-// @desc    Generate and stream PDF payslip for a payroll ID
-// @route   GET /api/payroll/:id/payslip
-// @access  Public
-export const getPayslip = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const payroll = await Payroll.findById(id).populate("employee");
     
+    const payroll = await Payroll.findById(id);
     if (!payroll) {
-      return res.status(404).json({ message: "Payroll record not found." });
+      return res.status(404).json({
+        success: false,
+        message: 'Payroll record not found'
+      });
     }
-
-    await sendPayslipAvailableEmailSafe(payroll, payroll.employee, req);
-
-    const monthName = new Date(payroll.month + "-02")
-      .toLocaleString("default", { month: "short", year: "numeric" })
-      .replace(" ", "_");
-
-    const empName = payroll.employee
-      ? `${payroll.employee.firstName}_${payroll.employee.lastName}`
-      : "Employee";
-
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename=payslip_${empName}_${monthName}.pdf`
-    );
-
-    generatePayslipPDF(payroll, res);
+    
+    await payroll.deleteOne();
+    
+    res.status(200).json({
+      success: true,
+      message: 'Payroll deleted successfully'
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Delete payroll error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete payroll record',
+      error: error.message
+    });
   }
 };
-// @desc    Generate and stream PDF payslip using employeeId, month and year
-// @route   GET /api/payroll/payslip
-// @access  Public
+
+// ─── GENERATE BULK PAYROLL ────────────────────────────────────────────────
+export const generateBulkPayroll = async (req, res) => {
+  try {
+    const { month, year, employees } = req.body;
+    
+    if (!month || !year || !employees || !Array.isArray(employees)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Month, year, and employees array are required'
+      });
+    }
+    
+    const results = [];
+    const errors = [];
+    
+    for (const empData of employees) {
+      try {
+        const { employeeId, basicSalary, allowances, deductions, bonus, tax } = empData;
+        
+        const employee = await Employee.findById(employeeId);
+        if (!employee) {
+          errors.push({ employeeId, error: 'Employee not found' });
+          continue;
+        }
+        
+        const existing = await Payroll.findOne({ employee: employeeId, month, year });
+        if (existing) {
+          errors.push({ employeeId, error: 'Payroll already exists for this month' });
+          continue;
+        }
+        
+        const netSalary = (basicSalary || 0) + (allowances || 0) + (bonus || 0) - (deductions || 0) - (tax || 0);
+        
+        const payroll = new Payroll({
+          employee: employeeId,
+          month,
+          year,
+          basicSalary: basicSalary || 0,
+          allowances: allowances || 0,
+          deductions: deductions || 0,
+          bonus: bonus || 0,
+          tax: tax || 0,
+          netSalary,
+          status: 'Pending'
+        });
+        
+        await payroll.save();
+        results.push(payroll);
+      } catch (err) {
+        errors.push({ employeeId: empData.employeeId, error: err.message });
+      }
+    }
+    
+    res.status(201).json({
+      success: true,
+      message: `Bulk payroll generated: ${results.length} created, ${errors.length} failed`,
+      data: { created: results, errors }
+    });
+  } catch (error) {
+    console.error('Bulk payroll error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to generate bulk payroll',
+      error: error.message
+    });
+  }
+};
+
+// ─── GET PAYROLL SUMMARY ──────────────────────────────────────────────────
+export const getPayrollSummary = async (req, res) => {
+  try {
+    const { month, year } = req.params;
+    
+    if (!month || !year) {
+      return res.status(400).json({
+        success: false,
+        message: 'Month and year are required'
+      });
+    }
+    
+    const payrolls = await Payroll.find({ month, year: parseInt(year) })
+      .populate('employee', 'firstName lastName employeeId department');
+    
+    const totalEmployees = payrolls.length;
+    const totalBasicSalary = payrolls.reduce((sum, p) => sum + (p.basicSalary || 0), 0);
+    const totalAllowances = payrolls.reduce((sum, p) => sum + (p.allowances || 0), 0);
+    const totalDeductions = payrolls.reduce((sum, p) => sum + (p.deductions || 0), 0);
+    const totalTax = payrolls.reduce((sum, p) => sum + (p.tax || 0), 0);
+    const totalNetSalary = payrolls.reduce((sum, p) => sum + (p.netSalary || 0), 0);
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        month,
+        year: parseInt(year),
+        totalEmployees,
+        totalBasicSalary,
+        totalAllowances,
+        totalDeductions,
+        totalTax,
+        totalNetSalary,
+        records: payrolls
+      }
+    });
+  } catch (error) {
+    console.error('Payroll summary error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch payroll summary',
+      error: error.message
+    });
+  }
+};
+
+// ─── GET PAYROLL EMPLOYEES ────────────────────────────────────────────────
+export const getPayrollEmployees = async (req, res) => {
+  try {
+    const employees = await Employee.find({ status: 'Active' })
+      .select('_id firstName lastName employeeId department designation');
+    
+    res.status(200).json({
+      success: true,
+      data: employees
+    });
+  } catch (error) {
+    console.error('Get payroll employees error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch employees for payroll',
+      error: error.message
+    });
+  }
+};
+
+// ─── GET ROLE BY USER ID ──────────────────────────────────────────────────
+export const getRoleByUserId = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    const employee = await Employee.findOne({ userId })
+      .select('role designation department');
+    
+    if (!employee) {
+      return res.status(404).json({
+        success: false,
+        message: 'Employee not found for this user'
+      });
+    }
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        role: employee.role,
+        designation: employee.designation,
+        department: employee.department
+      }
+    });
+  } catch (error) {
+    console.error('Get role by user ID error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch role',
+      error: error.message
+    });
+  }
+};
+
+// ─── GET PAYSLIP PDF ──────────────────────────────────────────────────────
 export const getPayslipPDF = async (req, res) => {
   try {
-    const { employeeId, month, year } = req.query;
-
-    if (!employeeId || !month) {
-      return res.status(400).json({ message: "employeeId and month are required." });
-    }
-
-    const monthStr = year ? `${month} ${year}` : month;
-    const payroll = await Payroll.findOne({ employee: employeeId, month: monthStr }).populate("employee");
-
-    if (!payroll) {
-      return res.status(404).json({ message: "Payroll data not found for the selected month." });
-    }
-
-    const pdfBuffer = await generatePayslipPDF({
-      employee: payroll.employee,
-      payroll: payroll,
-    });
-
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename=payslip-${monthStr.replace(" ", "-")}-${employeeId}.pdf`
-    );
-
-    // Trigger Notification for admin
-    const adminUser = await User.findOne({ role: "Admin" });
-    if (adminUser) {
-      await Notification.create({
-        userId: adminUser._id,
-        title: "Payslip Generated",
-        message: `Payslip for ${monthStr} is ready for download`,
-        type: "payroll",
-      });
-    }
-
-    // Optional email
-    if (typeof sendPayslipAvailableEmailSafe === "function") {
-      await sendPayslipAvailableEmailSafe(payroll, payroll.employee, req);
-    }
-
-    return res.end(pdfBuffer);
-  } catch (error) {
-    console.error("Error generating payslip PDF:", error);
-    return res.status(500).json({ message: "Failed to generate PDF." });
-  }
-};
-
-export const getAllPayrolls = async (req, res) => {
-  try {
-    const { month } = req.query;
-
-    const loggedUser = req.user;
-
-    if (!loggedUser) {
-      return res.status(401).json({
+    const { payrollId } = req.query;
+    
+    if (!payrollId) {
+      return res.status(400).json({
         success: false,
-        message: "Not authorized",
+        message: 'Payroll ID is required'
       });
     }
-
-    const filter = {};
-
-    if (month) {
-      filter.month = month;
-    }
-
-    let payrolls = await Payroll.find(filter)
-      .populate(
-        "employee",
-        "employeeId firstName lastName email salary department designation userId"
-      )
-      .sort({ createdAt: -1 })
-      .lean();
-
-    // Admin can view all payrolls
-    if (loggedUser.role === "Admin") {
-      return res.status(200).json({
-        success: true,
-        loggedUser: {
-          id: loggedUser._id,
-          name: loggedUser.name,
-          email: loggedUser.email,
-          role: loggedUser.role,
-        },
-        count: payrolls.length,
-        data: payrolls,
+    
+    const payroll = await Payroll.findById(payrollId)
+      .populate('employee', 'firstName lastName employeeId department designation email');
+    
+    if (!payroll) {
+      return res.status(404).json({
+        success: false,
+        message: 'Payroll record not found'
       });
     }
-
-    // HR can view all payrolls EXCEPT Admin user's payrolls
-    if (loggedUser.role === "HR") {
-      const employeeUserIds = payrolls
-        .map((payroll) => payroll.employee?.userId)
-        .filter(Boolean);
-
-      const users = await User.find({
-        _id: { $in: employeeUserIds },
-      })
-        .select("_id role name email")
-        .lean();
-
-      const userRoleMap = new Map(
-        users.map((user) => [user._id.toString(), user.role])
-      );
-
-      payrolls = payrolls.filter((payroll) => {
-        const employeeUserId = payroll.employee?.userId?.toString();
-
-        if (!employeeUserId) {
-          return true;
-        }
-
-        const employeeRole = userRoleMap.get(employeeUserId);
-
-        return employeeRole !== "Admin";
-      });
-
-      return res.status(200).json({
-        success: true,
-        loggedUser: {
-          id: loggedUser._id,
-          name: loggedUser.name,
-          email: loggedUser.email,
-          role: loggedUser.role,
-        },
-        rule: "HR can view all payrolls except Admin payrolls",
-        count: payrolls.length,
-        data: payrolls,
-      });
-    }
-
-    // Manager / Employee can view only their own payroll
-    const ownEmployee = await Employee.findOne({
-      userId: loggedUser._id,
-    }).select("_id");
-
-    if (!ownEmployee) {
-      return res.status(200).json({
-        success: true,
-        loggedUser: {
-          id: loggedUser._id,
-          name: loggedUser.name,
-          email: loggedUser.email,
-          role: loggedUser.role,
-        },
-        count: 0,
-        data: [],
-      });
-    }
-
-    payrolls = payrolls.filter((payroll) => {
-      return payroll.employee?._id?.toString() === ownEmployee._id.toString();
-    });
-
-    return res.status(200).json({
+    
+    // Generate PDF (you'll need to implement this function)
+    // For now, return the payroll data
+    res.status(200).json({
       success: true,
-      loggedUser: {
-        id: loggedUser._id,
-        name: loggedUser.name,
-        email: loggedUser.email,
-        role: loggedUser.role,
-      },
-      rule: "User can view only own payroll",
-      count: payrolls.length,
-      data: payrolls,
+      data: payroll
     });
   } catch (error) {
-    return res.status(500).json({
+    console.error('Get payslip PDF error:', error);
+    res.status(500).json({
       success: false,
-      message: "Failed to fetch payrolls",
-      error: error.message,
+      message: 'Failed to generate payslip PDF',
+      error: error.message
     });
   }
 };

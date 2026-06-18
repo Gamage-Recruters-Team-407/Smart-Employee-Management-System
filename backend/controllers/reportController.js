@@ -1,5 +1,5 @@
 import Payroll from "../models/Payroll.js";
-import Attendance from "../models/Attendance.js";
+import Attendance from '../models/Attendance.js';
 import Leave from "../models/Leave.js";
 import Performance from "../models/Performance.js";
 import { createNotificationForUser } from "./notificationController.js";
