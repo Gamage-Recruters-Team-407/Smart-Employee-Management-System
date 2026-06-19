@@ -84,8 +84,12 @@ export const AuthProvider = ({ children }) => {
           return prev;
         }
         const name = [emp.firstName, emp.lastName].filter(Boolean).join(" ").trim();
-        const next = { ...prev, name: name || prev.name };
-        patchStoredUser({ name: next.name });
+        const next = { 
+          ...prev, 
+          name: name || prev.name,
+          employeeId: emp.employeeId || prev.employeeId
+        };
+        patchStoredUser({ name: next.name, employeeId: next.employeeId });
         return next;
       });
     };
@@ -168,6 +172,10 @@ export const AuthProvider = ({ children }) => {
       const authUser = data?.user || data;
       const storage = rememberMe ? localStorage : sessionStorage;
 
+      // Store the token immediately so subsequent API calls (like fetchOrCreateEmployee) have the Authorization header
+      storage.setItem("token", data.token);
+      setToken(data.token);
+
       // Fetch or create employee
       const employee = await fetchOrCreateEmployee(authUser);
 
@@ -180,10 +188,8 @@ export const AuthProvider = ({ children }) => {
         employee: employee || null
       };
 
-      storage.setItem("token", data.token);
       storage.setItem("user", JSON.stringify(userObj));
 
-      setToken(data.token);
       setUser(userObj);
       setEmployeeData(employee);
 
@@ -229,6 +235,10 @@ export const AuthProvider = ({ children }) => {
       const data = await authService.register({ name, email, password });
       const authUser = data?.user || data;
       
+      // Store the token immediately so subsequent API calls have the Authorization header
+      localStorage.setItem("token", data.token);
+      setToken(data.token);
+
       // Fetch or create employee
       const employee = await fetchOrCreateEmployee(authUser);
 
@@ -241,10 +251,8 @@ export const AuthProvider = ({ children }) => {
         employee: employee || null
       };
 
-      localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(userObj));
 
-      setToken(data.token);
       setUser(userObj);
       setEmployeeData(employee);
       
@@ -339,7 +347,17 @@ export const AuthProvider = ({ children }) => {
       const employee = await fetchOrCreateEmployee(userObj);
       setEmployeeData(employee);
 
-      if (userObj) {
+      // Save updated user with employee info to storage & state
+      const updatedUserObj = {
+        ...userObj,
+        employeeId: employee?.employeeId || null,
+        employee: employee || null
+      };
+      const storage = rememberMe ? localStorage : sessionStorage;
+      storage.setItem("user", JSON.stringify(updatedUserObj));
+      setUser(updatedUserObj);
+
+      if (updatedUserObj) {
         setTimeout(async () => {
           try {
             const { date, time } = getBrowserDateTime();

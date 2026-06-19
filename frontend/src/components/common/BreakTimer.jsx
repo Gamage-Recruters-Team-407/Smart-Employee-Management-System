@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Clock, Coffee, Utensils, Moon, Bell, Play, Pause } from 'lucide-react';
 import API from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { useEmployeeProfile } from '../../hooks/useEmployeeProfile';
 import audioService from './AudioService';
 
 // Break configuration
@@ -34,7 +35,7 @@ const BREAK_CONFIG = {
     iconColor: 'text-blue-600',
     bgColor: 'bg-blue-50 border-blue-200',
     buttonColor: 'bg-blue-500 hover:bg-blue-600',
-    duration: 30,
+    duration: 15,
     start: { hours: 15, minutes: 0 },
     end: { hours: 16, minutes: 0 }
   }
@@ -42,6 +43,7 @@ const BREAK_CONFIG = {
 
 const BreakTimer = () => {
   const { user } = useAuth();
+  const { employee } = useEmployeeProfile({ enabled: user?.role === "Employee" });
   
   // ─── STATE ──────────────────────────────────────────────────────────────
   const [availableBreaks, setAvailableBreaks] = useState([]);
@@ -53,8 +55,6 @@ const BreakTimer = () => {
   const [soundEnabled] = useState(true);
   const [showBreakAlert, setShowBreakAlert] = useState(false);
   const [breakAlertType, setBreakAlertType] = useState(null);
-  const [isTimerPaused, setIsTimerPaused] = useState(false);
-  const [pausedSeconds, setPausedSeconds] = useState(0);
   const [isBreakEnding, setIsBreakEnding] = useState(false);
   
   // ─── REFS ──────────────────────────────────────────────────────────────
@@ -66,16 +66,10 @@ const BreakTimer = () => {
   const isInitializedRef = useRef(false);
   const fetchBreakStatusRef = useRef(null);
   const hasAutoEndedRef = useRef(false);
-  const isTimerPausedRef = useRef(false);
   const soundEnabledRef = useRef(true);
   const userRef = useRef(null);
   const startTimerRef = useRef(null);
   const autoEndBreakRef = useRef(null);
-
-  // Update refs when values change
-  useEffect(() => {
-    isTimerPausedRef.current = isTimerPaused;
-  }, [isTimerPaused]);
 
   useEffect(() => {
     soundEnabledRef.current = soundEnabled;
@@ -113,7 +107,6 @@ const BreakTimer = () => {
         });
         setIsOnBreak(true);
         setRemainingSeconds(remaining);
-        setIsTimerPaused(false);
         setIsBreakEnding(remaining <= 10);
         breakStartNotifiedRef.current = true;
         breakEndNotifiedRef.current = false;
@@ -128,7 +121,6 @@ const BreakTimer = () => {
         setIsOnBreak(false);
         setCurrentBreak(null);
         setRemainingSeconds(0);
-        setIsTimerPaused(false);
         setIsBreakEnding(false);
         breakStartNotifiedRef.current = false;
         breakEndNotifiedRef.current = true;
@@ -181,7 +173,6 @@ const BreakTimer = () => {
       setIsOnBreak(false);
       setCurrentBreak(null);
       setRemainingSeconds(0);
-      setIsTimerPaused(false);
       setIsBreakEnding(false);
       
       if (timerIntervalRef.current) {
@@ -190,7 +181,7 @@ const BreakTimer = () => {
       }
       
       if (window.socket) {
-        window.socket.emit('break-ended', userRef.current?._id);
+        window.socket.emit('break-ended', { employeeId: employee?.employeeId });
       }
       
     } catch (err) {
@@ -220,9 +211,6 @@ const BreakTimer = () => {
       }
       
       // Use refs to avoid dependency issues
-      if (isTimerPausedRef.current) {
-        return;
-      }
       
       try {
         const response = await API.get('/attendance/break/remaining');
@@ -235,7 +223,6 @@ const BreakTimer = () => {
           setRemainingSeconds(0);
           setIsOnBreak(false);
           setCurrentBreak(null);
-          setIsTimerPaused(false);
           setIsBreakEnding(false);
           
           if (timerIntervalRef.current) {
@@ -282,7 +269,7 @@ const BreakTimer = () => {
         
         if (window.socket) {
           window.socket.emit('break-update', {
-            employeeId: userRef.current?._id,
+            employeeId: employee?.employeeId,
             remainingSeconds: newRemaining
           });
         }
@@ -331,7 +318,6 @@ const BreakTimer = () => {
       console.log(`✅ Break started: ${breakLabel}, Remaining: ${remaining}s`);
       
       setIsOnBreak(true);
-      setIsTimerPaused(false);
       setIsBreakEnding(false);
       setCurrentBreak({
         type: breakType,
@@ -350,7 +336,7 @@ const BreakTimer = () => {
       
       if (window.socket) {
         window.socket.emit('break-started', {
-          employeeId: userRef.current?._id,
+          employeeId: employee?.employeeId,
           breakType,
           breakLabel,
           remainingSeconds: remaining
@@ -395,7 +381,6 @@ const BreakTimer = () => {
       setIsOnBreak(false);
       setCurrentBreak(null);
       setRemainingSeconds(0);
-      setIsTimerPaused(false);
       setIsBreakEnding(false);
       
       if (timerIntervalRef.current) {
@@ -404,7 +389,7 @@ const BreakTimer = () => {
       }
       
       if (window.socket) {
-        window.socket.emit('break-ended', userRef.current?._id);
+        window.socket.emit('break-ended', { employeeId: employee?.employeeId });
       }
       
     } catch (err) {
@@ -416,39 +401,7 @@ const BreakTimer = () => {
     }
   };
 
-  // ─── TOGGLE TIMER PAUSE ──────────────────────────────────────────────
-  const toggleTimerPause = () => {
-    if (!isOnBreak) return;
-    
-    setIsTimerPaused(!isTimerPaused);
-    
-    if (!isTimerPaused) {
-      console.log('⏸️ Pausing timer');
-      setPausedSeconds(remainingSeconds);
-      if (timerIntervalRef.current) {
-        clearInterval(timerIntervalRef.current);
-        timerIntervalRef.current = null;
-      }
-      if (tickTockStartedRef.current) {
-        audioService.stopTickTock();
-        tickTockStartedRef.current = false;
-      }
-    } else {
-      console.log('▶️ Resuming timer');
-      setRemainingSeconds(pausedSeconds);
-      if (startTimerRef.current) {
-        startTimerRef.current();
-      }
-      if (soundEnabledRef.current) {
-        try {
-          audioService.startTickTock();
-          tickTockStartedRef.current = true;
-        } catch (e) {
-          console.warn('Tick-tock restart failed:', e);
-        }
-      }
-    }
-  };
+
 
   // ─── EFFECT: INITIALIZE ──────────────────────────────────────────────────
   useEffect(() => {
@@ -481,7 +434,7 @@ const BreakTimer = () => {
 
   // ─── EFFECT: START TIMER IF ON BREAK ────────────────────────────────
   useEffect(() => {
-    if (isOnBreak && !timerIntervalRef.current && isInitializedRef.current && !isTimerPaused) {
+    if (isOnBreak && !timerIntervalRef.current && isInitializedRef.current) {
       console.log('🔄 Starting timer from effect');
       if (startTimerRef.current) {
         startTimerRef.current();
@@ -492,7 +445,7 @@ const BreakTimer = () => {
       clearInterval(timerIntervalRef.current);
       timerIntervalRef.current = null;
     }
-  }, [isOnBreak, isTimerPaused]);
+  }, [isOnBreak]);
 
   // ─── EFFECT: CLEANUP ──────────────────────────────────────────────────
   useEffect(() => {
@@ -660,26 +613,14 @@ const BreakTimer = () => {
                   </h4>
                   <p className="text-xs text-gray-500 flex items-center gap-1">
                     <span className={`inline-block w-1.5 h-1.5 rounded-full ${
-                      isTimerPaused ? 'bg-yellow-500' : isBreakEnding ? 'bg-red-500 animate-pulse' : 'bg-green-500 animate-pulse'
+                      isBreakEnding ? 'bg-red-500 animate-pulse' : 'bg-green-500 animate-pulse'
                     }`} />
-                    {isTimerPaused ? 'Paused' : isBreakEnding ? '⚠️ Almost done!' : 'Active'}
+                    {isBreakEnding ? '⚠️ Almost done!' : 'Active'}
                   </p>
                 </div>
               </div>
               
               <div className="flex items-center gap-2">
-                <button
-                  onClick={toggleTimerPause}
-                  className={`p-2 rounded-xl transition-colors ${
-                    isTimerPaused 
-                      ? 'bg-green-50 hover:bg-green-100 text-green-600'
-                      : 'bg-yellow-50 hover:bg-yellow-100 text-yellow-600'
-                  }`}
-                  title={isTimerPaused ? 'Resume timer' : 'Pause timer'}
-                >
-                  {isTimerPaused ? <Play size={20} /> : <Pause size={20} />}
-                </button>
-                
                 <button
                   onClick={endBreak}
                   disabled={loading}
@@ -692,29 +633,25 @@ const BreakTimer = () => {
 
             <div className="text-center py-6">
               <div className={`text-7xl font-mono font-bold tracking-wider transition-all duration-300 ${
-                isTimerPaused 
-                  ? 'text-yellow-600' 
-                  : isBreakEnding 
-                    ? 'text-red-600 animate-pulse' 
-                    : 'text-gray-900'
+                isBreakEnding 
+                  ? 'text-red-600 animate-pulse' 
+                  : 'text-gray-900'
               }`}>
                 {formatTime(remainingSeconds)}
               </div>
               <p className="text-xs text-gray-400 mt-2">
-                {isTimerPaused ? '⏸️ Paused' : isBreakEnding ? '⚠️ Break ending soon!' : '⏱️ Time remaining'}
+                {isBreakEnding ? '⚠️ Break ending soon!' : '⏱️ Time remaining'}
               </p>
             </div>
 
             <div className="mt-2 h-3 bg-gray-100 rounded-full overflow-hidden">
               <div 
                 className={`h-full rounded-full transition-all duration-1000 ${
-                  isTimerPaused
-                    ? 'bg-yellow-400'
-                    : isBreakEnding
-                      ? 'bg-gradient-to-r from-red-500 to-red-600 animate-pulse'
-                      : remainingSeconds <= 60
-                      ? 'bg-gradient-to-r from-amber-500 to-amber-600'
-                      : 'bg-gradient-to-r from-indigo-500 to-indigo-600'
+                  isBreakEnding
+                    ? 'bg-gradient-to-r from-red-500 to-red-600 animate-pulse'
+                    : remainingSeconds <= 60
+                    ? 'bg-gradient-to-r from-amber-500 to-amber-600'
+                    : 'bg-gradient-to-r from-indigo-500 to-indigo-600'
                 }`}
                 style={{
                   width: `${(remainingSeconds / currentBreak.totalSeconds) * 100}%`
@@ -738,23 +675,21 @@ const BreakTimer = () => {
               <div>
                 <span className="text-gray-400 block">Status</span>
                 <span className={`font-medium flex items-center justify-center gap-1 ${
-                  isTimerPaused ? 'text-yellow-600' : isBreakEnding ? 'text-red-600' : 'text-amber-600'
+                  isBreakEnding ? 'text-red-600' : 'text-amber-600'
                 }`}>
                   <span className={`inline-block w-1.5 h-1.5 rounded-full ${
-                    isTimerPaused ? 'bg-yellow-500' : isBreakEnding ? 'bg-red-500 animate-pulse' : 'bg-amber-500 animate-pulse'
+                    isBreakEnding ? 'bg-red-500 animate-pulse' : 'bg-amber-500 animate-pulse'
                   }`} />
-                  {isTimerPaused ? 'Paused' : isBreakEnding ? '⚠️ Ending' : 'Active'}
+                  {isBreakEnding ? '⚠️ Ending' : 'Active'}
                 </span>
               </div>
             </div>
 
             <div className="mt-3 text-center">
               <span className="text-xs text-gray-400">
-                {isTimerPaused 
-                  ? 'Click ▶️ to resume timer' 
-                  : isBreakEnding 
-                    ? '⏰ Break will end automatically in a few seconds!'
-                    : 'Click ⏸️ to pause timer'}
+                {isBreakEnding 
+                  ? '⏰ Break will end automatically in a few seconds!'
+                  : 'Enjoy your break!'}
               </span>
             </div>
           </div>

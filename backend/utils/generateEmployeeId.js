@@ -33,7 +33,7 @@ const generateEmployeeId = async () => {
     await Counter.findByIdAndUpdate(
       "employeeId",
       { $setOnInsert: { seq: seed } },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     );
   }
 
@@ -41,7 +41,7 @@ const generateEmployeeId = async () => {
   const counter = await Counter.findByIdAndUpdate(
     "employeeId",
     { $inc: { seq: 1 } },
-    { new: true, upsert: true }
+    { returnDocument: 'after', upsert: true }
   );
 
   const padded = String(counter.seq).padStart(3, "0");

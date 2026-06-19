@@ -1,6 +1,6 @@
-import express from 'express';
+import express from "express";
+import { protect } from "../middleware/authMiddleware.js";
 import * as attendanceController from '../controllers/attendanceController.js';
-import { protect } from '../middleware/authMiddleware.js';
 import { authorize } from '../middleware/roleMiddleware.js';
 
 const router = express.Router();
@@ -8,12 +8,13 @@ const router = express.Router();
 // ─── ALL ROUTES PROTECTED ──────────────────────────────────────────────────
 router.use(protect);
 
-// ─── EMPLOYEE ROUTES ─────────────────────────────────────────────────────
+// ─── Attendance Query Routes ──────────────────────────────────────────────────
 router.get('/today', attendanceController.getTodayAttendance);
 router.get('/my-history', attendanceController.getMyHistory);
 router.post('/check-in', attendanceController.checkIn);
 router.post('/check-out', attendanceController.checkOut);
 router.post('/mark', attendanceController.markAttendance);
+router.get('/report/weekly/:employeeId', attendanceController.getWeeklyReport);
 
 // ─── BREAK MANAGEMENT ROUTES ──────────────────────────────────────────────
 router.post('/break/start', attendanceController.startBreak);

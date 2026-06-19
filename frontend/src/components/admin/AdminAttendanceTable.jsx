@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
-import { RefreshCw, Wifi, WifiOff, Coffee, Utensils, Moon, Search } from "lucide-react";
+import { RefreshCw, Wifi, WifiOff, Coffee, Utensils, Moon, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import API from "../../services/api";
+import { io } from "socket.io-client";
 
 const AdminAttendanceTable = () => {
   const [attendanceRecords, setAttendanceRecords] = useState([]);
@@ -10,63 +11,65 @@ const AdminAttendanceTable = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [wsConnected, setWsConnected] = useState(false);
   const [error, setError] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(5);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter, searchTerm, selectedDate]);
 
   // ─── WEBSOCKET SETUP ──────────────────────────────────────────────────────
   useEffect(() => {
     let socket = null;
     
     try {
-      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      const wsUrl = `${protocol}//${window.location.host}/attendance`;
-      socket = new WebSocket(wsUrl);
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
+      socket = io(backendUrl);
 
-      socket.onopen = () => {
-        console.log("WebSocket connected for admin attendance");
+      socket.on("connect", () => {
+        console.log("Socket.IO connected for admin attendance");
         setWsConnected(true);
+        socket.emit("join-admin");
+      });
+
+      socket.on("attendance-update", (data) => {
         try {
-          socket.send(JSON.stringify({ type: "join-admin" }));
+          console.log("Received attendance-update:", data);
+          setAttendanceRecords(prev => 
+            prev.map(record => 
+              record.employeeId === data.employeeId 
+                ? { 
+                    ...record, 
+                    onlineStatus: data.onlineStatus, 
+                    breakType: data.breakType !== undefined ? data.breakType : record.breakType,
+                    status: data.status !== undefined ? data.status : record.status,
+                    checkInTime: data.checkInTime !== undefined ? data.checkInTime : record.checkInTime,
+                    checkOutTime: data.checkOutTime !== undefined ? data.checkOutTime : record.checkOutTime
+                  }
+                : record
+            )
+          );
         } catch (e) {
-          console.warn('Could not send join message:', e);
+          console.error("Socket message error:", e);
         }
-      };
+      });
 
-      socket.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.type === "attendance-update") {
-            setAttendanceRecords(prev => 
-              prev.map(record => 
-                record.employeeId === data.employeeId 
-                  ? { ...record, onlineStatus: data.onlineStatus, breakType: data.breakType }
-                  : record
-              )
-            );
-          }
-        } catch (e) {
-          console.error("WebSocket message error:", e);
-        }
-      };
-
-      socket.onclose = () => {
-        console.log("WebSocket disconnected");
+      socket.on("disconnect", () => {
+        console.log("Socket.IO disconnected");
         setWsConnected(false);
-      };
+      });
 
-      socket.onerror = (error) => {
-        console.warn("WebSocket error:", error);
+      socket.on("connect_error", (error) => {
+        console.warn("Socket.IO error:", error);
         setWsConnected(false);
-      };
+      });
     } catch (error) {
-      console.warn('WebSocket connection failed:', error);
+      console.warn('Socket.IO connection failed:', error);
     }
 
     return () => {
       if (socket) {
-        try {
-          socket.close();
-        } catch (e) {
-          console.warn('Could not close WebSocket:', e);
-        }
+        socket.disconnect();
       }
     };
   }, []);
@@ -207,6 +210,11 @@ const AdminAttendanceTable = () => {
   };
 
   const filteredRecords = getFilteredRecords();
+  const totalPages = Math.ceil(filteredRecords.length / rowsPerPage);
+  const paginatedRecords = filteredRecords.slice(
+    (currentPage - 1) * rowsPerPage,
+    currentPage * rowsPerPage
+  );
 
   // ─── STATS ──────────────────────────────────────────────────────────────
   const stats = {
@@ -381,14 +389,14 @@ const AdminAttendanceTable = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {filteredRecords.length === 0 ? (
+            {paginatedRecords.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-4 py-12 text-center text-gray-400 text-sm">
                   {loading ? 'Loading...' : 'No attendance records found for this date'}
                 </td>
               </tr>
             ) : (
-              filteredRecords.map((record) => {
+              paginatedRecords.map((record) => {
                 const statusBadge = getStatusBadge(
                   record.status, 
                   record.onlineStatus
@@ -405,12 +413,12 @@ const AdminAttendanceTable = () => {
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600">{record.department || "—"}</td>
                     <td className="px-4 py-3">
-                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${attendanceStatusColor}`}>
+                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${attendanceStatusColor}`}>
                         {record.status || "Absent"}
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ${statusBadge.className}`}>
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${statusBadge.className}`}>
                         {statusBadge.icon}
                         {statusBadge.label}
                       </span>
@@ -428,6 +436,73 @@ const AdminAttendanceTable = () => {
           </tbody>
         </table>
       </div>
+      {/* ─── PAGINATION CONTROLS ────────────────────────────────────────── */}
+      {filteredRecords.length > 0 && (
+        <div className="px-4 py-3 bg-gray-50 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-gray-600">
+          <div className="flex items-center gap-2">
+            <span>Show</span>
+            <select
+              value={rowsPerPage}
+              onChange={(e) => {
+                setRowsPerPage(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+              className="px-2 py-1 border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
+            >
+              <option value={5}>5</option>
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+            </select>
+            <span>entries</span>
+          </div>
+
+          <div>
+            Showing <span className="font-semibold text-gray-800">{Math.min(filteredRecords.length, (currentPage - 1) * rowsPerPage + 1)}</span> to{" "}
+            <span className="font-semibold text-gray-800">{Math.min(filteredRecords.length, currentPage * rowsPerPage)}</span> of{" "}
+            <span className="font-semibold text-gray-800">{filteredRecords.length}</span> entries
+          </div>
+
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+              className="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title="First Page"
+            >
+              <ChevronsLeft size={16} />
+            </button>
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title="Previous Page"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            
+            <span className="px-3 py-1 font-medium text-gray-700">
+              Page {currentPage} of {totalPages || 1}
+            </span>
+
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages || totalPages === 0}
+              className="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title="Next Page"
+            >
+              <ChevronRight size={16} />
+            </button>
+            <button
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage === totalPages || totalPages === 0}
+              className="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title="Last Page"
+            >
+              <ChevronsRight size={16} />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,5 +1,6 @@
 import Attendance from '../models/Attendance.js';
 import Employee from '../models/Employee.js';
+import { getEmployeeIdForRequest } from '../utils/employeeUserLink.js';
 
 // ─── BREAK CONFIGURATION ──────────────────────────────────────────────────
 const BREAK_CONFIG = {
@@ -19,10 +20,51 @@ const BREAK_CONFIG = {
     label: 'Tea Time',
     start: { hours: 15, minutes: 0 },
     end: { hours: 16, minutes: 0 },
-    duration: 30
+    duration: 15
   }
 };
 
+/**
+ * @desc Record logout time / Mark employee as inactive (Auto logout)
+ * @route POST /api/attendance/logout
+ */
+export const recordLogout = async (req, res) => {
+  try {
+    const { attendanceId } = req.body;
+
+    // Find the attendance record and update logout time & status
+    const attendance = await Attendance.findByIdAndUpdate(
+      attendanceId,
+      {
+        logoutTime: new Date(),
+        status: "Inactive", // අනිත් branch එකෙන් ආපු වෙනස්කම
+        activityStatus: false,
+      },
+      { returnDocument: "after" }
+    );
+
+    if (!attendance) {
+      return res.status(404).json({ message: "Attendance record not found" });
+    }
+
+    // Calculate working hours (HEAD එකෙන් ආපු logic එක)
+    let workingHours = 0;
+    if (attendance.logoutTime && attendance.loginTime) {
+      workingHours = (attendance.logoutTime - attendance.loginTime) / (1000 * 60 * 60);
+    }
+
+    res.status(200).json({
+      message: "Logout recorded successfully (Employee marked as inactive)",
+      attendance,
+      workingHours: workingHours.toFixed(2),
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+  
 // ─── HELPER FUNCTIONS ──────────────────────────────────────────────────────
 const getMinutesSinceMidnight = (date = new Date()) => {
   return date.getHours() * 60 + date.getMinutes();
@@ -76,7 +118,7 @@ const getCurrentTimeString = () => {
 // ─── GET TODAY'S ATTENDANCE ──────────────────────────────────────────────
 export const getTodayAttendance = async (req, res) => {
   try {
-    const employeeId = req.user._id || req.user.id;
+    const employeeId = await getEmployeeIdForRequest(req);
     const today = new Date().toISOString().split('T')[0];
 
     let attendance = await Attendance.findOne({
@@ -118,7 +160,7 @@ export const getTodayAttendance = async (req, res) => {
 // ─── GET MY HISTORY ──────────────────────────────────────────────────────
 export const getMyHistory = async (req, res) => {
   try {
-    const employeeId = req.user._id || req.user.id;
+    const employeeId = await getEmployeeIdForRequest(req);
     const { limit = 30 } = req.query;
 
     const records = await Attendance.find({
@@ -146,7 +188,7 @@ export const getMyHistory = async (req, res) => {
 export const checkIn = async (req, res) => {
   try {
     const { date, checkInTime, location } = req.body;
-    const employeeId = req.user._id || req.user.id;
+    const employeeId = await getEmployeeIdForRequest(req);
     const today = date || new Date().toISOString().split('T')[0];
 
     let attendance = await Attendance.findOne({
@@ -199,7 +241,7 @@ export const checkIn = async (req, res) => {
 export const checkOut = async (req, res) => {
   try {
     const { date, checkOutTime } = req.body;
-    const employeeId = req.user._id || req.user.id;
+    const employeeId = await getEmployeeIdForRequest(req);
     const today = date || new Date().toISOString().split('T')[0];
 
     const attendance = await Attendance.findOne({
@@ -330,7 +372,7 @@ export const markAttendance = async (req, res) => {
 export const startBreak = async (req, res) => {
   try {
     const { breakType } = req.body;
-    const employeeId = req.user._id || req.user.id;
+    const employeeId = await getEmployeeIdForRequest(req);
     const today = new Date().toISOString().split('T')[0];
     const now = new Date();
 
@@ -404,7 +446,7 @@ export const startBreak = async (req, res) => {
 // ─── END BREAK ────────────────────────────────────────────────────────────
 export const endBreak = async (req, res) => {
   try {
-    const employeeId = req.user._id || req.user.id;
+    const employeeId = await getEmployeeIdForRequest(req);
     const today = new Date().toISOString().split('T')[0];
 
     const attendance = await Attendance.findOne({
@@ -452,7 +494,7 @@ export const endBreak = async (req, res) => {
 // ─── GET BREAK REMAINING TIME ────────────────────────────────────────────
 export const getBreakRemaining = async (req, res) => {
   try {
-    const employeeId = req.user._id || req.user.id;
+    const employeeId = await getEmployeeIdForRequest(req);
     const today = new Date().toISOString().split('T')[0];
     const now = new Date();
 
@@ -471,8 +513,12 @@ export const getBreakRemaining = async (req, res) => {
       });
     }
 
-    const remainingMinutes = calculateRemainingBreakTime(attendance.breakType, now);
-    const remainingSeconds = Math.floor(remainingMinutes * 60);
+    const startTime = new Date(attendance.breakStartTime);
+    const config = BREAK_CONFIG[attendance.breakType];
+    const totalAllowedMinutes = config ? calculateRemainingBreakTime(attendance.breakType, startTime) : 15;
+    const totalAllowedSeconds = totalAllowedMinutes * 60;
+    const elapsedSeconds = Math.floor((now.getTime() - startTime.getTime()) / 1000);
+    const remainingSeconds = Math.max(0, totalAllowedSeconds - elapsedSeconds);
 
     if (remainingSeconds <= 0) {
       attendance.onlineStatus = 'Online';
@@ -516,7 +562,7 @@ export const getBreakRemaining = async (req, res) => {
 // ─── GET BREAK STATUS ────────────────────────────────────────────────────
 export const getBreakStatus = async (req, res) => {
   try {
-    const employeeId = req.user._id || req.user.id;
+    const employeeId = await getEmployeeIdForRequest(req);
     const today = new Date().toISOString().split('T')[0];
     const now = new Date();
 
@@ -544,12 +590,18 @@ export const getBreakStatus = async (req, res) => {
 
     let currentBreak = null;
     if (attendance?.breakType && attendance?.onlineStatus !== 'Online') {
-      const remainingMinutes = calculateRemainingBreakTime(attendance.breakType, now);
+      const startTime = new Date(attendance.breakStartTime);
+      const config = BREAK_CONFIG[attendance.breakType];
+      const totalAllowedMinutes = config ? calculateRemainingBreakTime(attendance.breakType, startTime) : 15;
+      const totalAllowedSeconds = totalAllowedMinutes * 60;
+      const elapsedSeconds = Math.floor((now.getTime() - startTime.getTime()) / 1000);
+      const remainingSeconds = Math.max(0, totalAllowedSeconds - elapsedSeconds);
+      
       currentBreak = {
         type: attendance.breakType,
         label: attendance.onlineStatus,
-        remainingMinutes: Math.floor(remainingMinutes),
-        remainingSeconds: Math.floor(remainingMinutes * 60),
+        remainingMinutes: Math.floor(remainingSeconds / 60),
+        remainingSeconds: remainingSeconds,
         startTime: attendance.breakStartTime
       };
     }
@@ -577,7 +629,10 @@ export const getBreakStatus = async (req, res) => {
 export const updateStatus = async (req, res) => {
   try {
     const { status, breakType } = req.body;
-    const employeeId = req.user?._id || req.user?.id || req.body.employeeId;
+    let employeeId = req.body.employeeId;
+    if (!employeeId && req.user) {
+      employeeId = await getEmployeeIdForRequest(req);
+    }
     const today = new Date().toISOString().split('T')[0];
 
     let attendance = await Attendance.findOne({
@@ -686,5 +741,52 @@ export const getAdminSummary = async (req, res) => {
       message: 'Failed to fetch admin summary',
       error: error.message
     });
+  }
+};
+
+/**
+ * @desc Get weekly attendance report for an employee
+ * @route GET /api/attendance/report/weekly/:employeeId
+ */
+export const getWeeklyReport = async (req, res) => {
+  try {
+    // Ensure only Admin can access this report
+    if (req.user?.role !== "Admin") {
+      return res.status(403).json({ message: "Access denied. Admins only." });
+    }
+
+    const { employeeId } = req.params;
+    
+    const employee = await Employee.findOne({ employeeId });
+    if (!employee) {
+      return res.status(404).json({ message: "Employee not found" });
+    }
+
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    // Get all completed sessions from the last 7 days
+    const records = await Attendance.find({
+      employee: employee._id,
+      loginTime: { $gte: sevenDaysAgo },
+      logoutTime: { $ne: null }
+    });
+
+    if (records.length === 0) {
+      return res.status(200).json({ message: "No attendance found for this week." });
+    }
+
+    let totalDurationMs = 0;
+    records.forEach(record => {
+      if (record.loginTime && record.logoutTime) {
+        totalDurationMs += (new Date(record.logoutTime).getTime() - new Date(record.loginTime).getTime());
+      }
+    });
+
+    const totalHours = (totalDurationMs / (1000 * 60 * 60)).toFixed(2);
+
+    res.status(200).json({ totalHours, recordsCount: records.length, records });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 };

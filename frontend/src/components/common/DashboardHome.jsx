@@ -55,10 +55,28 @@ const DashboardHome = () => {
       const interval = setInterval(() => {
         fetchBreakStatus();
       }, 30000);
+
+      const handleSocketAuth = (e) => {
+        console.log("🔔 Socket authenticated, refreshing break status...", e.detail);
+        if (e.detail?.onlineStatus) {
+          setBreakStatus(prev => prev ? { ...prev, onlineStatus: e.detail.onlineStatus } : { onlineStatus: e.detail.onlineStatus });
+        }
+        fetchBreakStatus();
+      };
+
+      const handleSocketDisconnect = () => {
+        console.log("🔔 Socket disconnected, setting status to Offline...");
+        setBreakStatus(prev => prev ? { ...prev, onlineStatus: "Offline" } : { onlineStatus: "Offline" });
+      };
+
+      window.addEventListener("socket-authenticated", handleSocketAuth);
+      window.addEventListener("socket-disconnected", handleSocketDisconnect);
       
       return () => {
         clearTimeout(timerId);
         clearInterval(interval);
+        window.removeEventListener("socket-authenticated", handleSocketAuth);
+        window.removeEventListener("socket-disconnected", handleSocketDisconnect);
       };
     }
   }, [user, fetchBreakStatus]);
