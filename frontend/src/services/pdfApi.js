@@ -72,13 +72,21 @@ export const fetchPayrollsForPdf = async () => {
 
 export const downloadPayslipPdf = (payroll) => {
   const employeeId = payroll.employee?._id || payroll.employee;
-  const [month, year] = (payroll.month || "").split(" ");
+  const month = payroll.month;
+
+  if (!employeeId) {
+    throw new Error("Employee ID is missing for payslip download.");
+  }
+
+  if (!month) {
+    throw new Error("Payroll month is missing for payslip download.");
+  }
+
   return downloadPdfFromApi(
-    `/payroll/payslip?employeeId=${employeeId}&month=${month}&year=${year}`,
-    "payslip.pdf"
+    `/payroll/payslip?employeeId=${employeeId}&month=${month}`,
+    `payslip-${month}.pdf`
   );
 };
-
 export const downloadDemoPayslipPdf = () =>
   downloadPdfFromApi(
     "/notifications/reports/payslip/demo",

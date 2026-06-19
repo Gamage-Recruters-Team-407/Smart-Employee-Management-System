@@ -34,6 +34,17 @@ const documentSchema = new mongoose.Schema(
 
 const employeeSchema = new mongoose.Schema(
   {
+    // This saves User collection ObjectId.
+    // Not required, because manually created employees may not have a user account.
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+      index: true,
+      unique: true,
+      sparse: true,
+    },
+
     employeeId: {
       type: String,
       unique: true,
@@ -61,6 +72,12 @@ const employeeSchema = new mongoose.Schema(
         /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
         "Please provide a valid email address.",
       ],
+    },
+    role: {
+      type: String,
+      enum: ["Admin", "HR", "Manager", "Employee"],
+      default: "Employee",
+      trim: true,
     },
 
     phone: {

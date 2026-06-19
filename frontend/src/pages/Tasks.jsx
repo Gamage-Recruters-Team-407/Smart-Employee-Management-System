@@ -3,6 +3,7 @@ import API from "../services/api";
 import { fetchEmployees as fetchEmployeesList } from "../services/employeeService";
 import TaskBoard from "../components/TaskBoard";
 import { useAuth } from "../context/AuthContext";
+import MyTasks from "./MyTasks";
 
 const TASK_STATUSES = ["To Do", "In Progress", "Review", "Completed"];
 
@@ -68,6 +69,7 @@ const Tasks = () => {
   const [formData, setFormData] = useState(initialFormData);
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
+  const [activeTab, setActiveTab] = useState("manage"); // 'my' | 'manage'
 
   const fetchTasks = useCallback(async () => {
     try {
@@ -271,6 +273,29 @@ const Tasks = () => {
 
   return (
     <div className="p-8 max-w-[1600px] mx-auto">
+      <div className="flex gap-2 mb-6 bg-white rounded-2xl shadow p-2 w-fit">
+        <button
+          onClick={() => setActiveTab("my")}
+          className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition ${
+            activeTab === "my" ? "bg-indigo-600 text-white" : "text-gray-600 hover:bg-gray-50"
+          }`}
+        >
+          My Tasks
+        </button>
+        <button
+          onClick={() => setActiveTab("manage")}
+          className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition ${
+            activeTab === "manage" ? "bg-indigo-600 text-white" : "text-gray-600 hover:bg-gray-50"
+          }`}
+        >
+          Task Management
+        </button>
+      </div>
+
+      {activeTab === "my" && <MyTasks />}
+
+      {activeTab === "manage" && (
+        <>
       <div className="flex flex-wrap justify-between items-center gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-800">Task Management</h1>
@@ -476,6 +501,8 @@ const Tasks = () => {
             </div>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );

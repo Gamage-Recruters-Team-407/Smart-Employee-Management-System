@@ -1,84 +1,64 @@
-import mongoose from "mongoose";
+// backend/models/Payroll.js
 
-const payrollSchema = new mongoose.Schema(
-  {
-    employee: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Employee",
-      required: [true, "Employee is required"],
-    },
+import mongoose from 'mongoose';
 
-    month: {
-      type: String,
-      required: [true, "Month is required"],
-      // Format: YYYY-MM
-    },
-
-    basicSalary: {
-      type: Number,
-      required: [true, "Basic salary is required"],
-      min: [0, "Basic salary cannot be negative"],
-    },
-
-    allowances: {
-      type: Number,
-      default: 0,
-      min: [0, "Allowances cannot be negative"],
-    },
-
-    deductions: {
-      type: Number,
-      default: 0,
-      min: [0, "Deductions cannot be negative"],
-    },
-
-    tax: {
-      type: Number,
-      default: 0,
-      min: [0, "Tax cannot be negative"],
-    },
-
-    loans: {
-      type: Number,
-      default: 0,
-      min: [0, "Loan deductions cannot be negative"],
-    },
-
-    netSalary: {
-      type: Number,
-      default: 0,
-    },
-
-    status: {
-      type: String,
-      enum: ["Pending", "Processed", "Paid"],
-      default: "Processed",
-    },
-
-    notes: {
-      type: String,
-      default: "",
-    },
+const payrollSchema = new mongoose.Schema({
+  employee: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Employee',
+    required: true
   },
-  {
-    timestamps: true,
+  month: {
+    type: String,
+    required: true,
+    enum: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+  },
+  year: {
+    type: Number,
+    required: true
+  },
+  basicSalary: {
+    type: Number,
+    default: 0
+  },
+  allowances: {
+    type: Number,
+    default: 0
+  },
+  deductions: {
+    type: Number,
+    default: 0
+  },
+  bonus: {
+    type: Number,
+    default: 0
+  },
+  tax: {
+    type: Number,
+    default: 0
+  },
+  netSalary: {
+    type: Number,
+    default: 0
+  },
+  status: {
+    type: String,
+    enum: ['Pending', 'Approved', 'Paid', 'Cancelled'],
+    default: 'Pending'
+  },
+  paymentDate: {
+    type: Date,
+    default: null
+  },
+  notes: {
+    type: String,
+    default: ''
   }
-);
-
-// Auto-calculate net salary before saving
-payrollSchema.pre("save", function () {
-  this.netSalary =
-    this.basicSalary +
-    this.allowances -
-    (this.deductions + this.tax + this.loans);
-
-  // Prevent negative salary
-  if (this.netSalary < 0) {
-    this.netSalary = 0;
-  }
+}, {
+  timestamps: true
 });
 
-// Prevent duplicate payrolls for same employee/month
-payrollSchema.index({ employee: 1, month: 1 }, { unique: true });
+// Compound index to prevent duplicates
+payrollSchema.index({ employee: 1, month: 1, year: 1 }, { unique: true });
 
-export default mongoose.model("Payroll", payrollSchema);
+export default mongoose.model('Payroll', payrollSchema);

@@ -1,18 +1,16 @@
-import express from "express";
+// backend/routes/payrollRoutes.js
 
+import express from "express";
 import {
-  getAllPayrolls,
+  getPayrolls,
   getPayrollById,
   createPayroll,
-  generateBulkPayroll,
   updatePayroll,
   deletePayroll,
+  generateBulkPayroll,
   getPayrollSummary,
-  getEmployeesForPayroll,
-} from "../controller/payrollController.js";
-
-import{getPayslipPDF} from "../controllers/payrollController.js";
-
+  getPayrollEmployees,
+} from "../controllers/payrollController.js";
 
 import { protect } from "../middleware/authMiddleware.js";
 import { authorizeRoles } from "../middleware/roleMiddleware.js";
@@ -25,19 +23,13 @@ router.use(protect);
 // Employee dropdown list
 router.get(
   "/employees",
-  getEmployeesForPayroll
+  getPayrollEmployees
 );
 
 // Payroll summary
 router.get(
-  "/summary/:month",
+  "/summary/:month/:year",
   getPayrollSummary
-);
-
-// Payslip PDF
-router.get(
-  "/payslip",
-  getPayslipPDF
 );
 
 // Bulk payroll generation
@@ -50,7 +42,7 @@ router.post(
 // CRUD routes
 router.get(
   "/",
-  getAllPayrolls
+  getPayrolls
 );
 
 router.post(
@@ -66,11 +58,13 @@ router.get(
 
 router.put(
   "/:id",
+  authorizeRoles("Admin", "HR"),
   updatePayroll
 );
 
 router.delete(
   "/:id",
+  authorizeRoles("Admin", "HR"),
   deletePayroll
 );
 

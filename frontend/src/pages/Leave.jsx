@@ -1,9 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import API from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 const Leave = () => {
+  const { user } = useAuth();
+  const isAdminOrHR = user?.role === 'Admin' || user?.role === 'HR';
+
+  const [activeTab, setActiveTab] = useState('my'); // 'my' | 'manage'
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [leaves, setLeaves] = useState([]);
+  const [allLeaves, setAllLeaves] = useState([]);
   const [formData, setFormData] = useState({
     leaveType: '',
     startDate: '',
@@ -14,17 +21,28 @@ const Leave = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
+  // ── Approve/Reject/Revert confirmation popup state ────────────────────────
+  const [confirmAction, setConfirmAction] = useState(null); // { id, status, employeeName }
+  const [actionLoading, setActionLoading] = useState(false);
+
   useEffect(() => {
     fetchLeaves();
+    if (isAdminOrHR) fetchAllLeaves();
   }, []);
 
   const fetchLeaves = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const res = await axios.get('http://localhost:5000/api/leaves/my-leaves', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await API.get('/leaves/my-leaves');
       setLeaves(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const fetchAllLeaves = async () => {
+    try {
+      const res = await API.get('/leaves/all');
+      setAllLeaves(res.data);
     } catch (err) {
       console.error(err);
     }
@@ -45,7 +63,6 @@ const Leave = () => {
     setError('');
 
     try {
-      const token = localStorage.getItem('token');
       const data = new FormData();
       data.append('leaveType', formData.leaveType);
       data.append('startDate', formData.startDate);
@@ -53,11 +70,8 @@ const Leave = () => {
       data.append('reason', formData.reason);
       if (formData.attachment) data.append('medicalDocument', formData.attachment);
 
-      await axios.post('http://localhost:5000/api/leaves/apply', data, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data',
-        },
+      await API.post('/leaves/apply', data, {
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
 
       alert('Leave application submitted successfully!');
@@ -72,13 +86,42 @@ const Leave = () => {
 
   const handleCancel = async (id) => {
     try {
-      const token = localStorage.getItem('token');
-      await axios.put(`http://localhost:5000/api/leaves/cancel/${id}`, {}, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await API.put(`/leaves/cancel/${id}`, {});
       fetchLeaves();
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  // ── Approve / Reject / Revert ──────────────────────────────────────────────
+  const openConfirm = (leave, status) => {
+    setConfirmAction({
+      id: leave._id,
+      status,
+      employeeName: leave.employee
+        ? `${leave.employee.firstName || ''} ${leave.employee.lastName || ''}`.trim()
+        : 'this employee',
+    });
+  };
+
+  const closeConfirm = () => setConfirmAction(null);
+
+  const handleConfirmAction = async () => {
+    if (!confirmAction) return;
+    setActionLoading(true);
+    try {
+      if (confirmAction.status === 'Reverted') {
+        await API.put(`/leaves/revert/${confirmAction.id}`, {});
+      } else {
+        await API.put(`/leaves/status/${confirmAction.id}`, { status: confirmAction.status });
+      }
+      await fetchAllLeaves();
+      closeConfirm();
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.message || 'Failed to update leave status.');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -101,63 +144,166 @@ const Leave = () => {
     <div className="p-8 max-w-7xl mx-auto">
       <h1 className="text-3xl font-bold mb-8">Leave Management</h1>
 
-      <div className="bg-white rounded-2xl shadow p-6 mb-8">
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-semibold transition duration-200 flex items-center gap-2"
-        >
-          + Apply New Leave
-        </button>
-      </div>
-
-      <div className='bg-white rounded-2xl shadow overflow-hidden'>
-        <div className='overflow-x-auto'>
-          <table className='w-full'>
-            <thead className='bg-gray-50 border-b'>
-              <tr>
-                <th className="px-6 py-4 text-left">Leave Type</th>
-                <th className="px-6 py-4 text-left">Start Date</th>
-                <th className="px-6 py-4 text-left">End Date</th>
-                <th className="px-6 py-4 text-center">Days</th>
-                <th className="px-6 py-4 text-left">Reason</th>
-                <th className="px-6 py-4 text-center">Status</th>
-                <th className="px-6 py-4 text-center">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {leaves.length === 0 ? (
-                <tr><td colSpan="7" className="text-center py-8 text-gray-500">No leave requests found.</td></tr>
-              ) : (
-                leaves.map((leave) => (
-                  <tr key={leave._id} className="border-b hover:bg-gray-50">
-                    <td className="px-6 py-4">{leave.leaveType}</td>
-                    <td className="px-6 py-4">{new Date(leave.startDate).toLocaleDateString()}</td>
-                    <td className="px-6 py-4">{new Date(leave.endDate).toLocaleDateString()}</td>
-                    <td className="px-6 py-4 text-center">{leave.totalDays}</td>
-                    <td className="px-6 py-4">{leave.reason}</td>
-                    <td className="px-6 py-4 text-center">
-                      <span className={`px-2 py-1 rounded text-sm font-medium ${getStatusColor(leave.status)}`}>
-                        {leave.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      {leave.status === 'Pending' && (
-                        <button
-                          onClick={() => handleCancel(leave._id)}
-                          className="text-red-600 hover:underline text-sm"
-                        >
-                          Cancel
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+      {/* ── Tabs (Admin/HR only) ─────────────────────────────────────────── */}
+      {isAdminOrHR && (
+        <div className="flex gap-2 mb-6 bg-white rounded-2xl shadow p-2 w-fit">
+          <button
+            onClick={() => setActiveTab('my')}
+            className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition ${
+              activeTab === 'my' ? 'bg-indigo-600 text-white' : 'text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            My Leaves
+          </button>
+          <button
+            onClick={() => setActiveTab('manage')}
+            className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition ${
+              activeTab === 'manage' ? 'bg-indigo-600 text-white' : 'text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            Manage Leave Requests
+          </button>
         </div>
-      </div>
+      )}
 
+      {/* ── MY LEAVES TAB ─────────────────────────────────────────────────── */}
+      {(!isAdminOrHR || activeTab === 'my') && (
+        <>
+          <div className="bg-white rounded-2xl shadow p-6 mb-8">
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-semibold transition duration-200 flex items-center gap-2"
+            >
+              + Apply New Leave
+            </button>
+          </div>
+
+          <div className='bg-white rounded-2xl shadow overflow-hidden'>
+            <div className='overflow-x-auto'>
+              <table className='w-full'>
+                <thead className='bg-gray-50 border-b'>
+                  <tr>
+                    <th className="px-6 py-4 text-left">Leave Type</th>
+                    <th className="px-6 py-4 text-left">Start Date</th>
+                    <th className="px-6 py-4 text-left">End Date</th>
+                    <th className="px-6 py-4 text-center">Days</th>
+                    <th className="px-6 py-4 text-left">Reason</th>
+                    <th className="px-6 py-4 text-center">Status</th>
+                    <th className="px-6 py-4 text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {leaves.length === 0 ? (
+                    <tr><td colSpan="7" className="text-center py-8 text-gray-500">No leave requests found.</td></tr>
+                  ) : (
+                    leaves.map((leave) => (
+                      <tr key={leave._id} className="border-b hover:bg-gray-50">
+                        <td className="px-6 py-4">{leave.leaveType}</td>
+                        <td className="px-6 py-4">{new Date(leave.startDate).toLocaleDateString()}</td>
+                        <td className="px-6 py-4">{new Date(leave.endDate).toLocaleDateString()}</td>
+                        <td className="px-6 py-4 text-center">{leave.totalDays}</td>
+                        <td className="px-6 py-4">{leave.reason}</td>
+                        <td className="px-6 py-4 text-center">
+                          <span className={`px-2 py-1 rounded text-sm font-medium ${getStatusColor(leave.status)}`}>
+                            {leave.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          {leave.status === 'Pending' && (
+                            <button
+                              onClick={() => handleCancel(leave._id)}
+                              className="text-red-600 hover:underline text-sm"
+                            >
+                              Cancel
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ── MANAGE LEAVE REQUESTS TAB (Admin/HR only) ───────────────────────── */}
+      {isAdminOrHR && activeTab === 'manage' && (
+        <div className='bg-white rounded-2xl shadow overflow-hidden'>
+          <div className='overflow-x-auto'>
+            <table className='w-full'>
+              <thead className='bg-gray-50 border-b'>
+                <tr>
+                  <th className="px-6 py-4 text-left">Employee</th>
+                  <th className="px-6 py-4 text-left">Leave Type</th>
+                  <th className="px-6 py-4 text-left">Start Date</th>
+                  <th className="px-6 py-4 text-left">End Date</th>
+                  <th className="px-6 py-4 text-center">Days</th>
+                  <th className="px-6 py-4 text-left">Reason</th>
+                  <th className="px-6 py-4 text-center">Status</th>
+                  <th className="px-6 py-4 text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {allLeaves.length === 0 ? (
+                  <tr><td colSpan="8" className="text-center py-8 text-gray-500">No leave requests found.</td></tr>
+                ) : (
+                  allLeaves.map((leave) => {
+                    const empName = leave.employee
+                      ? `${leave.employee.firstName || ''} ${leave.employee.lastName || ''}`.trim()
+                      : '—';
+                    return (
+                      <tr key={leave._id} className="border-b hover:bg-gray-50">
+                        <td className="px-6 py-4 font-medium">{empName}</td>
+                        <td className="px-6 py-4">{leave.leaveType}</td>
+                        <td className="px-6 py-4">{new Date(leave.startDate).toLocaleDateString()}</td>
+                        <td className="px-6 py-4">{new Date(leave.endDate).toLocaleDateString()}</td>
+                        <td className="px-6 py-4 text-center">{leave.totalDays}</td>
+                        <td className="px-6 py-4">{leave.reason}</td>
+                        <td className="px-6 py-4 text-center">
+                          <span className={`px-2 py-1 rounded text-sm font-medium ${getStatusColor(leave.status)}`}>
+                            {leave.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          {leave.status === 'Pending' ? (
+                            <div className="flex items-center justify-center gap-3">
+                              <button
+                                onClick={() => openConfirm(leave, 'Approved')}
+                                className="text-green-600 hover:underline text-sm font-medium"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => openConfirm(leave, 'Rejected')}
+                                className="text-red-600 hover:underline text-sm font-medium"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          ) : ['Approved', 'Rejected'].includes(leave.status) ? (
+                            <button
+                              onClick={() => openConfirm(leave, 'Reverted')}
+                              className="text-amber-600 hover:underline text-sm font-medium"
+                            >
+                              Cancel
+                            </button>
+                          ) : (
+                            <span className="text-gray-400 text-sm">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ── APPLY NEW LEAVE MODAL ─────────────────────────────────────────── */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-auto">
@@ -210,6 +356,60 @@ const Leave = () => {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── APPROVE/REJECT/REVERT CONFIRMATION MODAL ─────────────────────────── */}
+      {confirmAction && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-8">
+            <h2 className="text-xl font-semibold mb-3">
+              {confirmAction.status === 'Approved'
+                ? 'Approve Leave Request'
+                : confirmAction.status === 'Rejected'
+                ? 'Reject Leave Request'
+                : 'Revert Leave to Pending'}
+            </h2>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to{' '}
+              <strong>
+                {confirmAction.status === 'Approved'
+                  ? 'approve'
+                  : confirmAction.status === 'Rejected'
+                  ? 'reject'
+                  : 'revert to pending'}
+              </strong>{' '}
+              the leave request from <strong>{confirmAction.employeeName}</strong>?
+            </p>
+            <div className="flex gap-4">
+              <button
+                onClick={closeConfirm}
+                disabled={actionLoading}
+                className="flex-1 py-3 border border-gray-300 rounded-xl font-medium hover:bg-gray-50 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmAction}
+                disabled={actionLoading}
+                className={`flex-1 py-3 rounded-xl font-semibold text-white transition ${
+                  confirmAction.status === 'Approved'
+                    ? 'bg-green-600 hover:bg-green-700 disabled:bg-green-400'
+                    : confirmAction.status === 'Rejected'
+                    ? 'bg-red-600 hover:bg-red-700 disabled:bg-red-400'
+                    : 'bg-amber-600 hover:bg-amber-700 disabled:bg-amber-400'
+                }`}
+              >
+                {actionLoading
+                  ? 'Processing...'
+                  : confirmAction.status === 'Approved'
+                  ? 'Approve'
+                  : confirmAction.status === 'Rejected'
+                  ? 'Reject'
+                  : 'Revert'}
+              </button>
             </div>
           </div>
         </div>
