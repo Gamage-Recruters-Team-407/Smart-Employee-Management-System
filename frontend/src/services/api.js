@@ -14,11 +14,11 @@ API.interceptors.request.use(
     const token = localStorage.getItem("token") || sessionStorage.getItem("token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
-    }
-
-    const mockEmployeeId = localStorage.getItem("sems_mock_employee_id");
-    if (mockEmployeeId) {
-      config.headers["X-Mock-Employee-Id"] = mockEmployeeId;
+    } else {
+      const mockEmployeeId = localStorage.getItem("sems_mock_employee_id");
+      if (mockEmployeeId) {
+        config.headers["X-Mock-Employee-Id"] = mockEmployeeId;
+      }
     }
 
     return config;

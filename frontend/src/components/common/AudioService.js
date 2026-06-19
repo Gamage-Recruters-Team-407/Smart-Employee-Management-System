@@ -241,6 +241,31 @@ class AudioService {
     this.playSound(600, 0.2, 0.3);
   }
 
+  playVoiceCountdown(seconds) {
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+      let text = '';
+      if (seconds === 10) text = 'ten';
+      else if (seconds === 9) text = 'nine';
+      else if (seconds === 8) text = 'eight';
+      else if (seconds === 7) text = 'seven';
+      else if (seconds === 6) text = 'six';
+      else if (seconds === 5) text = 'five';
+      else if (seconds === 4) text = 'four';
+      else if (seconds === 3) text = 'three';
+      else if (seconds === 2) text = 'two';
+      else if (seconds === 1) text = 'one';
+      else if (seconds === 0) text = 'Break time is over!';
+
+      if (text) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 1.1;
+        utterance.pitch = 1.0;
+        window.speechSynthesis.speak(utterance);
+      }
+    }
+  }
+
   isAudioAvailable() {
     return this.isInitialized || !this.useFallback;
   }

@@ -1,20 +1,13 @@
-<<<<<<< HEAD
-import { useState, useEffect } from "react";
-=======
 import { useState, useEffect, useCallback, useRef } from "react";
->>>>>>> 9d9b9c3690d5abbe7a053542999e5c43569f92a4
 import { Outlet, useNavigate, Link } from "react-router-dom";
 import { Menu, X, LogOut, CheckCircle, AlertCircle, Clock } from "lucide-react";
 import Sidebar from "../components/common/Sidebar";
 import BreakNotification from "../components/common/BreakNotification";
 import { useAuth } from "../context/AuthContext";
 import { useEmployeeProfile } from "../hooks/useEmployeeProfile";
-<<<<<<< HEAD
-import useAttendanceSocket from "../hooks/useAttendanceSocket"; 
-
-=======
+import useAttendanceSocket from "../hooks/useAttendanceSocket";
 import API from "../services/api";
->>>>>>> 9d9b9c3690d5abbe7a053542999e5c43569f92a4
+import { io } from "socket.io-client";
 
 const Dashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -24,19 +17,21 @@ const Dashboard = () => {
     enabled: user?.role === "Employee",
   });
 
-<<<<<<< HEAD
-  // Keep a stable reference to prevent the socket hook from re-running unnecessarily
-  const [socketUser, setSocketUser] = useState(null);
+  // ─── SOCKET.IO CONNECTION ────────────────────────────────────────────────────
+  // Connects on mount (login) → authenticates employee → sets status to "Online"
+  // Disconnects on unmount (logout / tab close) → backend sets status to "Offline"
+  // Exposes socket on window.socket for BreakNotification break events
+  useAttendanceSocket(
+    user,
+    useCallback((data) => {
+      if (data.isAttendanceMarked) {
+        setIsAttendanceMarked(true);
+        setAttendanceTime(data.checkInTime);
+        setAttendanceStatusText(data.status);
+      }
+    }, [])
+  );
 
-  useEffect(() => {
-    const target = user?.role === "Employee" ? employee : user;
-    if (target && !socketUser) {
-      setSocketUser(target);
-    }
-  }, [user, employee, socketUser]);
-
-  useAttendanceSocket(socketUser);
-=======
   // ─── ATTENDANCE STATE ──────────────────────────────────────────────────────
   const [attendanceStatus, setAttendanceStatus] = useState(null);
   const [attendanceLoading, setAttendanceLoading] = useState(false);
@@ -52,7 +47,6 @@ const Dashboard = () => {
   // Check if user is Employee (not Admin or HR)
   const isEmployee = user?.role === "Employee";
   const isAdminOrHR = user?.role === "Admin" || user?.role === "HR";
->>>>>>> 9d9b9c3690d5abbe7a053542999e5c43569f92a4
 
   // ─── STORAGE ─────────────────────────────────
   let storedUser = {};
@@ -378,10 +372,9 @@ const Dashboard = () => {
 
     if (logoutRequired) {
       return (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-center min-w-[200px]">
-          <AlertCircle className="text-red-600 mx-auto mb-2" size={24} />
-          <p className="text-red-700 font-semibold text-sm">Working hours ended</p>
-          <p className="text-red-600 text-xs">Please log out</p>
+        <div className="bg-red-50 border border-red-155 rounded-md px-2 py-0.5 text-center flex items-center gap-1 text-[11px]">
+          <AlertCircle className="text-red-650" size={12} />
+          <span className="text-red-700 font-semibold">Working hours ended</span>
         </div>
       );
     }
@@ -389,92 +382,49 @@ const Dashboard = () => {
     const isLate = attendanceStatusText === "Late";
 
     return (
-      <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm min-w-[250px]">
-        <div className="flex items-center justify-between gap-3">
-          <div className="hidden sm:block">
-            <h4 className="text-sm font-semibold text-gray-700">Attendance</h4>
-            
-            {/* ─── SHOW ATTENDANCE STATUS IF MARKED ────────────────────────── */}
-            {isAttendanceMarked ? (
-              <div className="mt-1">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-sm font-medium text-gray-800">
-                    {attendanceStatusText || "Present"}
-                  </span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${getStatusColor(attendanceStatusText)}`}>
-                    {isLate ? "⚠️ Late" : "✅ On Time"}
-                  </span>
-                </div>
-                <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
-                  <Clock size={12} className="text-gray-400" />
-                  Marked at {attendanceTime || 'N/A'}
-                </p>
-                {isLate && (
-                  <p className="text-xs text-red-600 mt-0.5 font-medium">
-                    ⚠️ You were late! (After 9:30 AM)
-                  </p>
-                )}
-                {!isLate && attendanceStatusText === "Present" && (
-                  <p className="text-xs text-green-600 mt-0.5">
-                    ✓ On time attendance recorded
-                  </p>
-                )}
-              </div>
-            ) : (
-              <div>
-                <p className="text-xs text-gray-500">Mark daily</p>
-                {timeStatus.status === 'on-time' && (
-                  <p className="text-xs text-green-600">✅ On time</p>
-                )}
-                {timeStatus.status === 'late' && (
-                  <p className="text-xs text-red-600">⚠️ Late</p>
-                )}
-              </div>
-            )}
+      <div className="relative flex items-center gap-2 px-2 py-0.5 bg-gray-50 border border-gray-200 rounded-lg">
+        <span className="text-[11px] font-bold text-gray-550 hidden md:inline">Attendance:</span>
+        
+        {isAttendanceMarked ? (
+          <div className="flex items-center gap-1.5">
+            <span className={`text-[9px] px-1.5 py-0.25 rounded-full font-bold border whitespace-nowrap ${
+              isLate 
+                ? 'bg-amber-50 text-amber-700 border-amber-200' 
+                : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+            }`}>
+              {isLate ? "⚠️ Late" : "✅ Present"}
+            </span>
+            <span className="text-[11px] font-mono text-gray-500 flex items-center gap-0.5">
+              <Clock size={11} className="text-gray-400" />
+              {attendanceTime || 'N/A'}
+            </span>
           </div>
-          
-          {/* ─── SHOW STATUS OR MARK BUTTON ────────────────────────────────── */}
-          {isAttendanceMarked ? (
-            <div className="text-right min-w-[120px]">
-              <div className={`flex items-center gap-2 justify-end px-3 py-1.5 rounded-xl text-sm font-medium ${
-                isLate ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'
-              }`}>
-                <span>{getStatusIcon(attendanceStatusText)}</span>
-                <span>{isLate ? 'Late' : 'Present'}</span>
-              </div>
-              <p className="text-xs text-gray-500 mt-1">
-                🕐 {attendanceTime || 'N/A'}
-              </p>
-              {isLate && (
-                <p className="text-xs text-red-500 mt-0.5 font-medium">
-                  ⚠️ After 9:30 AM
-                </p>
-              )}
-              {attendanceStatus?.checkOutTime && (
-                <p className="text-xs text-gray-500">Out at {attendanceStatus.checkOutTime}</p>
-              )}
-            </div>
-          ) : (
-            <button
-              onClick={markAttendance}
-              disabled={attendanceLoading || !loginAllowed}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all whitespace-nowrap ${
-                !loginAllowed 
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : 'bg-indigo-600 hover:bg-indigo-700 text-white'
-              }`}
-            >
-              <CheckCircle size={16} />
-              {attendanceLoading ? "Marking..." : "Mark Attendance"}
-            </button>
-          )}
-        </div>
+        ) : (
+          <span className="text-[11px] text-gray-400 whitespace-nowrap">
+            {timeStatus.message}
+          </span>
+        )}
+        
+        {!isAttendanceMarked && (
+          <button
+            onClick={markAttendance}
+            disabled={attendanceLoading || !loginAllowed}
+            className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold transition-all whitespace-nowrap ${
+              !loginAllowed 
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                : 'bg-indigo-650 hover:bg-indigo-700 text-white'
+            }`}
+          >
+            <CheckCircle size={11} />
+            {attendanceLoading ? "Marking..." : "Mark Attendance"}
+          </button>
+        )}
 
         {attendanceMessage && (
-          <div className={`mt-3 p-3 rounded-lg text-sm ${
-            attendanceMessage.type === "success" ? "bg-green-50 text-green-700" :
-            attendanceMessage.type === "warning" ? "bg-amber-50 text-amber-700" :
-            "bg-red-50 text-red-700"
+          <div className={`absolute top-full mt-1 right-0 z-50 p-1.5 rounded-lg text-[10px] shadow-lg border whitespace-nowrap ${
+            attendanceMessage.type === "success" ? "bg-green-50 text-green-700 border-green-200" :
+            attendanceMessage.type === "warning" ? "bg-amber-50 text-amber-700 border-amber-200" :
+            "bg-red-50 text-red-700 border-red-200"
           }`}>
             {attendanceMessage.text}
           </div>
@@ -482,7 +432,6 @@ const Dashboard = () => {
       </div>
     );
   };
-
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden">
       <Sidebar
@@ -492,24 +441,24 @@ const Dashboard = () => {
 
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* ─── HEADER / NAVBAR SECTION ──────────────────────────────────────── */}
-        <header className="bg-white shadow-sm z-10 px-4 sm:px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
+        <header className="bg-white shadow-sm z-10 px-4 sm:px-6 h-11 sm:h-12 flex items-center justify-between flex-shrink-0">
+          <div className="flex items-center gap-2.5">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="lg:hidden p-2 hover:bg-gray-100 rounded-lg"
+              className="lg:hidden p-1 hover:bg-gray-100 rounded-lg"
             >
-              {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
+              {sidebarOpen ? <X size={18} /> : <Menu size={18} />}
             </button>
 
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Dashboard</h1>
+            <h1 className="text-base sm:text-lg font-bold text-gray-800">Dashboard</h1>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-2.5">
             {isLoggedIn ? (
               <>
                 {/* ─── USER PROFILE SECTION ──────────────────────────────────── */}
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-base sm:text-lg select-none ring-2 ring-indigo-100 flex-shrink-0">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 sm:w-8 h-8 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-[11px] sm:text-xs select-none ring-2 ring-indigo-100 flex-shrink-0">
                     {profilePicture ? (
                       <img 
                         src={profilePicture} 
@@ -521,12 +470,9 @@ const Dashboard = () => {
                     )}
                   </div>
                   
-                  <div className="text-right hidden sm:block">
-                    <p className="font-medium text-gray-800 text-sm">{userName}</p>
-                    <p className="text-xs text-gray-500">{userRole}</p>
-                    {attendanceId && isEmployee && (
-                      <p className="text-xs text-gray-400">ID: {attendanceId}</p>
-                    )}
+                  <div className="text-right hidden sm:block leading-tight">
+                    <p className="font-semibold text-gray-800 text-xs">{userName}</p>
+                    <p className="text-[10px] text-gray-500">{userRole}</p>
                   </div>
                 </div>
 
@@ -540,16 +486,16 @@ const Dashboard = () => {
                 <button
                   onClick={handleLogout}
                   title="Sign out"
-                  className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-red-600 hover:bg-red-50 px-2 sm:px-3 py-2 rounded-lg transition"
+                  className="flex items-center gap-1 text-xs text-gray-500 hover:text-red-600 hover:bg-red-50 px-2 py-1 rounded-md transition"
                 >
-                  <LogOut size={18} />
+                  <LogOut size={15} />
                   <span className="hidden sm:inline">Logout</span>
                 </button>
               </>
             ) : (
               <Link
                 to="/login"
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-medium"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium"
               >
                 Sign In
               </Link>

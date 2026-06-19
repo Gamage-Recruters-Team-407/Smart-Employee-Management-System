@@ -39,7 +39,6 @@ const employeeSchema = new mongoose.Schema(
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      default: null,
       index: true,
       unique: true,
       sparse: true,
