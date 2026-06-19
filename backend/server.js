@@ -21,6 +21,7 @@ import { seedDefaultUser } from "./utils/seedDefaultUser.js";
 import { seedSamplePayroll } from "./utils/seedSamplePayroll.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
 import dailyReportRoutes from "./routes/dailyReportRoutes.js";
+import issueRoutes from "./routes/issueRoutes.js";
 
 dotenv.config();
 
@@ -86,6 +87,7 @@ app.use("/api/leaves", leaveRoutes);
 app.use("/api/performance", performanceRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/daily-reports", dailyReportRoutes);
+app.use("/api/issues", issueRoutes);
 
 const PORT = process.env.PORT || 5000;
 // Listen on all interfaces in dev so http://localhost:5000 and http://127.0.0.1:5000 both work

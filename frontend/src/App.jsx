@@ -19,6 +19,7 @@ import TasksRouter from "./pages/TasksRouter";
 import Tasks from "./pages/Tasks";
 import ManagerRoute from "./components/ManagerRoute";
 import Notifications from "./pages/Notifications";
+import Issues from "./pages/Issues";
 
 // ────────────────────────────────────────────────────────────────────────────
 // 🔐 PROTECTED ROUTE GUARD
