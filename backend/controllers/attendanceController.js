@@ -23,7 +23,6 @@ const BREAK_CONFIG = {
   }
 };
 
-<<<<<<< HEAD
 /**
  * @desc Record logout time / Mark employee as inactive (Auto logout)
  * @route POST /api/attendance/logout
@@ -63,11 +62,10 @@ export const recordLogout = async (req, res) => {
       message: error.message,
     });
   }
-=======
+  
 // ─── HELPER FUNCTIONS ──────────────────────────────────────────────────────
 const getMinutesSinceMidnight = (date = new Date()) => {
   return date.getHours() * 60 + date.getMinutes();
->>>>>>> 9d9b9c3690d5abbe7a053542999e5c43569f92a4
 };
 
 const isBreakAvailable = (breakType, now = new Date()) => {
