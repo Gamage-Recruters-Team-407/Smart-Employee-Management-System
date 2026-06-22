@@ -67,7 +67,7 @@ const emptyForm = () => ({
 const DailyProgressForm = () => {
   const { user } = useAuth();
 
-  const [collapsed, setCollapsed]   = useState(false);
+  const [collapsed, setCollapsed]   = useState(true);
   const [form, setForm]             = useState(emptyForm());
   const [existing, setExisting]     = useState(null); // submitted report for today
   const [editMode, setEditMode]     = useState(false);
@@ -120,11 +120,7 @@ const DailyProgressForm = () => {
     }
   }, [editMode, existing]);
 
-  // ── Auto-calculate total hours ─────────────────────────────────────────────
-  useEffect(() => {
-    const total = calcTotalHours(form.startTime, form.endTime);
-    setForm((prev) => ({ ...prev, totalHours: total }));
-  }, [form.startTime, form.endTime]);
+
 
   // ── Field helpers ──────────────────────────────────────────────────────────
   const setField = (field, value) => {
@@ -148,11 +144,7 @@ const DailyProgressForm = () => {
       tasks: prev.tasks.map((t, i) => (i === idx ? { ...t, [field]: value } : t)),
     }));
 
-  const cycleStatus = (idx) => {
-    const current = form.tasks[idx].status;
-    const next = TASK_STATUSES[(TASK_STATUSES.indexOf(current) + 1) % TASK_STATUSES.length];
-    updateTaskField(idx, "status", next);
-  };
+
 
   // ── Validation ─────────────────────────────────────────────────────────────
   const validate = () => {
@@ -161,6 +153,9 @@ const DailyProgressForm = () => {
     if (!form.endTime)   e.endTime   = "End time is required.";
     if (form.startTime && form.endTime && !calcTotalHours(form.startTime, form.endTime)) {
       e.endTime = "End time must be after start time.";
+    }
+    if (!form.totalHours || !form.totalHours.trim()) {
+      e.totalHours = "Total hours worked is required.";
     }
     if (!form.teamPosition) e.teamPosition = "Please select your position.";
     if (form.workedOnTasks) {
@@ -200,7 +195,7 @@ const DailyProgressForm = () => {
   };
 
   // ─── Read-only summary ────────────────────────────────────────────────────
-  const ReadOnlySummary = () => (
+  const renderReadOnlySummary = () => (
     <div className="space-y-4">
       {successMsg && (
         <div className="bg-green-50 border border-green-200 text-green-700 rounded-xl px-4 py-3 text-sm">
@@ -256,22 +251,8 @@ const DailyProgressForm = () => {
     </div>
   );
 
-  const SummaryField = ({ label, value }) => (
-    <div className="bg-gray-50 rounded-xl p-3">
-      <p className="text-xs text-gray-400 mb-0.5">{label}</p>
-      <p className="text-sm font-medium text-gray-700">{value}</p>
-    </div>
-  );
-
-  const SummaryBlock = ({ label, value }) => (
-    <div className="bg-gray-50 rounded-xl p-3">
-      <p className="text-xs text-gray-400 mb-1">{label}</p>
-      <p className="text-sm text-gray-700 whitespace-pre-line">{value}</p>
-    </div>
-  );
-
   // ─── Form ─────────────────────────────────────────────────────────────────
-  const Form = () => (
+  const renderForm = () => (
     <form onSubmit={handleSubmit} className="space-y-6" noValidate>
       {errors.submit && (
         <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
@@ -321,13 +302,13 @@ const DailyProgressForm = () => {
             className={inputCls(errors.endTime)}
           />
         </Field>
-        <Field label="Total Hours Worked">
+        <Field label="Total Hours Worked *" error={errors.totalHours}>
           <input
             type="text"
             value={form.totalHours}
-            disabled
-            placeholder="Auto-calculated"
-            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 bg-gray-50 text-gray-500 text-sm"
+            onChange={(e) => setField("totalHours", e.target.value)}
+            placeholder="e.g. 8.5 or 8h"
+            className={inputCls(errors.totalHours)}
           />
         </Field>
       </div>
@@ -382,16 +363,18 @@ const DailyProgressForm = () => {
           <div className="space-y-2 mt-1">
             {form.tasks.map((task, idx) => (
               <div key={idx} className="flex gap-2 items-start">
-                {/* Status cycle button */}
-                <button
-                  type="button"
-                  onClick={() => cycleStatus(idx)}
-                  className={`flex items-center gap-1 text-xs px-2.5 py-2 rounded-lg border font-medium whitespace-nowrap transition ${STATUS_STYLES[task.status]}`}
-                  title="Click to change status"
+                {/* Status select dropdown */}
+                <select
+                  value={task.status}
+                  onChange={(e) => updateTaskField(idx, "status", e.target.value)}
+                  className="border border-gray-300 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 text-gray-700 font-medium transition"
                 >
-                  {STATUS_ICONS[task.status]}
-                  {task.status}
-                </button>
+                  {TASK_STATUSES.map((status) => (
+                    <option key={status} value={status}>
+                      {status}
+                    </option>
+                  ))}
+                </select>
 
                 {/* Description */}
                 <input
@@ -502,23 +485,6 @@ const DailyProgressForm = () => {
     </form>
   );
 
-  // ─── Shared small helpers ─────────────────────────────────────────────────
-  const inputCls = (err) =>
-    `w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 ${
-      err
-        ? "border-red-400 focus:ring-red-300"
-        : "border-gray-300 focus:ring-indigo-400"
-    }`;
-
-  const Field = ({ label, hint, error, children }) => (
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-      {hint && <p className="text-xs text-gray-400 mb-1.5">{hint}</p>}
-      {children}
-      {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
-    </div>
-  );
-
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="mt-10 bg-white rounded-2xl shadow border border-gray-100">
@@ -560,14 +526,46 @@ const DailyProgressForm = () => {
           {loading ? (
             <p className="text-sm text-gray-400 py-4 text-center">Loading today's report…</p>
           ) : existing && !editMode ? (
-            <ReadOnlySummary />
+            renderReadOnlySummary()
           ) : (
-            <Form />
+            renderForm()
           )}
         </div>
       )}
     </div>
   );
 };
+
+// ─── Module-scoped components & helpers ──────────────────────────────────────
+
+const inputCls = (err) =>
+  `w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 ${
+    err
+      ? "border-red-400 focus:ring-red-300"
+      : "border-gray-300 focus:ring-indigo-400"
+  }`;
+
+const Field = ({ label, hint, error, children }) => (
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+    {hint && <p className="text-xs text-gray-400 mb-1.5">{hint}</p>}
+    {children}
+    {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
+  </div>
+);
+
+const SummaryField = ({ label, value }) => (
+  <div className="bg-gray-50 rounded-xl p-3">
+    <p className="text-xs text-gray-400 mb-0.5">{label}</p>
+    <p className="text-sm font-medium text-gray-700">{value}</p>
+  </div>
+);
+
+const SummaryBlock = ({ label, value }) => (
+  <div className="bg-gray-50 rounded-xl p-3">
+    <p className="text-xs text-gray-400 mb-1">{label}</p>
+    <p className="text-sm text-gray-700 whitespace-pre-line">{value}</p>
+  </div>
+);
 
 export default DailyProgressForm;
