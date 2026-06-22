@@ -183,7 +183,7 @@ const BreakNotification = () => {
       const storedUser = getStoredUser();
 
       const payload = {
-        employeeId: storedUser?._id || authUser?._id,
+        employeeId: employee?._id || storedUser?.employee?._id || authUser?.employee?._id || storedUser?._id || authUser?._id,
         email: storedUser?.email || authUser?.email,
         status: status,
         breakType: breakType,

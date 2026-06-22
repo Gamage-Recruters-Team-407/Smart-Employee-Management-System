@@ -630,9 +630,41 @@ export const updateStatus = async (req, res) => {
   try {
     const { status, breakType } = req.body;
     let employeeId = req.body.employeeId;
-    if (!employeeId && req.user) {
-      employeeId = await getEmployeeIdForRequest(req);
+    
+    // Resolve the actual Employee document ID
+    let resolvedEmployeeId = null;
+    if (employeeId) {
+      // 1. Try finding Employee by _id
+      let employee = await Employee.findById(employeeId);
+      if (employee) {
+        resolvedEmployeeId = employee._id;
+      } else {
+        // 2. Try finding Employee by userId (if passed employeeId is a user ID)
+        employee = await Employee.findOne({ userId: employeeId });
+        if (employee) {
+          resolvedEmployeeId = employee._id;
+        } else {
+          // 3. Try finding Employee by employeeId string (e.g. "emp-001")
+          employee = await Employee.findOne({ employeeId: employeeId });
+          if (employee) {
+            resolvedEmployeeId = employee._id;
+          }
+        }
+      }
     }
+
+    if (!resolvedEmployeeId && req.user) {
+      resolvedEmployeeId = await getEmployeeIdForRequest(req);
+    }
+
+    if (!resolvedEmployeeId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Could not resolve employee profile'
+      });
+    }
+
+    employeeId = resolvedEmployeeId;
     const today = new Date().toISOString().split('T')[0];
 
     let attendance = await Attendance.findOne({
