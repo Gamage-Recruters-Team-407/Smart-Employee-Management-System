@@ -43,6 +43,10 @@ const attendanceSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  takenBreaks: {
+    type: [String],
+    default: []
+  },
   location: {
     type: String,
     default: 'Office'

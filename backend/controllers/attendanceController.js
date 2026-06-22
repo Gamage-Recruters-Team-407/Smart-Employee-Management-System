@@ -405,6 +405,13 @@ export const startBreak = async (req, res) => {
       date: today
     });
 
+    if (attendance && attendance.takenBreaks && attendance.takenBreaks.includes(breakType)) {
+      return res.status(400).json({
+        success: false,
+        message: `${BREAK_CONFIG[breakType].label} break has already been taken today`
+      });
+    }
+
     if (!attendance) {
       attendance = new Attendance({
         employee: employeeId,
@@ -419,6 +426,13 @@ export const startBreak = async (req, res) => {
     attendance.breakType = breakType;
     attendance.breakStartTime = now;
     attendance.breakRemainingSeconds = remainingSeconds;
+
+    if (!attendance.takenBreaks) {
+      attendance.takenBreaks = [];
+    }
+    if (!attendance.takenBreaks.includes(breakType)) {
+      attendance.takenBreaks.push(breakType);
+    }
 
     await attendance.save();
     await attendance.populate('employee', 'firstName lastName employeeId');
@@ -572,9 +586,15 @@ export const getBreakStatus = async (req, res) => {
     });
 
     const availableBreaks = [];
+    const takenBreaks = attendance?.takenBreaks || [];
 
     for (const [type, config] of Object.entries(BREAK_CONFIG)) {
       if (isBreakAvailable(type, now)) {
+        // Exclude if it has already been taken, UNLESS it's the currently active break
+        if (takenBreaks.includes(type) && attendance?.breakType !== type) {
+          continue;
+        }
+
         const remainingMinutes = calculateRemainingBreakTime(type, now);
         if (remainingMinutes > 0) {
           availableBreaks.push({
@@ -692,6 +712,12 @@ export const updateStatus = async (req, res) => {
         attendance.status = 'Present';
       }
     } else if (breakType && BREAK_CONFIG[breakType]) {
+      if (attendance.takenBreaks && attendance.takenBreaks.includes(breakType)) {
+        return res.status(400).json({
+          success: false,
+          message: `${BREAK_CONFIG[breakType].label} break has already been taken today`
+        });
+      }
       const breakLabel = BREAK_CONFIG[breakType].label;
       attendance.onlineStatus = breakLabel;
       attendance.breakType = breakType;
@@ -699,6 +725,13 @@ export const updateStatus = async (req, res) => {
       
       const remainingMinutes = calculateRemainingBreakTime(breakType, new Date());
       attendance.breakRemainingSeconds = Math.floor(remainingMinutes * 60);
+
+      if (!attendance.takenBreaks) {
+        attendance.takenBreaks = [];
+      }
+      if (!attendance.takenBreaks.includes(breakType)) {
+        attendance.takenBreaks.push(breakType);
+      }
     } else {
       attendance.onlineStatus = 'Offline';
       attendance.breakType = null;
