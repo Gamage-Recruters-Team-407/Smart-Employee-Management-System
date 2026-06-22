@@ -1,7 +1,7 @@
 import { Route, Routes, Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
-import { MockAuthProvider } from "./context/MockAuthContext";
 import { BadgeProvider } from "./context/BadgeContext";
+
 
 // ─── PAGES & COMPONENTS IMPORTS ─────────────────────────────────────────────
 import Login from "./pages/Login";
@@ -48,50 +48,48 @@ const ProtectedRoute = ({ children }) => {
 // ────────────────────────────────────────────────────────────────────────────
 function App() {
   return (
-    <MockAuthProvider>
-      <BadgeProvider>
-        <Routes>
+    <BadgeProvider>
+      <Routes>
         {/* 🔓 Public Routes (ඕනෑම අයෙකුට පිවිසිය හැක) */}
         <Route path="/login" element={<Login />} />
         <Route path="/auth/google/callback" element={<GoogleAuthCallback />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password/:token" element={<ResetPassword />} />
 
-        {/* 🔐 Protected Dashboard Routes (ලොග් වූ අයට පමණි) */}
+      {/* 🔐 Protected Dashboard Routes (ලොග් වූ අයට පමණි) */}
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        }
+      >
+        {/* Dashboard Shell එක ඇතුළත තියෙන Sub-Routes */}
+        <Route index element={<DashboardHome />} />
+        <Route path="employees" element={<Employees />} />
+        <Route path="employees/:id" element={<EmployeeAccount />} />
+        <Route path="attendance" element={<Attendance />} />
+        <Route path="leaves" element={<Leave />} />
+        <Route path="payroll" element={<Payroll />} />
+        <Route path="performance" element={<Performance />} />
+        <Route path="tasks" element={<TasksRouter />} />
         <Route
-          path="/"
+          path="tasks/manage"
           element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
+            <ManagerRoute>
+              <Tasks />
+            </ManagerRoute>
           }
-        >
-          {/* Dashboard Shell එක ඇතුළත තියෙන Sub-Routes */}
-          <Route index element={<DashboardHome />} />
-          <Route path="employees" element={<Employees />} />
-          <Route path="employees/:id" element={<EmployeeAccount />} />
-          <Route path="attendance" element={<Attendance />} />
-          <Route path="leaves" element={<Leave />} />
-          <Route path="payroll" element={<Payroll />} />
-          <Route path="performance" element={<Performance />} />
-          <Route path="tasks" element={<TasksRouter />} />
-          <Route
-            path="tasks/manage"
-            element={
-              <ManagerRoute>
-                <Tasks />
-              </ManagerRoute>
-            }
-          />
-          <Route path="my-tasks" element={<TasksRouter />} />
-          <Route path="notifications" element={<Notifications />} />
-        </Route>
+        />
+        <Route path="my-tasks" element={<TasksRouter />} />
+        <Route path="notifications" element={<Notifications />} />
+      </Route>
 
-        {/* 🔄 වැරදි Route එකක් ගැහුවොත් Auto මුල් පිටුවට හරවා යවයි (Catch-all) */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-      </BadgeProvider>
-    </MockAuthProvider>
+      {/* 🔄 වැරදි Route එකක් ගැහුවොත් Auto මුල් පිටුවට හරවා යවයි (Catch-all) */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+    </BadgeProvider>
   );
 }
 

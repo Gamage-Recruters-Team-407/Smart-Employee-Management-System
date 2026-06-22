@@ -328,7 +328,7 @@ export const updateEmployee = async (req, res) => {
     const updatedEmployee = await Employee.findByIdAndUpdate(
       req.params.id,
       { $set: updateData },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     );
 
     // Track Audit Log changes for the allowed modified parameters

@@ -1,4 +1,3 @@
-
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useBadges } from "../../context/BadgeContext";
@@ -18,40 +17,41 @@ import {
 const Sidebar = ({ isOpen }) => {
   const location = useLocation();
   const { user } = useAuth();
-  const { canManageTasks, isHrManager } = useTaskCapabilities();
+  const { canManageTasks } = useTaskCapabilities();
   const { unreadNotifications, activeTasks } = useBadges();
 
   const taskNavItems =
-  user?.role === "Admin" || canManageTasks
-    ? [
-        {
-          icon: CheckSquare,
-          label: "Task Management",
-          path: "/tasks/manage",
-        },
-      ]
-    : [
-        {
-          icon: CheckSquare,
-          label: "My Tasks",
-          path: "/tasks",
-        },
-      ];
+    user?.role === "Admin" || canManageTasks
+      ? [
+          {
+            icon: CheckSquare,
+            label: "Task Management",
+            path: "/tasks/manage",
+          },
+        ]
+      : [
+          {
+            icon: CheckSquare,
+            label: "My Tasks",
+            path: "/tasks",
+          },
+        ];
 
   const navItems = [
     { icon: Home, label: "Dashboard", path: "/" },
 
+    // Employees - Only for Admin and HR (hide for Employee)
     ...(user?.role !== "Employee"
-  ? [{ icon: Users, label: "Employees", path: "/employees" }]
-  : []),
+      ? [{ icon: Users, label: "Employees", path: "/employees" }]
+      : []),
 
-    { icon: Clock, label: "Attendance", path: "/attendance" },
+    // Attendance - Hide for Employees
+    ...(user?.role !== "Employee"
+      ? [{ icon: Clock, label: "Attendance", path: "/attendance" }]
+      : []),
+
     { icon: Calendar, label: "Leaves", path: "/leaves" },
-
-    
     { icon: DollarSign, label: "Payroll", path: "/payroll" },
-
-    // { icon: DollarSign, label: "Payroll", path: "/payroll" },
     { icon: Award, label: "Performance", path: "/performance" },
     ...taskNavItems,
     { icon: Bell, label: "Notifications", path: "/notifications" },

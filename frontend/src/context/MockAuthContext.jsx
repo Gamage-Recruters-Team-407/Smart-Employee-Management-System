@@ -11,14 +11,12 @@ const MockAuthContext = createContext(null);
 /**
  * TEMPORARY: simulates logged-in employee via localStorage + header.
  * FIX: Added loading loops prevention and reference checks.
->>>>>>> 687d49e7c29b8cad9283c8b8232a0c5e85b99593
  */
 export const MockAuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // ✅ LocalStorage එකට දත්ත දමා සජීවීව User ව අප්ඩේට් කරන ශ්‍රිතය
   const applyEmployee = useCallback((employee) => {
     if (!employee?._id) return;
     
@@ -33,27 +31,53 @@ export const MockAuthProvider = ({ children }) => {
 
     localStorage.setItem(MOCK_USER_STORAGE_KEY, employee._id);
     
-    // 💡 Infinite loop එකක් වීම වැළැක්වීමට, දැනට ඉන්න user ම නම් ආයෙ setState කරන්නේ නැත
     setUser((prevUser) => {
       if (prevUser?._id === mockUser._id) return prevUser;
       return mockUser;
     });
   }, []);
 
+  // ✅ Safe array extraction helper
+  const extractEmployeesArray = useCallback((response) => {
+    // If response is an array, return it directly
+    if (Array.isArray(response)) {
+      return response;
+    }
+    // If response has a data property that is an array
+    if (response && Array.isArray(response.data)) {
+      return response.data;
+    }
+    // If response has a data property that has a data property (nested)
+    if (response?.data && Array.isArray(response.data.data)) {
+      return response.data.data;
+    }
+    // If response has a results property
+    if (response && Array.isArray(response.results)) {
+      return response.results;
+    }
+    // Fallback: empty array
+    console.warn('Unexpected response format for employees:', response);
+    return [];
+  }, []);
+
   // ✅ මුල් වරට ඇප් එක ලෝඩ් වෙද්දී පමණක් සෙස්ෂන් එක හදන ශ්‍රිතය
   const loadMockSession = useCallback(async () => {
     try {
-      const list = await API.get("/employees");
-      setEmployees(list.data || list); // Backend එකෙන් res.data ආවොත් ඒක ගනී
+      const response = await API.get("/employees");
+      
+      // Extract the employees array safely
+      const employeesList = extractEmployeesArray(response);
+      setEmployees(employeesList);
 
       const savedId =
         localStorage.getItem(MOCK_USER_STORAGE_KEY) ||
         import.meta.env.VITE_MOCK_EMPLOYEE_ID;
 
+      // Use the extracted list
       const match =
-        list.find((e) => e._id === savedId) ||
-        list.find((e) => e.email === import.meta.env.VITE_MOCK_EMPLOYEE_EMAIL) ||
-        list[0];
+        employeesList.find((e) => e._id === savedId) ||
+        employeesList.find((e) => e.email === import.meta.env.VITE_MOCK_EMPLOYEE_EMAIL) ||
+        employeesList[0];
 
       if (match) {
         applyEmployee(match);
@@ -63,31 +87,33 @@ export const MockAuthProvider = ({ children }) => {
     } catch (err) {
       console.error("Mock auth load failed:", err);
     } finally {
-      setLoading(false); // ✅ හැමවිටම අවසානයේ loading false වන බව සහතිකයි
+      setLoading(false);
     }
-  }, [applyEmployee]);
+  }, [applyEmployee, extractEmployeesArray]);
 
   // ─── Synchronous-Safe Session Loader ────────────────────────────────────────
   useEffect(() => {
-    let ignore = false; // 💡 Strict Mode එකෙන් එන double render එක පාලනය කිරීමට flag එකක් සකසයි
+    let ignore = false;
 
     const runSession = async () => {
       try {
-        const list = await API.get("/employees");
+        const response = await API.get("/employees");
         
-        // යම් හෙයකින් Strict Mode එක නිසා Component එක Unmount වුණොත් මේ දත්ත බාරගන්නේ නැත
-        if (ignore) return; 
+        if (ignore) return;
 
-        setEmployees(list.data || list);
+        // Extract the employees array safely
+        const employeesList = extractEmployeesArray(response);
+        setEmployees(employeesList);
 
         const savedId =
           localStorage.getItem(MOCK_USER_STORAGE_KEY) ||
           import.meta.env.VITE_MOCK_EMPLOYEE_ID;
 
+        // Use the extracted list
         const match =
-          list.find((e) => e._id === savedId) ||
-          list.find((e) => e.email === import.meta.env.VITE_MOCK_EMPLOYEE_EMAIL) ||
-          list[0];
+          employeesList.find((e) => e._id === savedId) ||
+          employeesList.find((e) => e.email === import.meta.env.VITE_MOCK_EMPLOYEE_EMAIL) ||
+          employeesList[0];
 
         if (match) {
           applyEmployee(match);
@@ -110,7 +136,7 @@ export const MockAuthProvider = ({ children }) => {
       ignore = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // ✅ දැන් Dependencies සහ Async Cleanups ඔක්කොම 100% ක් ලූප්-ආරක්ෂිතයි!
+  }, [applyEmployee, extractEmployeesArray]);
 
   const switchMockUser = (employeeId) => {
     const emp = employees.find((e) => e._id === employeeId);
@@ -139,7 +165,6 @@ export const MockAuthProvider = ({ children }) => {
   );
 };
 
-// 💡 Named Function එකක් ලෙස export කිරීමෙන් TypeScript/Linter ගැටලු මඟහැරේ
 export function useMockAuth() {
   const context = useContext(MockAuthContext);
   if (!context) {

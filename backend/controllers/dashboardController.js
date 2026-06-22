@@ -7,17 +7,19 @@ export const getDashboardStats = async (req, res) => {
   try {
     const today = new Date().toISOString().split("T")[0];
 
+    // Count all active employees (present, late, online)
     const totalEmployees = await Employee.countDocuments({ status: "Active" });
-    
-    const presentToday = await Attendance.countDocuments({ 
-      date: today, 
-      checkInTime: { $exists: true, $ne: null } 
+
+    // Count present today (checkInTime exists - includes late check-ins)
+    const presentToday = await Attendance.countDocuments({
+      date: today,
+      checkInTime: { $exists: true, $ne: null }
     });
-    
-    const onLeave = await Leave.countDocuments({ 
-      status: "Approved", 
-      startDate: { $lte: new Date(today) }, 
-      endDate: { $gte: new Date(today) } 
+
+    const onLeave = await Leave.countDocuments({
+      status: "Approved",
+      startDate: { $lte: new Date(today) },
+      endDate: { $gte: new Date(today) }
     });
 
     let avgPerformance = 0;
@@ -50,18 +52,18 @@ export const getRecentActivity = async (req, res) => {
       .populate("employee", "firstName lastName");
 
     const activities = [
-    ...recentAttendance.map((a) => ({
+      ...recentAttendance.map((a) => ({
         type: "attendance",
         name: `${a.employee?.firstName} ${a.employee?.lastName}`,
         message: `checked in at ${a.checkInTime}`,
         date: a.createdAt,
-    })),
-    ...recentLeaves.map((l) => ({
+      })),
+      ...recentLeaves.map((l) => ({
         type: "leave",
         name: `${l.employee?.firstName} ${l.employee?.lastName}`,
         message: `applied for ${l.leaveType} Leave`,
         date: l.createdAt,
-    })),
+      })),
     ]
       .sort((a, b) => new Date(b.date) - new Date(a.date))
       .slice(0, 5);
