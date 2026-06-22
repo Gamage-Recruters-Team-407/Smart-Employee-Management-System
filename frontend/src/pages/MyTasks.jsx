@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import API from "../services/api";
 import { useAuth } from "../context/AuthContext";
+import { useBadges } from "../context/BadgeContext";
 import { CheckSquare, User } from "lucide-react";
 import DailyProgressForm from "../components/DailyProgressForm";
 import { ClipboardList } from "lucide-react";
@@ -40,11 +41,14 @@ const MyTasks = () => {
     fetchMyTasks();
   }, [fetchMyTasks]);
 
+  const { refreshBadges } = useBadges();
+
   const handleProgressChange = async (taskId, progress) => {
     try {
       const res = await API.patch(`/tasks/${taskId}/progress`, { progress });
       const updated = res?.data ?? res;
       setTasks((prev) => prev.map((t) => (t._id === taskId ? updated : t)));
+      refreshBadges();
     } catch (err) {
       alert(err.message || "Failed to update progress");
     }
