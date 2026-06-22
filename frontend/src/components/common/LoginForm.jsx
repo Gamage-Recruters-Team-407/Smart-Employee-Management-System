@@ -85,7 +85,7 @@ const AuthForm = ({
         </div>
       )}
 
-      {/* Name (Sign Up වලදී පමණක් පෙන්වයි) */}
+      {/* Name (Sign Up ) */}
       {isSignUp && (
         <div>
           <label htmlFor="name" className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">
@@ -160,7 +160,7 @@ const AuthForm = ({
         {fieldErrors.password && <p className="mt-1 text-xs text-red-600">{fieldErrors.password}</p>}
       </div>
 
-      {/* Confirm Password (Sign Up වලදී පමණක් පෙන්වයි) */}
+      {/* Confirm Password (Sign Up ) */}
       {isSignUp && (
         <div>
           <label htmlFor="confirmPassword" className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">
@@ -183,7 +183,7 @@ const AuthForm = ({
         </div>
       )}
 
-      {/* Remember me & Forgot Password (Sign In වලදී පමණක් පෙන්වයි) */}
+      {/* Remember me & Forgot Password (Sign In) */}
       {!isSignUp && (
         <div className="flex items-center justify-between text-sm py-1">
           <label className="flex items-center gap-2 cursor-pointer select-none">

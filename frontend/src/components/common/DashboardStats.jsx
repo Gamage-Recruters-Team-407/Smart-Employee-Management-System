@@ -1,16 +1,49 @@
 import { useState, useEffect } from 'react';
 import { Users, Clock, CalendarCheck, TrendingUp } from 'lucide-react';
 import API from '../../services/api';
+import { io } from 'socket.io-client';
 
 const DashboardStats = () => {
   const [stats, setStats] = useState({
     totalEmployees: 0, presentToday: 0, onLeave: 0, avgPerformance: 0
   });
 
-  useEffect(() => {
+  const fetchStats = () => {
     API.get('/dashboard/stats')
       .then(res => setStats(res.data.data))
       .catch(err => console.error('Failed to fetch stats:', err));
+  };
+
+  useEffect(() => {
+    fetchStats();
+
+    // Poll every 30 seconds as backup
+    const interval = setInterval(fetchStats, 30000);
+
+    let socket = null;
+    try {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
+      socket = io(backendUrl);
+
+      socket.on("connect", () => {
+        console.log("DashboardStats socket connected");
+        socket.emit("join-admin");
+      });
+
+      socket.on("attendance-update", (data) => {
+        console.log("Stats socket update received: refetching stats...");
+        fetchStats();
+      });
+    } catch (e) {
+      console.warn("Socket.IO connection failed in DashboardStats:", e);
+    }
+
+    return () => {
+      clearInterval(interval);
+      if (socket) {
+        socket.disconnect();
+      }
+    };
   }, []);
 
   const cards = [

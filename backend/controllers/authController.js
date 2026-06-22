@@ -149,7 +149,7 @@ export const logoutUser = async (req, res) => {
         logoutTime: new Date(),
         activityStatus: false,
       },
-      { new: true }
+      { returnDocument: "after" }
     );
 
     if (!attendance) {

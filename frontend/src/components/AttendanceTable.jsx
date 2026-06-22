@@ -1,5 +1,3 @@
-import React from "react";
-
 const AttendanceTable = ({ employees, attendanceData, markAttendance, loading }) => {
   const getStatusColor = (status) => {
     switch (status) {
