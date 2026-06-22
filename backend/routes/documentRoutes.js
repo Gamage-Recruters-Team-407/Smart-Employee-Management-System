@@ -1,12 +1,12 @@
 import express from "express";
 import upload from "../config/multer.js";
 import { uploadDocument, deleteDocument } from "../controllers/documentController.js";
-import mockAuth from "../middleware/authMiddleware.js";
+import { protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router({ mergeParams: true }); // inherit :id from parent router
 
-// Apply mock auth middleware to all document routes
-router.use(mockAuth);
+// Apply protect middleware to all document routes
+router.use(protect);
 
 /**
  * POST /api/employees/:id/documents
