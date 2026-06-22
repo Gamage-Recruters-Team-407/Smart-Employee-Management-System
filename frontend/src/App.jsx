@@ -84,6 +84,7 @@ function App() {
           />
           <Route path="my-tasks" element={<TasksRouter />} />
           <Route path="notifications" element={<Notifications />} />
+          <Route path="issues" element={<Issues />} />
         </Route>
 
         {/* 🔄 වැරදි Route එකක් ගැහුවොත් Auto මුල් පිටුවට හරවා යවයි (Catch-all) */}

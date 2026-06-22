@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { CheckSquare, User } from "lucide-react";
 import DailyProgressForm from "../components/DailyProgressForm";
 import { ClipboardList } from "lucide-react";
-import IssueReportingCard from "../components/IssueReportingCard";
+import IssueReportButton from "../components/IssueReportButton";
 
 const STATUS_STYLES = {
   "To Do": "bg-slate-100 text-slate-700",
@@ -151,7 +151,7 @@ const MyTasks = () => {
         {showReport && <DailyProgressForm />}
       </div>
 
-      <IssueReportingCard />
+      <IssueReportButton />
     </div>
   );
 };
