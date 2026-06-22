@@ -9,8 +9,8 @@ import Employee from "../models/Employee.js";
 const formatDate = (date) =>
   date
     ? new Date(date).toLocaleDateString(
-        "en-US"
-      )
+      "en-US"
+    )
     : "N/A";
 
 const getEmployeeDisplayName = (
@@ -22,9 +22,8 @@ const getEmployeeDisplayName = (
     employee.firstName ||
     employee.lastName
   ) {
-    return `${employee.firstName || ""} ${
-      employee.lastName || ""
-    }`.trim();
+    return `${employee.firstName || ""} ${employee.lastName || ""
+      }`.trim();
   }
 
   return employee.name || "Employee";
@@ -129,7 +128,7 @@ export const getAllLeaves =
           "employee",
           "firstName lastName email department"
         )
-        .sort({ createdAt: -1 });  
+        .sort({ createdAt: -1 });
 
       res.status(200).json(leaves);
     } catch (error) {
@@ -392,7 +391,7 @@ export const getLeaveBalance =
     }
   };
 
-  export const revertLeaveStatus = async (req, res) => {
+export const revertLeaveStatus = async (req, res) => {
   try {
     const { id } = req.params;
 

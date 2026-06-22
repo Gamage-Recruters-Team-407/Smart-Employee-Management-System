@@ -39,27 +39,27 @@ const isProduction = process.env.NODE_ENV === "production";
 app.use(cors({
   origin: isProduction
     ? (origin, callback) => {
-        const isExplicitlyAllowed =
-          allowedOrigins.includes(origin) || origin === process.env.FRONTEND_URL;
+      const isExplicitlyAllowed =
+        allowedOrigins.includes(origin) || origin === process.env.FRONTEND_URL;
 
-        let isLocalDevOrigin = false;
-        if (origin) {
-          try {
-            const parsed = new URL(origin);
-            isLocalDevOrigin =
-              (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1") &&
-              ["3000", "5173", "5174"].includes(parsed.port);
-          } catch {
-            isLocalDevOrigin = false;
-          }
-        }
-
-        if (!origin || isExplicitlyAllowed || isLocalDevOrigin) {
-          callback(null, true);
-        } else {
-          callback(new Error("Not allowed by CORS"));
+      let isLocalDevOrigin = false;
+      if (origin) {
+        try {
+          const parsed = new URL(origin);
+          isLocalDevOrigin =
+            (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1") &&
+            ["3000", "5173", "5174"].includes(parsed.port);
+        } catch {
+          isLocalDevOrigin = false;
         }
       }
+
+      if (!origin || isExplicitlyAllowed || isLocalDevOrigin) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    }
     : true,
   credentials: true,
   exposedHeaders: ["Content-Disposition"]

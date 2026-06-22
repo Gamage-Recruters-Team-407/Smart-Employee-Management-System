@@ -2,10 +2,21 @@ import Employee from "../models/Employee.js";
 import Attendance from "../models/Attendance.js";
 import Leave from "../models/Leave.js";
 import Performance from "../models/Performance.js";
+import SimpleCache from "../utils/cache.js";
+
+const statsCache = new SimpleCache(15000); // 15 seconds TTL
 
 export const getDashboardStats = async (req, res) => {
   try {
     const today = new Date().toISOString().split("T")[0];
+
+    const cachedData = statsCache.get("dashboard_stats");
+    if (cachedData) {
+      return res.status(200).json({
+        success: true,
+        data: cachedData
+      });
+    }
 
     // Count all active employees (present, late, online)
     const totalEmployees = await Employee.countDocuments({ status: "Active" });
@@ -30,9 +41,12 @@ export const getDashboardStats = async (req, res) => {
       avgPerformance = Math.round(perfResult[0].avg * 10) / 10;
     }
 
+    const statsData = { totalEmployees, presentToday, onLeave, avgPerformance };
+    statsCache.set("dashboard_stats", statsData);
+
     res.status(200).json({
       success: true,
-      data: { totalEmployees, presentToday, onLeave, avgPerformance }
+      data: statsData
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

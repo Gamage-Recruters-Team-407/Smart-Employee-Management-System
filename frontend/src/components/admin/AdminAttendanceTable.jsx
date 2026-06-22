@@ -119,10 +119,10 @@ const AdminAttendanceTable = () => {
       fetchAttendanceRecords();
     }, 0);
     
-    // Refresh every 30 seconds
+    // Refresh every 180 seconds (3 minutes)
     const interval = setInterval(() => {
       fetchAttendanceRecords();
-    }, 30000);
+    }, 180000);
     
     return () => {
       clearTimeout(timerId);

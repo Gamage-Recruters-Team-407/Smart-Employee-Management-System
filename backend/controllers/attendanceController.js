@@ -64,7 +64,7 @@ export const recordLogout = async (req, res) => {
     });
   }
 };
-  
+
 // ─── HELPER FUNCTIONS ──────────────────────────────────────────────────────
 const getMinutesSinceMidnight = (date = new Date()) => {
   return date.getHours() * 60 + date.getMinutes();
@@ -88,30 +88,30 @@ const calculateRemainingBreakTime = (breakType, now = new Date()) => {
   const currentMinutes = getMinutesSinceMidnight(now);
   const endMinutes = config.end.hours * 60 + config.end.minutes;
   const remainingUntilEnd = Math.max(0, endMinutes - currentMinutes);
-  
+
   return Math.min(config.duration, remainingUntilEnd);
 };
 
 const getCurrentBreakType = (now = new Date()) => {
   const currentMinutes = getMinutesSinceMidnight(now);
-  
+
   for (const [type, config] of Object.entries(BREAK_CONFIG)) {
     const startMinutes = config.start.hours * 60 + config.start.minutes;
     const endMinutes = config.end.hours * 60 + config.end.minutes;
-    
+
     if (currentMinutes >= startMinutes && currentMinutes <= endMinutes) {
       return type;
     }
   }
-  
+
   return null;
 };
 
 const getCurrentTimeString = () => {
-  return new Date().toLocaleTimeString('en-US', { 
-    hour12: false, 
-    hour: '2-digit', 
-    minute: '2-digit' 
+  return new Date().toLocaleTimeString('en-US', {
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit'
   });
 };
 
@@ -166,9 +166,9 @@ export const getMyHistory = async (req, res) => {
     const records = await Attendance.find({
       employee: employeeId
     })
-    .sort({ date: -1 })
-    .limit(parseInt(limit))
-    .populate('employee', 'firstName lastName employeeId');
+      .sort({ date: -1 })
+      .limit(parseInt(limit))
+      .populate('employee', 'firstName lastName employeeId');
 
     res.status(200).json({
       success: true,
@@ -214,7 +214,7 @@ export const checkIn = async (req, res) => {
     const now = new Date();
     const minutes = now.getHours() * 60 + now.getMinutes();
     const onTime = minutes >= 510 && minutes <= 570;
-    
+
     attendance.checkInTime = checkInTime || getCurrentTimeString();
     attendance.status = onTime ? 'Present' : 'Late';
     attendance.onlineStatus = 'Online';
@@ -343,7 +343,7 @@ export const markAttendance = async (req, res) => {
     const onTimeLimit = 9 * 60 + 30;
     const isOnTime = minutes <= onTimeLimit;
     const statusText = isOnTime ? 'Present' : 'Late';
-    
+
     attendance.checkInTime = getCurrentTimeString();
     attendance.status = statusText;
     attendance.onlineStatus = 'Online';
@@ -616,7 +616,7 @@ export const getBreakStatus = async (req, res) => {
       const totalAllowedSeconds = totalAllowedMinutes * 60;
       const elapsedSeconds = Math.floor((now.getTime() - startTime.getTime()) / 1000);
       const remainingSeconds = Math.max(0, totalAllowedSeconds - elapsedSeconds);
-      
+
       currentBreak = {
         type: attendance.breakType,
         label: attendance.onlineStatus,
@@ -650,7 +650,7 @@ export const updateStatus = async (req, res) => {
   try {
     const { status, breakType } = req.body;
     let employeeId = req.body.employeeId;
-    
+
     // Resolve the actual Employee document ID
     let resolvedEmployeeId = null;
     if (employeeId) {
@@ -706,7 +706,7 @@ export const updateStatus = async (req, res) => {
       attendance.breakType = null;
       attendance.breakStartTime = null;
       attendance.breakRemainingSeconds = 0;
-      
+
       if (!attendance.checkInTime) {
         attendance.checkInTime = getCurrentTimeString();
         attendance.status = 'Present';
@@ -722,7 +722,7 @@ export const updateStatus = async (req, res) => {
       attendance.onlineStatus = breakLabel;
       attendance.breakType = breakType;
       attendance.breakStartTime = new Date();
-      
+
       const remainingMinutes = calculateRemainingBreakTime(breakType, new Date());
       attendance.breakRemainingSeconds = Math.floor(remainingMinutes * 60);
 
@@ -821,7 +821,7 @@ export const getWeeklyReport = async (req, res) => {
     }
 
     const { employeeId } = req.params;
-    
+
     const employee = await Employee.findOne({ employeeId });
     if (!employee) {
       return res.status(404).json({ message: "Employee not found" });

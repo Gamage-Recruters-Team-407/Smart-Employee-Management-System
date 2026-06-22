@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Users, Clock, CalendarCheck, TrendingUp } from 'lucide-react';
 import API from '../../services/api';
 import { io } from 'socket.io-client';
@@ -8,17 +8,25 @@ const DashboardStats = () => {
     totalEmployees: 0, presentToday: 0, onLeave: 0, avgPerformance: 0
   });
 
-  const fetchStats = () => {
+  const lastFetchTimeRef = useRef(0);
+
+  const fetchStats = useCallback((isSocketTriggered = false) => {
+    const now = Date.now();
+    if (isSocketTriggered && now - lastFetchTimeRef.current < 15000) {
+      console.log("Stats socket update throttled to prevent API flood");
+      return;
+    }
+    lastFetchTimeRef.current = now;
     API.get('/dashboard/stats')
       .then(res => setStats(res.data.data))
       .catch(err => console.error('Failed to fetch stats:', err));
-  };
+  }, []);
 
   useEffect(() => {
-    fetchStats();
+    fetchStats(false);
 
-    // Poll every 30 seconds as backup
-    const interval = setInterval(fetchStats, 30000);
+    // Poll every 60 seconds as backup
+    const interval = setInterval(() => fetchStats(false), 60000);
 
     let socket = null;
     try {
@@ -32,7 +40,7 @@ const DashboardStats = () => {
 
       socket.on("attendance-update", (data) => {
         console.log("Stats socket update received: refetching stats...");
-        fetchStats();
+        fetchStats(true);
       });
     } catch (e) {
       console.warn("Socket.IO connection failed in DashboardStats:", e);
@@ -44,7 +52,7 @@ const DashboardStats = () => {
         socket.disconnect();
       }
     };
-  }, []);
+  }, [fetchStats]);
 
   const cards = [
     { title: "Total Employees", value: stats.totalEmployees, icon: Users, iconBg: "bg-indigo-100", iconColor: "text-indigo-600" },
