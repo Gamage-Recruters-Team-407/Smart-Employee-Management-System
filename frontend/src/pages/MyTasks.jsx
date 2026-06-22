@@ -3,6 +3,9 @@ import API from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import { useBadges } from "../context/BadgeContext";
 import { CheckSquare, User } from "lucide-react";
+import DailyProgressForm from "../components/DailyProgressForm";
+import { ClipboardList } from "lucide-react";
+import IssueReportButton from "../components/IssueReportButton";
 
 const STATUS_STYLES = {
   "To Do": "bg-slate-100 text-slate-700",
@@ -16,6 +19,7 @@ const MyTasks = () => {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [showReport, setShowReport] = useState(false);
 
   const fetchMyTasks = useCallback(async () => {
     if (!user?._id) return;
@@ -138,6 +142,20 @@ const MyTasks = () => {
           />
         </div>
       )}
+
+      <div className="mt-10 border-t border-gray-200 pt-6">
+        <button
+          type="button"
+          onClick={() => setShowReport((v) => !v)}
+          className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition"
+        >
+          <ClipboardList size={16} />
+          {showReport ? "Hide Daily Progress Report" : "Daily Progress Report"}
+        </button>
+        {showReport && <DailyProgressForm />}
+      </div>
+
+      <IssueReportButton />
     </div>
   );
 };
@@ -221,6 +239,9 @@ const TaskRow = ({ task, onProgress, onComment }) => {
           </button>
         </form>
       )}
+
+      <DailyProgressForm />
+      
     </div>
   );
 };

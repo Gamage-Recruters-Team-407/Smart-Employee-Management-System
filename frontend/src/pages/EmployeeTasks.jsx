@@ -6,9 +6,12 @@ import {
   Loader2,
   AlertCircle,
   Filter,
+  ClipboardList,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import API from "../services/api";
+import DailyProgressForm from "../components/DailyProgressForm";
+import IssueReportButton from "../components/IssueReportButton";
 
 const STATUS_STYLES = {
   "To Do": "bg-slate-100 text-slate-700 border-slate-200",
@@ -36,6 +39,7 @@ const EmployeeTasks = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [showReport, setShowReport] = useState(false);
 
   const fetchMyTasks = useCallback(async () => {
     setLoading(true);
@@ -238,6 +242,21 @@ const EmployeeTasks = () => {
           )}
         </div>
       )}
+
+      <div className="mt-10 border-t border-gray-200 pt-6">
+        <button
+          type="button"
+          onClick={() => setShowReport((v) => !v)}
+          className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition"
+        >
+          <ClipboardList size={16} />
+          {showReport ? "Hide Daily Progress Report" : "Daily Progress Report"}
+        </button>
+        {showReport && <DailyProgressForm />}
+
+        <IssueReportButton />
+      </div>
+      
     </div>
   );
 };

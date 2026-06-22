@@ -20,6 +20,7 @@ import TasksRouter from "./pages/TasksRouter";
 import Tasks from "./pages/Tasks";
 import ManagerRoute from "./components/ManagerRoute";
 import Notifications from "./pages/Notifications";
+import Issues from "./pages/Issues";
 
 // ────────────────────────────────────────────────────────────────────────────
 // 🔐 PROTECTED ROUTE GUARD
@@ -56,35 +57,36 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password/:token" element={<ResetPassword />} />
 
-      {/* 🔐 Protected Dashboard Routes (ලොග් වූ අයට පමණි) */}
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
-        }
-      >
-        {/* Dashboard Shell එක ඇතුළත තියෙන Sub-Routes */}
-        <Route index element={<DashboardHome />} />
-        <Route path="employees" element={<Employees />} />
-        <Route path="employees/:id" element={<EmployeeAccount />} />
-        <Route path="attendance" element={<Attendance />} />
-        <Route path="leaves" element={<Leave />} />
-        <Route path="payroll" element={<Payroll />} />
-        <Route path="performance" element={<Performance />} />
-        <Route path="tasks" element={<TasksRouter />} />
+        {/* 🔐 Protected Dashboard Routes (ලොග් වූ අයට පමණි) */}
         <Route
-          path="tasks/manage"
+          path="/"
           element={
-            <ManagerRoute>
-              <Tasks />
-            </ManagerRoute>
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
           }
-        />
-        <Route path="my-tasks" element={<TasksRouter />} />
-        <Route path="notifications" element={<Notifications />} />
-      </Route>
+        >
+          {/* Dashboard Shell එක ඇතුළත තියෙන Sub-Routes */}
+          <Route index element={<DashboardHome />} />
+          <Route path="employees" element={<Employees />} />
+          <Route path="employees/:id" element={<EmployeeAccount />} />
+          <Route path="attendance" element={<Attendance />} />
+          <Route path="leaves" element={<Leave />} />
+          <Route path="payroll" element={<Payroll />} />
+          <Route path="performance" element={<Performance />} />
+          <Route path="tasks" element={<TasksRouter />} />
+          <Route
+            path="tasks/manage"
+            element={
+              <ManagerRoute>
+                <Tasks />
+              </ManagerRoute>
+            }
+          />
+          <Route path="my-tasks" element={<TasksRouter />} />
+          <Route path="notifications" element={<Notifications />} />
+          <Route path="issues" element={<Issues />} />
+        </Route>
 
       {/* 🔄 වැරදි Route එකක් ගැහුවොත් Auto මුල් පිටුවට හරවා යවයි (Catch-all) */}
       <Route path="*" element={<Navigate to="/" replace />} />
