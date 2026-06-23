@@ -140,7 +140,10 @@ export const payrollAPI = {
   update: (id, data) => API.put(`/payroll/${id}`, data),
   delete: (id) => API.delete(`/payroll/${id}`),
   generateBulk: (data) => API.post("/payroll/bulk", data),
-  getSummary: (month) => API.get(`/payroll/summary/${month}`),
+  getSummary: (monthStr) => {
+    const [year, month] = monthStr.split('-');
+    return API.get(`/payroll/summary/${month}/${year}`);
+  },
   getEmployees: () => API.get("/payroll/employees"),
   getPayslip: (id) => API.get(`/payroll/payslip/${id}`),
 };

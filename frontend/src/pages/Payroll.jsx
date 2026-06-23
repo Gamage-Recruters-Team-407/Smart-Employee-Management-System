@@ -20,8 +20,13 @@ const currentMonthStr = () => {
 
 const monthLabel = (m) => {
   if (!m) return '';
-  const [y, mo] = m.split('-');
-  return new Date(Number(y), Number(mo) - 1).toLocaleString('default', { month: 'long', year: 'numeric' });
+  // Handles "YYYY-MM" (the month picker value)
+  if (/^\d{4}-\d{1,2}$/.test(m)) {
+    const [y, mo] = m.split('-');
+    return new Date(Number(y), Number(mo) - 1).toLocaleString('default', { month: 'long', year: 'numeric' });
+  }
+  // Handles a stored month name like "June"
+  return m;
 };
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
@@ -41,8 +46,9 @@ const StatCard = ({ icon: Icon, label, value, color }) => (
 const StatusBadge = ({ status }) => {
   const map = {
     Paid: 'bg-green-100 text-green-700',
-    Processed: 'bg-blue-100 text-blue-700',
+    Approved: 'bg-blue-100 text-blue-700',
     Pending: 'bg-yellow-100 text-yellow-700',
+    Cancelled: 'bg-red-100 text-red-700',
   };
   return (
     <span className={`text-xs font-semibold px-3 py-1 rounded-full ${map[status] || 'bg-gray-100 text-gray-600'}`}>
@@ -74,13 +80,13 @@ const Payroll = () => {
   // Forms
   const [createForm, setCreateForm] = useState({
     employeeId: '', month: currentMonthStr(),
-    allowances: '', deductions: '', loans: '', notes: '',
+    allowances: '', deductions: '', loans: '', tax: '', notes: '',
   });
   const [bulkForm, setBulkForm] = useState({
     month: currentMonthStr(), allowanceRate: '10', deductionRate: '0',
   });
   const [editForm, setEditForm] = useState({
-    allowances: '', deductions: '', loans: '', status: '', notes: '',
+    allowances: '', deductions: '', loans: '', tax: '', status: '', notes: '',
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -140,11 +146,12 @@ const Payroll = () => {
         allowances: Number(createForm.allowances) || 0,
         deductions: Number(createForm.deductions) || 0,
         loans: Number(createForm.loans) || 0,
+        tax: Number(createForm.tax) || 0,
         notes: createForm.notes,
       });
       notify('Payroll record created successfully!');
       setShowCreateModal(false);
-      setCreateForm({ employeeId: '', month: currentMonthStr(), allowances: '', deductions: '', loans: '', notes: '' });
+      setCreateForm({ employeeId: '', month: currentMonthStr(), allowances: '', deductions: '', loans: '', tax: '', notes: '' });
       fetchPayrolls();
     } catch (err) {
       notify(err.response?.data?.message || 'Failed to create payroll.', true);
@@ -180,7 +187,8 @@ const Payroll = () => {
       allowances: payroll.allowances ?? '',
       deductions: payroll.deductions ?? '',
       loans: payroll.loans ?? '',
-      status: payroll.status || 'Processed',
+      tax: payroll.tax ?? '',
+      status: payroll.status || 'Pending',
       notes: payroll.notes || '',
     });
     setShowEditModal(true);
@@ -194,6 +202,7 @@ const Payroll = () => {
         allowances: Number(editForm.allowances) || 0,
         deductions: Number(editForm.deductions) || 0,
         loans: Number(editForm.loans) || 0,
+        tax: Number(editForm.tax) || 0,
         status: editForm.status,
         notes: editForm.notes,
       });
@@ -473,6 +482,15 @@ const Payroll = () => {
                 />
               </div>
               <div>
+                <label className={labelCls}>Tax (Rs)</label>
+                <input
+                  type="number" min="0" step="0.01" placeholder="0"
+                  value={createForm.tax}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, tax: e.target.value }))}
+                  className={inputCls}
+                />
+              </div>
+              <div>
                 <label className={labelCls}>Loan Deduction (Rs)</label>
                 <input
                   type="number" min="0" step="0.01" placeholder="0"
@@ -485,7 +503,7 @@ const Payroll = () => {
 
             <div className="bg-indigo-50 rounded-xl p-3 text-xs text-indigo-700">
               <strong>Formula:</strong> Net Salary = (Basic + Allowances) − (Deductions + Tax + Loans)<br/>
-              <span className="text-gray-500">Tax is calculated automatically based on annual income brackets.</span>
+              <span className="text-gray-500">Basic salary is taken from the selected employee&apos;s record. Tax is entered manually.</span>
             </div>
 
             <div>
@@ -546,7 +564,7 @@ const Payroll = () => {
             </div>
 
             <div className="bg-emerald-50 rounded-xl p-3 text-xs text-emerald-700">
-              Tax is calculated automatically for each employee based on their income bracket.
+              Records are created with tax and loans set to 0. Use Edit on any record to add tax or loan deductions afterward.
             </div>
 
             <ModalActions onCancel={() => setShowBulkModal(false)} submitting={submitting} label="Generate Payroll" color="emerald" />
@@ -563,7 +581,7 @@ const Payroll = () => {
           <form onSubmit={handleEdit} className="space-y-4">
             <div className="bg-gray-50 rounded-xl p-3 text-xs text-gray-600">
               <strong>Basic Salary:</strong> {fmt(selectedPayroll.basicSalary)} &nbsp;|&nbsp;
-              <strong>Month:</strong> {monthLabel(selectedPayroll.month)}
+              <strong>Month:</strong> {monthLabel(selectedPayroll.month)} {selectedPayroll.year}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -586,6 +604,15 @@ const Payroll = () => {
                 />
               </div>
               <div>
+                <label className={labelCls}>Tax (Rs)</label>
+                <input
+                  type="number" min="0" step="0.01"
+                  value={editForm.tax}
+                  onChange={(e) => setEditForm((f) => ({ ...f, tax: e.target.value }))}
+                  className={inputCls}
+                />
+              </div>
+              <div>
                 <label className={labelCls}>Loan Deduction (Rs)</label>
                 <input
                   type="number" min="0" step="0.01"
@@ -602,8 +629,9 @@ const Payroll = () => {
                   className={inputCls}
                 >
                   <option value="Pending">Pending</option>
-                  <option value="Processed">Processed</option>
+                  <option value="Approved">Approved</option>
                   <option value="Paid">Paid</option>
+                  <option value="Cancelled">Cancelled</option>
                 </select>
               </div>
             </div>
