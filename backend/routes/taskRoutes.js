@@ -10,6 +10,7 @@ import {
   addTaskComment,
   deleteTask,
   getTaskCapabilities,
+  getActiveTaskCount,
 } from "../controllers/taskController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import {
@@ -23,6 +24,7 @@ const router = express.Router();
 
 // Employee: own tasks | HR Manager (dept HR + designation Manager): full management
 router.get("/capabilities", protect, getTaskCapabilities);
+router.get("/active-count", protect, getActiveTaskCount);
 router.get("/my", protect, getMyTasks);
 
 router.get("/", protect, authorizeTaskManager, getTasks);

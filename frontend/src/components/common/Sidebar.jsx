@@ -1,5 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { useBadges } from "../../context/BadgeContext";
 import useTaskCapabilities from "../../hooks/useTaskCapabilities";
 import {
   Home,
@@ -17,6 +18,7 @@ const Sidebar = ({ isOpen }) => {
   const location = useLocation();
   const { user } = useAuth();
   const { canManageTasks } = useTaskCapabilities();
+  const { unreadNotifications, activeTasks } = useBadges();
 
   const taskNavItems =
     user?.role === "Admin" || canManageTasks
@@ -89,19 +91,35 @@ const Sidebar = ({ isOpen }) => {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition ${
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition relative ${
                   active
                     ? "bg-indigo-50 text-indigo-600"
                     : "text-gray-700 hover:bg-gray-50"
                 }`}
               >
-                <Icon size={20} />
+                <div className="relative">
+                  <Icon size={20} />
+                  {item.label === "Notifications" && unreadNotifications > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                      <span className="relative inline-flex items-center justify-center rounded-full bg-red-500 text-white text-[9px] font-bold px-1 min-w-[14px] h-[14px]">
+                        {unreadNotifications}
+                      </span>
+                    </span>
+                  )}
+                </div>
 
-                <span
-                  className={`${isOpen ? "block" : "hidden lg:block"}`}
-                >
-                  {item.label}
-                </span>
+                <div className={`flex items-center justify-between w-full ${isOpen ? "flex" : "hidden lg:flex"}`}>
+                  <span>{item.label}</span>
+                  
+                  <div className="flex gap-2 items-center">
+                    {item.label === "My Tasks" && activeTasks > 0 && (
+                      <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                        {activeTasks}
+                      </span>
+                    )}
+                  </div>
+                </div>
               </Link>
             );
           })}

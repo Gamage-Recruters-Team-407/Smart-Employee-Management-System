@@ -11,6 +11,7 @@ import {
   TASK_STATUSES,
   buildTaskCapabilities,
 } from "../utils/taskPermissions.js";
+import { createNotificationForUser } from "./notificationController.js";
 
 const STATUSES = TASK_STATUSES;
 
@@ -242,6 +243,20 @@ export const createTask = async (req, res) => {
       }
     }
 
+    // Create in-app notification
+    if (assignee.employee?.userId) {
+      try {
+        await createNotificationForUser({
+          userId: assignee.employee.userId,
+          title: "New Task Assigned",
+          message: `You have been assigned a new task: ${title}`,
+          type: "task",
+        });
+      } catch (notifError) {
+        console.error("[notification] Task assigned notification failed:", notifError.message);
+      }
+    }
+
     res.status(201).json(populated);
   } catch (error) {
     res.status(500).json({
@@ -463,6 +478,39 @@ export const getTasksByEmployee = async (req, res) => {
       .sort({ createdAt: -1 });
 
     res.status(200).json(tasks);
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+// Get count of active tasks
+export const getActiveTaskCount = async (req, res) => {
+  try {
+    const employee = await resolveEmployeeForAuthUser(req.user, {
+      createIfMissing: true,
+    });
+
+    if (!employee) {
+      return res.status(200).json({ activeCount: 0 });
+    }
+
+    const employeeId = employee._id;
+    const email = employee?.email?.toLowerCase().trim();
+
+    const filter = {
+      $or: [{ assignedTo: employeeId }],
+      status: { $in: ["To Do", "In Progress", "Review"] }
+    };
+    
+    if (email) {
+      filter.$or.push({ assignedToEmail: email });
+    }
+
+    const count = await Task.countDocuments(filter);
+
+    res.status(200).json({ activeCount: count });
   } catch (error) {
     res.status(500).json({
       message: error.message,
