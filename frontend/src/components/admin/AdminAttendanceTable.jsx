@@ -276,12 +276,6 @@ const AdminAttendanceTable = () => {
           </div>
           
           <div className="flex items-center gap-3 flex-wrap">
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
             <button
               onClick={fetchAttendanceRecords}
               className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
@@ -384,14 +378,12 @@ const AdminAttendanceTable = () => {
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Department</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Attendance</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Check In</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Check Out</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {paginatedRecords.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-12 text-center text-gray-400 text-sm">
+                <td colSpan={4} className="px-4 py-12 text-center text-gray-400 text-sm">
                   {loading ? 'Loading...' : 'No attendance records found for this date'}
                 </td>
               </tr>
@@ -422,12 +414,6 @@ const AdminAttendanceTable = () => {
                         {statusBadge.icon}
                         {statusBadge.label}
                       </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm font-mono text-gray-700">
-                      {record.checkInTime || "—"}
-                    </td>
-                    <td className="px-4 py-3 text-sm font-mono text-gray-700">
-                      {record.checkOutTime || "—"}
                     </td>
                   </tr>
                 );

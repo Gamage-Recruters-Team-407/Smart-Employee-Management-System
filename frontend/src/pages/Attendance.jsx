@@ -10,7 +10,11 @@ import {
   WifiOff,
   Coffee,
   Utensils,
-  Moon
+  Moon,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight
 } from "lucide-react";
 
 const Attendance = () => {
@@ -22,6 +26,20 @@ const Attendance = () => {
   const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [adminLoading, setAdminLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  // Pagination States
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedDate]);
+
+  const totalPages = Math.ceil(employees.length / rowsPerPage);
+  const paginatedEmployees = employees.slice(
+    (currentPage - 1) * rowsPerPage,
+    currentPage * rowsPerPage
+  );
 
   const isAdminOrHR = user?.role === "Admin" || user?.role === "HR";
   const isEmployee = user?.role === "Employee";
@@ -38,7 +56,7 @@ const Attendance = () => {
         console.log('📡 Fetching admin data for date:', selectedDate);
         
         // Fetch employees
-        const empRes = await API.get("/employees");
+        const empRes = await API.get("/employees?limit=1000");
         const employeesData = empRes.data?.data || empRes.data || [];
         setEmployees(employeesData);
         
@@ -259,65 +277,135 @@ const Attendance = () => {
             <span className="ml-3 text-gray-600 font-medium">Loading attendance data...</span>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead className="bg-gray-50 border-b border-gray-100">
-                <tr>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Employee ID</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Employee Name</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Department</th>
-                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase">Status</th>
-                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase">Check In</th>
-                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase">Check Out</th>
-                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase">Online Status</th>
-                  <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase">Break</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100/60">
-                {employees.length === 0 ? (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
-                    <td colSpan={8} className="px-6 py-16 text-center text-gray-400 text-sm">
-                      No employee records found.
-                    </td>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Employee ID</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Employee Name</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Department</th>
+                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase">Status</th>
+                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase">Check In</th>
+                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase">Check Out</th>
+                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase">Online Status</th>
+                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase">Break</th>
                   </tr>
-                ) : (
-                  employees.map((emp) => {
-                    const record = attendanceData.find(
-                      (a) => a.employee?._id === emp._id || a.employee === emp._id || a.employeeId === emp.employeeId
-                    );
-                    const empStatus = record?.status || "Not Marked";
-                    const onlineStatus = record?.onlineStatus || "Offline";
-                    const breakType = record?.breakType || null;
-                    const statusBadge = getOnlineStatusBadge(onlineStatus);
-                    
-                    return (
-                      <tr key={emp._id} className="hover:bg-gray-50/50 transition-colors">
-                        <td className="px-6 py-4 font-mono text-sm text-gray-700">{emp.employeeId}</td>
-                        <td className="px-6 py-4 font-medium text-gray-900">{emp.firstName} {emp.lastName}</td>
-                        <td className="px-6 py-4 text-gray-600 text-sm">{emp.department || "—"}</td>
-                        <td className="px-6 py-4 text-center">
-                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(empStatus)}`}>
-                            {empStatus}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-center text-sm font-mono text-gray-600">{record?.checkInTime || "—"}</td>
-                        <td className="px-6 py-4 text-center text-sm font-mono text-gray-600">{record?.checkOutTime || "—"}</td>
-                        <td className="px-6 py-4 text-center">
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${statusBadge.className}`}>
-                            {statusBadge.icon}
-                            {statusBadge.label}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-center text-sm text-gray-600">
-                          {breakType ? getBreakLabel(breakType) : "—"}
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-100/60">
+                  {paginatedEmployees.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="px-6 py-16 text-center text-gray-400 text-sm">
+                        No employee records found.
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedEmployees.map((emp) => {
+                      const record = attendanceData.find(
+                        (a) => a.employee?._id === emp._id || a.employee === emp._id || a.employeeId === emp.employeeId
+                      );
+                      const empStatus = record?.status || "Not Marked";
+                      const onlineStatus = record?.onlineStatus || "Offline";
+                      const breakType = record?.breakType || null;
+                      const statusBadge = getOnlineStatusBadge(onlineStatus);
+                      
+                      return (
+                        <tr key={emp._id} className="hover:bg-gray-50/50 transition-colors">
+                          <td className="px-6 py-4 font-mono text-sm text-gray-700">{emp.employeeId}</td>
+                          <td className="px-6 py-4 font-medium text-gray-900">{emp.firstName} {emp.lastName}</td>
+                          <td className="px-6 py-4 text-gray-600 text-sm">{emp.department || "—"}</td>
+                          <td className="px-6 py-4 text-center">
+                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(empStatus)}`}>
+                              {empStatus}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-center text-sm font-mono text-gray-600">{record?.checkInTime || "—"}</td>
+                          <td className="px-6 py-4 text-center text-sm font-mono text-gray-600">{record?.checkOutTime || "—"}</td>
+                          <td className="px-6 py-4 text-center">
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${statusBadge.className}`}>
+                              {statusBadge.icon}
+                              {statusBadge.label}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-center text-sm text-gray-600">
+                            {breakType ? getBreakLabel(breakType) : "—"}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+            {/* ─── PAGINATION CONTROLS ────────────────────────────────────────── */}
+            {employees.length > 0 && (
+              <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-600">
+                <div className="flex items-center gap-2">
+                  <span>Show</span>
+                  <select
+                    value={rowsPerPage}
+                    onChange={(e) => {
+                      setRowsPerPage(Number(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    className="px-2 py-1 border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
+                  >
+                    <option value={5}>5</option>
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                  </select>
+                  <span>entries</span>
+                </div>
+
+                <div>
+                  Showing <span className="font-semibold text-gray-800">{Math.min(employees.length, (currentPage - 1) * rowsPerPage + 1)}</span> to{" "}
+                  <span className="font-semibold text-gray-800">{Math.min(employees.length, currentPage * rowsPerPage)}</span> of{" "}
+                  <span className="font-semibold text-gray-800">{employees.length}</span> entries
+                </div>
+
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setCurrentPage(1)}
+                    disabled={currentPage === 1}
+                    className="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    title="First Page"
+                  >
+                    <ChevronsLeft size={16} />
+                  </button>
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                    className="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    title="Previous Page"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  
+                  <span className="px-3 py-1 font-medium text-gray-700">
+                    Page {currentPage} of {totalPages || 1}
+                  </span>
+
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages || totalPages === 0}
+                    className="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    title="Next Page"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                  <button
+                    onClick={() => setCurrentPage(totalPages)}
+                    disabled={currentPage === totalPages || totalPages === 0}
+                    className="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    title="Last Page"
+                  >
+                    <ChevronsRight size={16} />
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
