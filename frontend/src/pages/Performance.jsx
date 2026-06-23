@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { Trash2 } from "lucide-react";
 import PerformanceChart from "../components/PerformanceChart";
 import performanceApi from "../services/performanceApi";
+import { fetchEmployees } from "../services/employeeService";
 
 const managerRoles = ["Manager", "Admin", "HR"];
 const apiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
@@ -63,6 +65,7 @@ const getEmployeeFieldIssue = (value) => {
 
 const Performance = () => {
   const [records, setRecords] = useState([]);
+  const [employeesList, setEmployeesList] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -100,6 +103,16 @@ const Performance = () => {
       const res = await performanceApi.getAll();
       const list = Array.isArray(res.data) ? res.data : [];
       setRecords(list);
+
+      // Load employees for the dropdown
+      try {
+        const empRes = await fetchEmployees({ limit: 1000 });
+        if (empRes && empRes.data) {
+          setEmployeesList(empRes.data);
+        }
+      } catch (err) {
+        console.error("Failed to load employees list", err);
+      }
     } catch (apiError) {
       if (!apiError.response) {
         setError(`Cannot connect to backend API (${apiBase}). Start backend and retry.`);
@@ -203,6 +216,21 @@ const Performance = () => {
     }
   };
 
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this performance record?")) return;
+    
+    setError("");
+    setMessage("");
+    try {
+      await performanceApi.remove(id);
+      setMessage("Performance record deleted.");
+      await loadPerformance();
+    } catch (apiError) {
+      const apiMessage = apiError.response?.data?.message || "Failed to delete record.";
+      setError(apiMessage);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
@@ -234,18 +262,32 @@ const Performance = () => {
         <form onSubmit={handleCreate} className="bg-white shadow rounded-2xl p-6 space-y-4">
           <h2 className="text-xl font-semibold text-gray-800">Create Performance Record</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <input
-              className={`border rounded-xl px-4 py-2 ${employeeFieldIssue ? "border-red-400 bg-red-50" : ""}`}
-              name="employee"
-              value={form.employee}
-              onChange={handleChange}
-              onBlur={(event) => setEmployeeFieldIssue(getEmployeeFieldIssue(event.target.value))}
-              placeholder="Employee User ID (24-char ObjectId)"
-              required
-            />
-            {employeeFieldIssue && (
-              <p className="-mt-2 text-sm text-red-600 md:col-span-2 lg:col-span-3">{employeeFieldIssue}</p>
-            )}
+            <div className="flex flex-col gap-1">
+              <select
+                className={`border rounded-xl px-4 py-2 ${employeeFieldIssue ? "border-red-400 bg-red-50" : ""}`}
+                name="employee"
+                value={form.employee}
+                onChange={handleChange}
+                onBlur={(event) => setEmployeeFieldIssue(getEmployeeFieldIssue(event.target.value))}
+                required
+              >
+                <option value="">-- Select Employee --</option>
+                {employeesList
+                  .filter((emp) => {
+                    const isAccountMissing = !emp.userId;
+                    const alreadyExists = emp.userId && records.some((r) => r.employee?._id === emp.userId);
+                    return !isAccountMissing && !alreadyExists;
+                  })
+                  .map((emp) => (
+                    <option key={emp._id} value={emp.userId}>
+                      {emp.firstName} {emp.lastName} ({emp.employeeId || emp.email})
+                    </option>
+                  ))}
+              </select>
+              {employeeFieldIssue && (
+                <p className="text-sm text-red-600">{employeeFieldIssue}</p>
+              )}
+            </div>
             <input
               className="border rounded-xl px-4 py-2"
               name="attendanceScore"
@@ -343,6 +385,7 @@ const Performance = () => {
                     <th className="py-3">Quality</th>
                     <th className="py-3">Overall</th>
                     <th className="py-3">Last Feedback</th>
+                    {canManage && <th className="py-3 text-right">Actions</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -367,6 +410,17 @@ const Performance = () => {
                           </span>
                         </td>
                         <td className="py-3 text-gray-600">{lastFeedback?.feedback || "-"}</td>
+                        {canManage && (
+                          <td className="py-3 text-right">
+                            <button
+                              onClick={() => handleDelete(record._id)}
+                              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition"
+                              title="Delete Record"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </td>
+                        )}
                       </tr>
                     );
                   })}
