@@ -32,8 +32,8 @@ const EmployeeAccount = () => {
         API.get(`/employees/${id}`),
         API.get(`/employees/${id}/tasks`),
       ]);
-      setEmployee(emp);
-      setTasks(empTasks);
+      setEmployee(emp.data);
+      setTasks(Array.isArray(empTasks.data) ? empTasks.data : []);
     } catch (err) {
       setError(err.message || "Failed to load employee account");
     } finally {
@@ -48,7 +48,7 @@ const EmployeeAccount = () => {
   const handleProgressChange = async (taskId, progress) => {
     try {
       const updated = await API.patch(`/tasks/${taskId}/progress`, { progress });
-      setTasks((prev) => prev.map((t) => (t._id === taskId ? updated : t)));
+      setTasks((prev) => prev.map((t) => (t._id === taskId ? updated.data : t)));
     } catch (err) {
       alert(err.message || "Failed to update progress");
     }

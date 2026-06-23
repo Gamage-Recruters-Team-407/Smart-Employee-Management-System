@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
   UserCheck, UserX, Pencil, Trash2, Paperclip, ShieldAlert,
-  ChevronUp, ChevronDown, ChevronsUpDown, Clock, Loader2, User, Shield, Briefcase
+  ChevronUp, ChevronDown, ChevronsUpDown, Clock, Loader2, User, Shield, Briefcase, Eye
 } from "lucide-react";
 
 // ─── Constants & Badges ──────────────────────────────────────────────────────
@@ -115,6 +115,7 @@ const EmployeeTable = ({
   onDelete,
   onDocuments,
   onViewProfile,
+  onViewDetails,
   onInlineUpdate,
 }) => {
   const allSelected = employees.length > 0 && employees.every((e) => selectedIds.has(e._id));
@@ -285,7 +286,11 @@ const EmployeeTable = ({
                     )}
                   </button>
 
-                  <button onClick={() => onEdit(emp)} className="p-1.5 rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition">
+                  <button onClick={() => onViewDetails(emp)} className="p-1.5 rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition" title="View Details">
+                    <Eye size={15} />
+                  </button>
+
+                  <button onClick={() => onEdit(emp)} className="p-1.5 rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition" title="Edit">
                     <Pencil size={15} />
                   </button>
 
