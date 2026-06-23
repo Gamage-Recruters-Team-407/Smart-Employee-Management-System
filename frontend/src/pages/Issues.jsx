@@ -9,6 +9,7 @@ import {
   Filter,
   FileText,
   User,
+  RefreshCw,
 } from "lucide-react";
 
 const Issues = () => {
@@ -144,8 +145,8 @@ const Issues = () => {
   return (
     <div className="p-8 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center gap-3 mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+        <div className="flex items-center gap-3">
           <AlertCircle size={32} className="text-amber-600" />
           <div>
             <h1 className="text-3xl font-bold text-gray-800">Issues Management</h1>
@@ -153,6 +154,15 @@ const Issues = () => {
               View, review, and manage all reported issues from employees
             </p>
           </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={fetchIssues}
+            disabled={loading}
+            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 transition bg-white text-gray-700 shadow-sm"
+          >
+            <RefreshCw size={15} className={loading ? "animate-spin" : ""} /> Refresh
+          </button>
         </div>
       </div>
 

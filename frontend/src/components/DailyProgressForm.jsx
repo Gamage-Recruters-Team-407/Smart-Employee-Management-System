@@ -33,13 +33,51 @@ const STATUS_ICONS = {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-const todayStr = () => new Date().toISOString().split("T")[0];
+const todayStr = () => {
+  const today = new Date();
+  const offset = today.getTimezoneOffset();
+  const localDate = new Date(today.getTime() - offset * 60 * 1000);
+  return localDate.toISOString().split("T")[0];
+};
+
+const parseTime = (timeStr) => {
+  if (!timeStr) return null;
+  timeStr = timeStr.trim();
+  
+  // Matches "HH:MM" or "HH.MM"
+  const match = timeStr.match(/^(\d{1,2})[:.](\d{2})$/);
+  if (match) {
+    const h = parseInt(match[1], 10);
+    const m = parseInt(match[2], 10);
+    if (h >= 0 && h < 24 && m >= 0 && m < 60) {
+      return { h, m };
+    }
+  }
+  
+  // Matches "HH" (e.g. "13" -> 13:00)
+  const hhMatch = timeStr.match(/^(\d{1,2})$/);
+  if (hhMatch) {
+    const h = parseInt(hhMatch[1], 10);
+    if (h >= 0 && h < 24) {
+      return { h, m: 0 };
+    }
+  }
+  
+  return null;
+};
+
+const formatTime = (timeObj) => {
+  if (!timeObj) return "";
+  const hh = String(timeObj.h).padStart(2, "0");
+  const mm = String(timeObj.m).padStart(2, "0");
+  return `${hh}:${mm}`;
+};
 
 const calcTotalHours = (start, end) => {
-  if (!start || !end) return "";
-  const [sh, sm] = start.split(":").map(Number);
-  const [eh, em] = end.split(":").map(Number);
-  const totalMins = eh * 60 + em - (sh * 60 + sm);
+  const s = parseTime(start);
+  const e = parseTime(end);
+  if (!s || !e) return "";
+  const totalMins = e.h * 60 + e.m - (s.h * 60 + s.m);
   if (totalMins <= 0) return "";
   const h = Math.floor(totalMins / 60);
   const m = totalMins % 60;
@@ -120,6 +158,24 @@ const DailyProgressForm = () => {
     }
   }, [editMode, existing]);
 
+  // Auto-calculate total hours when start time or end time changes
+  useEffect(() => {
+    if (form.startTime && form.endTime) {
+      const hours = calcTotalHours(form.startTime, form.endTime);
+      setForm((prev) => ({ ...prev, totalHours: hours }));
+      if (hours) {
+        setErrors((prev) => {
+          const n = { ...prev };
+          delete n.totalHours;
+          delete n.endTime;
+          return n;
+        });
+      }
+    } else {
+      setForm((prev) => ({ ...prev, totalHours: "" }));
+    }
+  }, [form.startTime, form.endTime]);
+
 
 
   // ── Field helpers ──────────────────────────────────────────────────────────
@@ -149,11 +205,24 @@ const DailyProgressForm = () => {
   // ── Validation ─────────────────────────────────────────────────────────────
   const validate = () => {
     const e = {};
-    if (!form.startTime) e.startTime = "Start time is required.";
-    if (!form.endTime)   e.endTime   = "End time is required.";
-    if (form.startTime && form.endTime && !calcTotalHours(form.startTime, form.endTime)) {
-      e.endTime = "End time must be after start time.";
+    if (!form.startTime) {
+      e.startTime = "Start time is required.";
+    } else if (!parseTime(form.startTime)) {
+      e.startTime = "Use 24h format (e.g. 09:00).";
     }
+
+    if (!form.endTime) {
+      e.endTime = "End time is required.";
+    } else if (!parseTime(form.endTime)) {
+      e.endTime = "Use 24h format (e.g. 17:30).";
+    }
+
+    if (form.startTime && form.endTime && parseTime(form.startTime) && parseTime(form.endTime)) {
+      if (!calcTotalHours(form.startTime, form.endTime)) {
+        e.endTime = "End time must be after start time.";
+      }
+    }
+
     if (!form.totalHours || !form.totalHours.trim()) {
       e.totalHours = "Total hours worked is required.";
     }
@@ -175,8 +244,13 @@ const DailyProgressForm = () => {
     setSubmitting(true);
     setErrors({});
     try {
+      const parsedStart = parseTime(form.startTime);
+      const parsedEnd = parseTime(form.endTime);
+
       const payload = {
         ...form,
+        startTime: formatTime(parsedStart),
+        endTime: formatTime(parsedEnd),
         tasks: form.workedOnTasks
           ? form.tasks.filter((t) => t.description.trim())
           : [],
@@ -287,20 +361,90 @@ const DailyProgressForm = () => {
       {/* Row 2 — Times */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Field label="Start Time *" error={errors.startTime}>
-          <input
-            type="time"
-            value={form.startTime}
-            onChange={(e) => setField("startTime", e.target.value)}
-            className={inputCls(errors.startTime)}
-          />
+          <div className="flex gap-2 items-center mt-1">
+            <select
+              value={form.startTime && form.startTime.includes(":") ? form.startTime.split(":")[0] : ""}
+              onChange={(e) => {
+                const hour = e.target.value;
+                const min = form.startTime && form.startTime.includes(":") ? form.startTime.split(":")[1] : "00";
+                setField("startTime", hour ? `${hour}:${min}` : "");
+              }}
+              className={`${inputCls(errors.startTime)} bg-white`}
+            >
+              <option value="">Hour</option>
+              {Array.from({ length: 24 }, (_, i) => {
+                const h = String(i).padStart(2, "0");
+                return (
+                  <option key={h} value={h}>
+                    {h}
+                  </option>
+                );
+              })}
+            </select>
+            <span className="text-gray-500 font-bold">:</span>
+            <select
+              value={form.startTime && form.startTime.includes(":") ? form.startTime.split(":")[1] : ""}
+              onChange={(e) => {
+                const min = e.target.value;
+                const hour = form.startTime && form.startTime.includes(":") ? form.startTime.split(":")[0] : "08";
+                setField("startTime", min ? `${hour}:${min}` : "");
+              }}
+              className={`${inputCls(errors.startTime)} bg-white`}
+            >
+              <option value="">Minute</option>
+              {Array.from({ length: 60 }, (_, i) => {
+                const m = String(i).padStart(2, "0");
+                return (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
         </Field>
         <Field label="End Time (24hr) *" error={errors.endTime}>
-          <input
-            type="time"
-            value={form.endTime}
-            onChange={(e) => setField("endTime", e.target.value)}
-            className={inputCls(errors.endTime)}
-          />
+          <div className="flex gap-2 items-center mt-1">
+            <select
+              value={form.endTime && form.endTime.includes(":") ? form.endTime.split(":")[0] : ""}
+              onChange={(e) => {
+                const hour = e.target.value;
+                const min = form.endTime && form.endTime.includes(":") ? form.endTime.split(":")[1] : "00";
+                setField("endTime", hour ? `${hour}:${min}` : "");
+              }}
+              className={`${inputCls(errors.endTime)} bg-white`}
+            >
+              <option value="">Hour</option>
+              {Array.from({ length: 24 }, (_, i) => {
+                const h = String(i).padStart(2, "0");
+                return (
+                  <option key={h} value={h}>
+                    {h}
+                  </option>
+                );
+              })}
+            </select>
+            <span className="text-gray-500 font-bold">:</span>
+            <select
+              value={form.endTime && form.endTime.includes(":") ? form.endTime.split(":")[1] : ""}
+              onChange={(e) => {
+                const min = e.target.value;
+                const hour = form.endTime && form.endTime.includes(":") ? form.endTime.split(":")[0] : "12";
+                setField("endTime", min ? `${hour}:${min}` : "");
+              }}
+              className={`${inputCls(errors.endTime)} bg-white`}
+            >
+              <option value="">Minute</option>
+              {Array.from({ length: 60 }, (_, i) => {
+                const m = String(i).padStart(2, "0");
+                return (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
         </Field>
         <Field label="Total Hours Worked *" error={errors.totalHours}>
           <input
