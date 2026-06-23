@@ -73,7 +73,7 @@ const StatusBadge = ({ status }) => {
 
 // ─── Employee Card ────────────────────────────────────────────────────────────
 const EmployeeCard = ({
-  employee, isSelected, onToggleSelect, onEdit, onDelete, onDocuments, onViewProfile,
+  employee, isSelected, onToggleSelect, onEdit, onDelete, onDocuments, onViewDetails,
 }) => {
   const fullName = `${employee.firstName} ${employee.lastName}`;
 
@@ -93,11 +93,8 @@ const EmployeeCard = ({
         />
       </div>
 
-      {/* Card body — clickable to view profile */}
-      <button
-        onClick={() => onViewProfile(employee)}
-        className="w-full text-left p-5 pb-3"
-      >
+      {/* Card body */}
+      <div className="w-full text-left p-5 pb-3">
         {/* Avatar + basic info */}
         <div className="flex items-start gap-4">
           <Avatar name={fullName} empId={employee._id} profilePhoto={employee.profilePhoto} />
@@ -136,7 +133,7 @@ const EmployeeCard = ({
         <div className="mt-3">
           <StatusBadge status={employee.status} />
         </div>
-      </button>
+      </div>
 
       {/* Action bar */}
       <div className="flex items-center justify-end gap-1 px-4 py-2.5 border-t border-gray-50 bg-gray-50/50">
@@ -146,6 +143,13 @@ const EmployeeCard = ({
           title="Documents"
         >
           <FileText size={14} />
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); onViewDetails(employee); }}
+          className="p-1.5 rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-100 transition"
+          title="View Details"
+        >
+          <Eye size={14} />
         </button>
         <button
           onClick={(e) => { e.stopPropagation(); onEdit(employee); }}
@@ -160,13 +164,6 @@ const EmployeeCard = ({
           title="Delete"
         >
           <Trash2 size={14} />
-        </button>
-        <button
-          onClick={(e) => { e.stopPropagation(); onViewProfile(employee); }}
-          className="p-1.5 rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-100 transition"
-          title="View Profile"
-        >
-          <Eye size={14} />
         </button>
       </div>
     </div>
@@ -191,7 +188,7 @@ const EmployeeCard = ({
  */
 const EmployeeGrid = ({
   employees, selectedIds, onToggleSelect, onSelectAll,
-  onEdit, onDelete, onDocuments, onViewProfile,
+  onEdit, onDelete, onDocuments, onViewDetails,
 }) => {
   if (employees.length === 0) {
     return (
@@ -238,7 +235,7 @@ const EmployeeGrid = ({
             onEdit={onEdit}
             onDelete={onDelete}
             onDocuments={onDocuments}
-            onViewProfile={onViewProfile}
+            onViewDetails={onViewDetails}
           />
         ))}
       </div>
