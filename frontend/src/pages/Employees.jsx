@@ -34,6 +34,7 @@ import EmployeeTable from "../components/EmployeeTable";
 import EmployeeGrid from "../components/EmployeeGrid";
 import AddEmployeeModal from "../components/AddEmployeeModal";
 import DocumentModal from "../components/DocumentModal";
+import EmployeeDetailsModal from "../components/EmployeeDetailsModal";
 import AdvancedFilters from "../components/AdvancedFilters";
 import AnalyticsPanel from "../components/AnalyticsPanel";
 import CSVImportModal from "../components/CSVImportModal";
@@ -112,6 +113,7 @@ const Employees = () => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [docTarget, setDocTarget] = useState(null);
+  const [detailsTarget, setDetailsTarget] = useState(null);
   const [showCSVImport, setShowCSVImport] = useState(false);
 
   const [searchInput, setSearchInput] = useState(urlSearch);
@@ -624,6 +626,7 @@ const Employees = () => {
           onDelete={setDeleteTarget}
           onDocuments={setDocTarget}
           onViewProfile={handleViewProfile}
+          onViewDetails={setDetailsTarget}
           onInlineUpdate={handleInlineUpdate}
         />
       ) : (
@@ -785,6 +788,12 @@ const Employees = () => {
           </div>
         </div>
       )}
+
+      <EmployeeDetailsModal
+        isOpen={!!detailsTarget}
+        onClose={() => setDetailsTarget(null)}
+        employee={detailsTarget}
+      />
 
       {/* Global Toast Message */}
       {toast && (
