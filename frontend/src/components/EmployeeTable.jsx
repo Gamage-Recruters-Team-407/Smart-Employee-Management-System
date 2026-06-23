@@ -114,7 +114,6 @@ const EmployeeTable = ({
   onEdit,
   onDelete,
   onDocuments,
-  onViewProfile,
   onViewDetails,
   onInlineUpdate,
 }) => {
@@ -204,15 +203,15 @@ const EmployeeTable = ({
                 </span>
 
                 {/* Name + Avatar */}
-                <button onClick={() => onViewProfile(emp)} className="flex items-center gap-3 min-w-0 text-left group/name">
+                <div className="flex items-center gap-3 min-w-0 text-left group/name">
                   <Avatar name={fullName} empId={emp._id} profilePhoto={emp.profilePhoto} />
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 truncate group-hover/name:text-indigo-600 transition">
+                    <p className="text-sm font-semibold text-gray-900 truncate transition">
                       {fullName}
                     </p>
                     <p className="text-xs text-gray-400 truncate">{emp.designation || "—"}</p>
                   </div>
-                </button>
+                </div>
 
                 {/* Email */}
                 <span className="text-sm text-gray-600 truncate">{emp.email}</span>
@@ -277,8 +276,7 @@ const EmployeeTable = ({
                     onClick={() => onDocuments(emp)}
                     className="relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition text-xs font-semibold border border-indigo-100"
                   >
-                    <Paperclip size={13} />
-                    <span>Docs</span>
+                    <Paperclip size={15} />
                     {emp.documents?.length > 0 && (
                       <span className="w-4 h-4 bg-indigo-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
                         {emp.documents.length}

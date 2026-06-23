@@ -472,7 +472,6 @@ const Employees = () => {
 
   const viewMode = urlView === "grid" ? "grid" : "table";
   const toggleView = (mode) => updateParams({ view: mode });
-  const handleViewProfile = (employee) => navigate(`/employees/${employee._id}`);
 
   const rangeStart = pagination.totalCount === 0 ? 0 : (pagination.page - 1) * pagination.limit + 1;
   const rangeEnd = Math.min(pagination.page * pagination.limit, pagination.totalCount);
@@ -625,7 +624,6 @@ const Employees = () => {
           onEdit={(emp) => { setEditTarget(emp); setShowAddModal(true); }}
           onDelete={setDeleteTarget}
           onDocuments={setDocTarget}
-          onViewProfile={handleViewProfile}
           onViewDetails={setDetailsTarget}
           onInlineUpdate={handleInlineUpdate}
         />
@@ -638,7 +636,7 @@ const Employees = () => {
           onEdit={(emp) => { setEditTarget(emp); setShowAddModal(true); }}
           onDelete={setDeleteTarget}
           onDocuments={setDocTarget}
-          onViewProfile={handleViewProfile}
+          onViewDetails={setDetailsTarget}
         />
       )}
 
