@@ -3,6 +3,9 @@ import API from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import { useBadges } from "../context/BadgeContext";
 import { CheckSquare, User } from "lucide-react";
+import DailyProgressForm from "../components/DailyProgressForm";
+import { ClipboardList } from "lucide-react";
+import IssueReportButton from "../components/IssueReportButton";
 
 const STATUS_STYLES = {
   "To Do": "bg-slate-100 text-slate-700",
@@ -16,6 +19,7 @@ const MyTasks = () => {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
 
   const fetchMyTasks = useCallback(async () => {
     if (!user?._id) return;
@@ -138,6 +142,11 @@ const MyTasks = () => {
           />
         </div>
       )}
+
+      <div className="mt-10 border-t border-gray-200 pt-6 space-y-6">
+        <DailyProgressForm />
+        <IssueReportButton />
+      </div>
     </div>
   );
 };
@@ -221,6 +230,8 @@ const TaskRow = ({ task, onProgress, onComment }) => {
           </button>
         </form>
       )}
+
+      
     </div>
   );
 };

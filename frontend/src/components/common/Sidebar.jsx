@@ -11,7 +11,6 @@ import {
   Award,
   Bell,
   CheckSquare,
-  Settings,
 } from "lucide-react";
 
 const Sidebar = ({ isOpen }) => {
@@ -55,7 +54,6 @@ const Sidebar = ({ isOpen }) => {
     { icon: Award, label: "Performance", path: "/performance" },
     ...taskNavItems,
     { icon: Bell, label: "Notifications", path: "/notifications" },
-    { icon: Settings, label: "Settings", path: "/settings" },
   ];
 
   return (

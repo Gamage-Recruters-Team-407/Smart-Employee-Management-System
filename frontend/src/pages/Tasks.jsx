@@ -4,6 +4,8 @@ import { fetchEmployees as fetchEmployeesList } from "../services/employeeServic
 import TaskBoard from "../components/TaskBoard";
 import { useAuth } from "../context/AuthContext";
 import MyTasks from "./MyTasks";
+import Issues from "./Issues";
+import DailyReports from "../components/DailyReports";
 
 const TASK_STATUSES = ["To Do", "In Progress", "Review", "Completed"];
 
@@ -290,6 +292,24 @@ const Tasks = () => {
         >
           Task Management
         </button>
+        <button
+          onClick={() => setActiveTab("issues")}
+          className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition ${
+            activeTab === "issues" ? "bg-indigo-600 text-white" : "text-gray-600 hover:bg-gray-50"
+          }`}
+        >
+          Issues
+        </button>
+        {(user?.role === "Admin" || user?.role === "HR") && (
+          <button
+            onClick={() => setActiveTab("reports")}
+            className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition ${
+              activeTab === "reports" ? "bg-indigo-600 text-white" : "text-gray-600 hover:bg-gray-50"
+            }`}
+          >
+            Daily Reports
+          </button>
+        )}
       </div>
 
       {activeTab === "my" && <MyTasks />}
@@ -504,6 +524,8 @@ const Tasks = () => {
       )}
         </>
       )}
+      {activeTab === "issues" && <Issues />}
+      {activeTab === "reports" && (user?.role === "Admin" || user?.role === "HR") && <DailyReports />}
     </div>
   );
 };

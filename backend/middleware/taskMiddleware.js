@@ -58,14 +58,12 @@ const assertAssigneeOr403 = async (req, res) => {
   return task;
 };
 
-/** Progress % — assigned employee only (not HR/Manager) */
+/** Progress % — assigned employee or manager */
 export const authorizeTaskProgressAssignee = async (req, res, next) => {
   try {
     await attachTaskContext(req);
     if (req.canManageTasks) {
-      return res.status(403).json({
-        message: "Only the assigned employee can update task progress.",
-      });
+      return next();
     }
     const task = await assertAssigneeOr403(req, res);
     if (!task) return;
@@ -75,14 +73,12 @@ export const authorizeTaskProgressAssignee = async (req, res, next) => {
   }
 };
 
-/** Status — assigned employee only */
+/** Status — assigned employee or manager */
 export const authorizeTaskStatusAssignee = async (req, res, next) => {
   try {
     await attachTaskContext(req);
     if (req.canManageTasks) {
-      return res.status(403).json({
-        message: "Only the assigned employee can update task status. Use My Tasks.",
-      });
+      return next();
     }
     const task = await assertAssigneeOr403(req, res);
     if (!task) return;

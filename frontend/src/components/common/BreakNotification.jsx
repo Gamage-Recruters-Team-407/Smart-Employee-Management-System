@@ -543,8 +543,8 @@ const BreakNotification = () => {
                   onClick={() => handleBreakSelect(fullBreak || { id: breakItem.type, label: breakItem.label })}
                   disabled={isUpdatingStatus}
                   className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-all w-full ${isActive
-                      ? `${fullBreak?.buttonColor || 'bg-indigo-500'} text-white`
-                      : 'hover:bg-gray-100 text-gray-700'
+                    ? `${fullBreak?.buttonColor || 'bg-indigo-500'} text-white`
+                    : 'hover:bg-gray-100 text-gray-700'
                     } ${isUpdatingStatus ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   {getIcon(breakItem.type)}
@@ -570,14 +570,14 @@ const BreakNotification = () => {
       {showNotification && !showPopup && (
         <div
           className={`fixed top-6 left-1/2 -translate-x-1/2 z-[60] w-[calc(100%-2rem)] max-w-md p-4 rounded-2xl border shadow-2xl text-white ${notificationType === 'break'
-              ? activeBreak?.id === 'breakfast'
-                ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-500 text-white border-amber-400 shadow-amber-500/20'
-                : activeBreak?.id === 'lunch'
-                  ? 'bg-gradient-to-r from-orange-600 via-red-500 to-amber-500 text-white border-orange-400 shadow-orange-500/20'
-                  : 'bg-gradient-to-r from-indigo-500 via-blue-600 to-sky-500 text-white border-indigo-400 shadow-indigo-500/20'
-              : notificationType === 'error'
-                ? 'bg-gradient-to-r from-red-650 to-rose-600 border-red-400 shadow-red-500/20'
-                : 'bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 text-white border-purple-400 shadow-purple-500/20'
+            ? activeBreak?.id === 'breakfast'
+              ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-500 text-white border-amber-400 shadow-amber-500/20'
+              : activeBreak?.id === 'lunch'
+                ? 'bg-gradient-to-r from-orange-600 via-red-500 to-amber-500 text-white border-orange-400 shadow-orange-500/20'
+                : 'bg-gradient-to-r from-indigo-500 via-blue-600 to-sky-500 text-white border-indigo-400 shadow-indigo-500/20'
+            : notificationType === 'error'
+              ? 'bg-gradient-to-r from-red-650 to-rose-600 border-red-400 shadow-red-500/20'
+              : 'bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 text-white border-purple-400 shadow-purple-500/20'
             }`}
           style={{
             animation: 'slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards'
@@ -654,10 +654,10 @@ const BreakNotification = () => {
       {isBreakActive && activeBreak && (
         <div
           className={`fixed top-6 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-3 px-5 py-2.5 rounded-full border shadow-2xl text-white ${activeBreak.id === 'breakfast'
-              ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-500 border-amber-400 shadow-amber-500/20'
-              : activeBreak.id === 'lunch'
-                ? 'bg-gradient-to-r from-orange-600 via-red-500 to-amber-500 border-orange-400 shadow-orange-500/20'
-                : 'bg-gradient-to-r from-indigo-500 via-blue-600 to-sky-500 border-indigo-400 shadow-indigo-500/20'
+            ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-500 border-amber-400 shadow-amber-500/20'
+            : activeBreak.id === 'lunch'
+              ? 'bg-gradient-to-r from-orange-600 via-red-500 to-amber-500 border-orange-400 shadow-orange-500/20'
+              : 'bg-gradient-to-r from-indigo-500 via-blue-600 to-sky-500 border-indigo-400 shadow-indigo-500/20'
             }`}
           style={{
             animation: 'slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards'
@@ -680,8 +680,8 @@ const BreakNotification = () => {
       <button
         onClick={toggleSound}
         className={`fixed bottom-4 right-4 z-40 p-3 rounded-full shadow-lg transition-colors ${soundEnabled
-            ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
-            : 'bg-gray-600 hover:bg-gray-700 text-white'
+          ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
+          : 'bg-gray-600 hover:bg-gray-700 text-white'
           }`}
         title={soundEnabled ? 'Sound On' : 'Sound Off'}
       >

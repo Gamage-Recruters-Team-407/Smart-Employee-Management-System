@@ -29,6 +29,11 @@ const payrollSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  // ── NEW: loan deductions (frontend already reads p.loans and totalLoans) ──
+  loans: {
+    type: Number,
+    default: 0
+  },
   bonus: {
     type: Number,
     default: 0

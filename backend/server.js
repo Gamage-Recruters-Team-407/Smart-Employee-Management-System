@@ -22,6 +22,8 @@ import { seedSamplePayroll } from "./utils/seedSamplePayroll.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
 import http from "http";
 import { initWebSocket } from "./services/websocketService.js";
+import dailyReportRoutes from "./routes/dailyReportRoutes.js";
+import issueRoutes from "./routes/issueRoutes.js";
 
 dotenv.config();
 
@@ -39,27 +41,27 @@ const isProduction = process.env.NODE_ENV === "production";
 app.use(cors({
   origin: isProduction
     ? (origin, callback) => {
-        const isExplicitlyAllowed =
-          allowedOrigins.includes(origin) || origin === process.env.FRONTEND_URL;
+      const isExplicitlyAllowed =
+        allowedOrigins.includes(origin) || origin === process.env.FRONTEND_URL;
 
-        let isLocalDevOrigin = false;
-        if (origin) {
-          try {
-            const parsed = new URL(origin);
-            isLocalDevOrigin =
-              (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1") &&
-              ["3000", "5173", "5174"].includes(parsed.port);
-          } catch {
-            isLocalDevOrigin = false;
-          }
-        }
-
-        if (!origin || isExplicitlyAllowed || isLocalDevOrigin) {
-          callback(null, true);
-        } else {
-          callback(new Error("Not allowed by CORS"));
+      let isLocalDevOrigin = false;
+      if (origin) {
+        try {
+          const parsed = new URL(origin);
+          isLocalDevOrigin =
+            (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1") &&
+            ["3000", "5173", "5174"].includes(parsed.port);
+        } catch {
+          isLocalDevOrigin = false;
         }
       }
+
+      if (!origin || isExplicitlyAllowed || isLocalDevOrigin) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    }
     : true,
   credentials: true,
   exposedHeaders: ["Content-Disposition"]
@@ -86,6 +88,8 @@ app.use("/api/payroll", payrollRoutes);
 app.use("/api/leaves", leaveRoutes);
 app.use("/api/performance", performanceRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/daily-reports", dailyReportRoutes);
+app.use("/api/issues", issueRoutes);
 
 const PORT = process.env.PORT || 5000;
 // Listen on all interfaces in dev so http://localhost:5000 and http://127.0.0.1:5000 both work

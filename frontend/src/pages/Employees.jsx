@@ -34,6 +34,7 @@ import EmployeeTable from "../components/EmployeeTable";
 import EmployeeGrid from "../components/EmployeeGrid";
 import AddEmployeeModal from "../components/AddEmployeeModal";
 import DocumentModal from "../components/DocumentModal";
+import EmployeeDetailsModal from "../components/EmployeeDetailsModal";
 import AdvancedFilters from "../components/AdvancedFilters";
 import AnalyticsPanel from "../components/AnalyticsPanel";
 import CSVImportModal from "../components/CSVImportModal";
@@ -112,6 +113,7 @@ const Employees = () => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [docTarget, setDocTarget] = useState(null);
+  const [detailsTarget, setDetailsTarget] = useState(null);
   const [showCSVImport, setShowCSVImport] = useState(false);
 
   const [searchInput, setSearchInput] = useState(urlSearch);
@@ -470,7 +472,6 @@ const Employees = () => {
 
   const viewMode = urlView === "grid" ? "grid" : "table";
   const toggleView = (mode) => updateParams({ view: mode });
-  const handleViewProfile = (employee) => navigate(`/employees/${employee._id}`);
 
   const rangeStart = pagination.totalCount === 0 ? 0 : (pagination.page - 1) * pagination.limit + 1;
   const rangeEnd = Math.min(pagination.page * pagination.limit, pagination.totalCount);
@@ -623,7 +624,7 @@ const Employees = () => {
           onEdit={(emp) => { setEditTarget(emp); setShowAddModal(true); }}
           onDelete={setDeleteTarget}
           onDocuments={setDocTarget}
-          onViewProfile={handleViewProfile}
+          onViewDetails={setDetailsTarget}
           onInlineUpdate={handleInlineUpdate}
         />
       ) : (
@@ -635,7 +636,7 @@ const Employees = () => {
           onEdit={(emp) => { setEditTarget(emp); setShowAddModal(true); }}
           onDelete={setDeleteTarget}
           onDocuments={setDocTarget}
-          onViewProfile={handleViewProfile}
+          onViewDetails={setDetailsTarget}
         />
       )}
 
@@ -785,6 +786,12 @@ const Employees = () => {
           </div>
         </div>
       )}
+
+      <EmployeeDetailsModal
+        isOpen={!!detailsTarget}
+        onClose={() => setDetailsTarget(null)}
+        employee={detailsTarget}
+      />
 
       {/* Global Toast Message */}
       {toast && (
