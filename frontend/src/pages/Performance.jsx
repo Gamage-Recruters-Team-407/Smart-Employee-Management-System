@@ -9,8 +9,14 @@ const apiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api"
 const objectIdRegex = /^[a-fA-F0-9]{24}$/;
 const emidRegex = /^(EMID|EID)\d+$/i;
 
+const getCurrentYearMonth = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+};
+
 const emptyForm = {
   employee: "",
+  targetMonth: getCurrentYearMonth(),
   attendanceScore: "",
   tasksCompleted: "",
   tasksAssigned: "",
@@ -65,6 +71,7 @@ const getEmployeeFieldIssue = (value) => {
 
 const Performance = () => {
   const [records, setRecords] = useState([]);
+  const [selectedPeriod, setSelectedPeriod] = useState("All");
   const [employeesList, setEmployeesList] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(true);
@@ -133,8 +140,28 @@ const Performance = () => {
     loadPerformance();
   }, []);
 
+  const availablePeriods = useMemo(() => {
+    const periods = new Set();
+    records.forEach(r => {
+      if (r.month && r.year) {
+        periods.add(`${r.year}-${r.month}`);
+      }
+    });
+    return Array.from(periods).sort((a, b) => {
+      const [yearA, monthA] = a.split('-').map(Number);
+      const [yearB, monthB] = b.split('-').map(Number);
+      return yearB - yearA || monthB - monthA;
+    });
+  }, [records]);
+
+  const filteredRecords = useMemo(() => {
+    if (selectedPeriod === "All") return records;
+    const [y, m] = selectedPeriod.split('-');
+    return records.filter(r => r.year === Number(y) && r.month === Number(m));
+  }, [records, selectedPeriod]);
+
   const metrics = useMemo(() => {
-    if (records.length === 0) {
+    if (filteredRecords.length === 0) {
       return {
         avgOverall: 0,
         avgAttendance: 0,
@@ -143,7 +170,7 @@ const Performance = () => {
       };
     }
 
-    const sum = records.reduce(
+    const sum = filteredRecords.reduce(
       (acc, row) => {
         acc.overall += row.overallScore || 0;
         acc.attendance += row.attendanceScore || 0;
@@ -155,12 +182,12 @@ const Performance = () => {
     );
 
     return {
-      avgOverall: (sum.overall / records.length).toFixed(2),
-      avgAttendance: (sum.attendance / records.length).toFixed(2),
-      avgTaskRate: (sum.task / records.length).toFixed(2),
-      avgQuality: (sum.quality / records.length).toFixed(2)
+      avgOverall: (sum.overall / filteredRecords.length).toFixed(2),
+      avgAttendance: (sum.attendance / filteredRecords.length).toFixed(2),
+      avgTaskRate: (sum.task / filteredRecords.length).toFixed(2),
+      avgQuality: (sum.quality / filteredRecords.length).toFixed(2)
     };
-  }, [records]);
+  }, [filteredRecords]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -186,8 +213,17 @@ const Performance = () => {
     setValidationIssue("");
 
     try {
+      let targetM, targetY;
+      if (form.targetMonth) {
+        const [y, m] = form.targetMonth.split("-");
+        targetM = Number(m);
+        targetY = Number(y);
+      }
+
       await performanceApi.create({
         employee: form.employee,
+        month: targetM,
+        year: targetY,
         attendanceScore: toNumber(form.attendanceScore),
         tasksCompleted: toNumber(form.tasksCompleted),
         tasksAssigned: toNumber(form.tasksAssigned),
@@ -237,9 +273,24 @@ const Performance = () => {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Performance Management</h1>
         </div>
-        <span className="inline-flex items-center px-3 py-1 rounded-full bg-indigo-100 text-indigo-700 text-sm font-medium">
-          Current Role: {currentRole}
-        </span>
+        <div className="flex flex-wrap items-center gap-3">
+          <select 
+            value={selectedPeriod} 
+            onChange={(e) => setSelectedPeriod(e.target.value)}
+            className="border border-gray-300 rounded-full px-4 py-1.5 text-sm font-medium bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            <option value="All">All History</option>
+            {availablePeriods.map(period => {
+              const [y, m] = period.split('-');
+              const date = new Date(Number(y), Number(m) - 1);
+              const label = date.toLocaleString('default', { month: 'long', year: 'numeric' });
+              return <option key={period} value={period}>{label}</option>;
+            })}
+          </select>
+          <span className="inline-flex items-center px-3 py-1.5 rounded-full bg-indigo-100 text-indigo-700 text-sm font-medium">
+            Current Role: {currentRole}
+          </span>
+        </div>
       </div>
 
       {error && (
@@ -274,8 +325,17 @@ const Performance = () => {
                 <option value="">-- Select Employee --</option>
                 {employeesList
                   .filter((emp) => {
+                    let currentMonth = new Date().getMonth() + 1;
+                    let currentYear = new Date().getFullYear();
+                    
+                    if (form.targetMonth) {
+                      const [y, m] = form.targetMonth.split("-");
+                      currentMonth = Number(m);
+                      currentYear = Number(y);
+                    }
+
                     const isAccountMissing = !emp.userId;
-                    const alreadyExists = emp.userId && records.some((r) => r.employee?._id === emp.userId);
+                    const alreadyExists = emp.userId && records.some((r) => r.employee?._id === emp.userId && r.month === currentMonth && r.year === currentYear);
                     return !isAccountMissing && !alreadyExists;
                   })
                   .map((emp) => (
@@ -287,6 +347,16 @@ const Performance = () => {
               {employeeFieldIssue && (
                 <p className="text-sm text-red-600">{employeeFieldIssue}</p>
               )}
+            </div>
+            <div className="flex flex-col gap-1">
+              <input
+                className="border rounded-xl px-4 py-2"
+                name="targetMonth"
+                value={form.targetMonth}
+                onChange={handleChange}
+                type="month"
+                required
+              />
             </div>
             <input
               className="border rounded-xl px-4 py-2"
@@ -371,7 +441,7 @@ const Performance = () => {
         <div className="bg-white rounded-xl shadow p-6 text-gray-600">Loading performance data...</div>
       ) : (
         <>
-          <PerformanceChart data={records} />
+          <PerformanceChart data={filteredRecords} />
 
           <div className="bg-white rounded-2xl shadow p-6">
             <h3 className="text-xl font-semibold text-gray-800 mb-4">Performance Summary Table</h3>
@@ -380,6 +450,7 @@ const Performance = () => {
                 <thead>
                   <tr className="text-left border-b text-gray-600">
                     <th className="py-3">Employee</th>
+                    <th className="py-3">Period</th>
                     <th className="py-3">Attendance</th>
                     <th className="py-3">Task Rate</th>
                     <th className="py-3">Quality</th>
@@ -389,18 +460,20 @@ const Performance = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {records.length === 0 && (
+                  {filteredRecords.length === 0 && (
                     <tr>
-                      <td className="py-4 text-gray-500" colSpan="6">
+                      <td className="py-4 text-gray-500" colSpan="7">
                         No records yet.
                       </td>
                     </tr>
                   )}
-                  {records.map((record) => {
+                  {filteredRecords.map((record) => {
                     const lastFeedback = record.managerFeedback?.[record.managerFeedback.length - 1];
+                    const monthName = record.month ? new Date(2000, record.month - 1).toLocaleString('default', { month: 'short' }) : '-';
                     return (
                       <tr key={record._id} className="border-b hover:bg-gray-50">
                         <td className="py-3 font-medium">{record.employee?.name || "-"}</td>
+                        <td className="py-3 text-gray-600 whitespace-nowrap">{monthName} {record.year || ''}</td>
                         <td className="py-3">{record.attendanceScore}</td>
                         <td className="py-3">{record.taskCompletionRate}%</td>
                         <td className="py-3">{record.qualityScore}</td>
