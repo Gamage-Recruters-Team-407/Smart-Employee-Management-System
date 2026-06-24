@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
+import Employee from "../models/Employee.js";
 import { getJwtSecret } from "../utils/jwtSecret.js";
 import { resolveEmployeeForAuthUser } from "../utils/employeeUserLink.js";
 
@@ -115,7 +116,12 @@ const findOrCreateGoogleUser = async (profile) => {
     }
     user.lastLogin = new Date();
     await user.save();
-    await resolveEmployeeForAuthUser(user, { createIfMissing: true });
+    
+    const employee = await resolveEmployeeForAuthUser(user, { createIfMissing: true });
+    if (employee && !employee.profilePhoto && profile.picture) {
+      employee.profilePhoto = profile.picture;
+      await employee.save();
+    }
     return user;
   }
 
@@ -127,7 +133,12 @@ const findOrCreateGoogleUser = async (profile) => {
     isVerified: true,
     lastLogin: new Date(),
   });
-  await resolveEmployeeForAuthUser(created, { createIfMissing: true });
+  
+  const employee = await resolveEmployeeForAuthUser(created, { createIfMissing: true });
+  if (employee && !employee.profilePhoto && profile.picture) {
+    employee.profilePhoto = profile.picture;
+    await employee.save();
+  }
   return created;
 };
 
@@ -136,6 +147,7 @@ const runDevGoogleMock = async (res) => {
     id: "dev-google-mock",
     email: "google.demo@sems.com",
     name: "Google Demo User",
+    picture: "https://lh3.googleusercontent.com/a/ACg8ocL3g4n3f458t7g90f1h3j-k=s96-c"
   });
   redirectWithAuthSuccess(res, user);
 };

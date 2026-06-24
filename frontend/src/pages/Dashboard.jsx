@@ -97,7 +97,15 @@ const Dashboard = () => {
     : "U";
 
   // ─── PROFILE PICTURE ──────────────────────────────────────────────────────
-  const profilePicture = employee?.profilePicture || null;
+  const getProfilePhotoUrl = (photoPath) => {
+    if (!photoPath) return null;
+    if (photoPath.startsWith("http://") || photoPath.startsWith("https://")) {
+      return photoPath;
+    }
+    const baseUrl = import.meta.env.VITE_API_URL?.replace("/api", "") || "http://localhost:5000";
+    return `${baseUrl}/${photoPath}`;
+  };
+  const profilePicture = getProfilePhotoUrl(employee?.profilePhoto);
 
   // ─── FETCH TODAY'S ATTENDANCE ──────────────────────────────────────────────
   const fetchTodayAttendance = useCallback(async () => {

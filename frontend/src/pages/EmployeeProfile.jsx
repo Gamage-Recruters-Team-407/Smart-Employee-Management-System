@@ -178,7 +178,7 @@ const EmployeeProfile = () => {
           <div className="flex-shrink-0">
             {employee.profilePhoto ? (
               <img
-                src={`${BASE_URL}/${employee.profilePhoto}`}
+                src={employee.profilePhoto.startsWith("http") ? employee.profilePhoto : `${BASE_URL}/${employee.profilePhoto}`}
                 alt={fullName}
                 className="w-20 h-20 rounded-2xl object-cover border-4 border-indigo-50 shadow"
                 onError={(e) => { e.currentTarget.style.display = "none"; e.currentTarget.nextSibling.style.display = "flex"; }}

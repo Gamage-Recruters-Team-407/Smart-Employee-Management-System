@@ -42,7 +42,7 @@ const Avatar = ({ name, empId, profilePhoto, size = "large" }) => {
     return (
       <div className={`relative ${sizeClass} flex-shrink-0`}>
         <img
-          src={`${base}/${profilePhoto}`}
+          src={profilePhoto.startsWith("http") ? profilePhoto : `${base}/${profilePhoto}`}
           alt={name}
           className={`${sizeClass} rounded-full object-cover border-3 border-white shadow-md`}
           onError={(e) => { e.currentTarget.style.display = "none"; e.currentTarget.nextSibling.style.display = "flex"; }}
