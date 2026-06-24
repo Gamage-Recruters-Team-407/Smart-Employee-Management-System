@@ -53,6 +53,7 @@ export function useEmployeeProfile({ enabled = true } = {}) {
     try {
       const { data } = await API.get("/employees/me");
       setEmployee(data);
+      console.log("Employee profile fetched:", data);
       syncStoredUserName(data);
       notifyEmployeeProfileUpdated(data);
     } catch (err) {
