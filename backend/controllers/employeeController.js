@@ -4,6 +4,7 @@ import path from "path";
 import Employee from "../models/Employee.js";
 import Task from "../models/Task.js";
 import AuditLog from "../models/AuditLog.js";
+import User from "../models/User.js";
 import generateEmployeeId from "../utils/generateEmployeeId.js";
 import { resolveEmployeeForAuthUser } from "../utils/employeeUserLink.js";
 
@@ -330,6 +331,21 @@ export const updateEmployee = async (req, res) => {
       { $set: updateData },
       { returnDocument: "after", runValidators: true }
     );
+
+    // 🔄 Sync linked User name and role if updated
+    if (updatedEmployee.userId) {
+      const userUpdate = {};
+      if (updateData.firstName !== undefined || updateData.lastName !== undefined) {
+        userUpdate.name = `${updatedEmployee.firstName} ${updatedEmployee.lastName}`.trim();
+      }
+      if (updateData.role !== undefined) {
+        userUpdate.role = updatedEmployee.role;
+      }
+
+      if (Object.keys(userUpdate).length > 0) {
+        await User.findByIdAndUpdate(updatedEmployee.userId, { $set: userUpdate });
+      }
+    }
 
     // Track Audit Log changes for the allowed modified parameters
     const changes = [];
