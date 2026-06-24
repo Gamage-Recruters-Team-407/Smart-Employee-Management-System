@@ -12,31 +12,22 @@ const managerFeedbackPopulate = { path: "managerFeedback.manager", select: "name
 export const getAllPerformanceRecords = async (req, res) => {
   try {
     const { role, id } = req.user;
+    const currentMonth = new Date().getMonth() + 1;
+    const currentYear = new Date().getFullYear();
 
     if (role === "Employee") {
-      let ownRecord = await Performance.findOne({ employee: id })
+      let ownRecords = await Performance.find({ employee: id })
         .populate(employeePopulate)
-        .populate(managerFeedbackPopulate);
+        .populate(managerFeedbackPopulate)
+        .sort({ year: -1, month: -1 });
 
-      if (!ownRecord) {
-        const employeeExists = await User.exists({ _id: id });
-        if (!employeeExists) {
-          return res.status(404).json({ message: "Employee user not found for performance profile." });
-        }
-
-        const created = await Performance.create({ employee: id });
-        ownRecord = await Performance.findById(created._id)
-          .populate(employeePopulate)
-          .populate(managerFeedbackPopulate);
-      }
-
-      return res.json([ownRecord]);
+      return res.json(ownRecords);
     }
 
     const records = await Performance.find()
       .populate(employeePopulate)
       .populate(managerFeedbackPopulate)
-      .sort({ overallScore: -1 });
+      .sort({ year: -1, month: -1, overallScore: -1 });
 
     return res.json(records);
   } catch (error) {
@@ -56,15 +47,16 @@ export const getPerformanceByEmployeeId = async (req, res) => {
       return res.status(403).json({ message: "Employees can only view their own performance score." });
     }
 
-    const record = await Performance.findOne({ employee: employeeId })
+    const records = await Performance.find({ employee: employeeId })
       .populate(employeePopulate)
-      .populate(managerFeedbackPopulate);
+      .populate(managerFeedbackPopulate)
+      .sort({ year: -1, month: -1 });
 
-    if (!record) {
-      return res.status(404).json({ message: "Performance record not found." });
+    if (!records || records.length === 0) {
+      return res.status(404).json({ message: "Performance records not found." });
     }
 
-    return res.json(record);
+    return res.json(records);
   } catch (error) {
     return res.status(500).json({ message: "Failed to fetch performance record.", error: error.message });
   }
@@ -83,13 +75,23 @@ export const createPerformance = async (req, res) => {
       return res.status(404).json({ message: "Employee user not found." });
     }
 
-    const existing = await Performance.findOne({ employee });
+    let currentMonth = req.body.month;
+    let currentYear = req.body.year;
+
+    if (!currentMonth || !currentYear) {
+      currentMonth = new Date().getMonth() + 1;
+      currentYear = new Date().getFullYear();
+    }
+
+    const existing = await Performance.findOne({ employee, month: currentMonth, year: currentYear });
     if (existing) {
-      return res.status(409).json({ message: "Performance record already exists for this employee." });
+      return res.status(409).json({ message: `Performance record already exists for this employee for ${currentMonth}/${currentYear}.` });
     }
 
     const newPerformance = await Performance.create({
       employee,
+      month: currentMonth,
+      year: currentYear,
       attendanceScore: req.body.attendanceScore,
       tasksCompleted: req.body.tasksCompleted,
       tasksAssigned: req.body.tasksAssigned,

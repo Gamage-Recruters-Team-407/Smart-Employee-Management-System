@@ -36,8 +36,15 @@ const performanceSchema = new mongoose.Schema(
     employee: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
-      unique: true
+      required: true
+    },
+    month: {
+      type: Number,
+      required: true
+    },
+    year: {
+      type: Number,
+      required: true
     },
     attendanceScore: {
       type: Number,
@@ -85,6 +92,9 @@ const performanceSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+// Ensure only one record per employee per month/year
+performanceSchema.index({ employee: 1, month: 1, year: 1 }, { unique: true });
 
 performanceSchema.methods.calculateOverallScore = function () {
   const attendance = clampScore(this.attendanceScore);
