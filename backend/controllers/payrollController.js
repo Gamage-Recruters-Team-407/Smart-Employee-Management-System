@@ -45,6 +45,16 @@ const computeNet = ({ basicSalary = 0, allowances = 0, bonus = 0, deductions = 0
   (basicSalary || 0) + (allowances || 0) + (bonus || 0)
   - (deductions || 0) - (tax || 0) - (loans || 0);
 
+
+const PRIVILEGED_ROLES = ['Admin', 'HR'];
+const isPrivileged = (req) => PRIVILEGED_ROLES.includes(req.user?.role);
+
+const getOwnEmployeeId = async (req) => {
+  if (!req.user?._id) return null;
+  const emp = await Employee.findOne({ userId: req.user._id }).select('_id');
+  return emp ? emp._id : null;
+};
+
 // ─── GET ALL PAYROLL RECORDS ──────────────────────────────────────────────
 export const getPayrolls = async (req, res) => {
   try {
@@ -58,7 +68,14 @@ export const getPayrolls = async (req, res) => {
     } else if (year) {
       filter.year = parseInt(year, 10);
     }
-    if (employeeId) filter.employee = employeeId;
+    
+    if (isPrivileged(req)) {
+      if (employeeId) filter.employee = employeeId;
+    } else {
+      const ownId = await getOwnEmployeeId(req);
+      if (!ownId) return res.status(200).json({ success: true, data: [] });
+      filter.employee = ownId;
+    }
 
     const payrolls = await Payroll.find(filter)
       .populate('employee', 'firstName lastName email employeeId department designation')
@@ -91,6 +108,14 @@ export const getPayrollById = async (req, res) => {
         success: false,
         message: 'Payroll record not found'
       });
+    }
+
+    if (!isPrivileged(req)) {
+      const ownId = await getOwnEmployeeId(req);
+      const ownerId = payroll.employee?._id || payroll.employee;
+      if (!ownId || String(ownerId) !== String(ownId)) {
+        return res.status(403).json({ success: false, message: 'Not authorized to view this payroll record' });
+      }
     }
 
     res.status(200).json({
@@ -344,7 +369,24 @@ export const getPayrollSummary = async (req, res) => {
       });
     }
 
-    const payrolls = await Payroll.find({ month: monthName, year: resolvedYear })
+    const query = { month: monthName, year: resolvedYear };
+
+    if (!isPrivileged(req)) {
+      const ownId = await getOwnEmployeeId(req);
+      if (!ownId) {
+        return res.status(200).json({
+          success: true,
+          data: {
+            month: monthName, year: resolvedYear, totalEmployees: 0,
+            totalBasicSalary: 0, totalAllowances: 0, totalDeductions: 0,
+            totalLoans: 0, totalTax: 0, totalNetSalary: 0, records: []
+          }
+        });
+      }
+      query.employee = ownId;
+    }
+
+    const payrolls = await Payroll.find(query)
       .populate('employee', 'firstName lastName employeeId department');
 
     const sum = (key) => payrolls.reduce((acc, p) => acc + (p[key] || 0), 0);
