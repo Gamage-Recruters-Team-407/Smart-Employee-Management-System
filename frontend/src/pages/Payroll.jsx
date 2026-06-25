@@ -31,13 +31,13 @@ const monthLabel = (m) => {
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
 const StatCard = ({ icon: Icon, label, value, color }) => (
-  <div className="bg-white rounded-2xl shadow p-6 flex items-center gap-5">
-    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 ${color}`}>
-      <Icon size={26} className="text-white" />
+  <div className="bg-white rounded-2xl shadow p-5 sm:p-6 flex items-center gap-4 sm:gap-5">
+    <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center flex-shrink-0 ${color}`}>
+      <Icon size={24} className="text-white" />
     </div>
-    <div>
-      <p className="text-sm text-gray-500">{label}</p>
-      <p className="text-xl font-bold text-gray-800 mt-0.5">{value}</p>
+    <div className="min-w-0">
+      <p className="text-sm text-gray-500 truncate">{label}</p>
+      <p className="text-lg sm:text-xl font-bold text-gray-800 mt-0.5 truncate" title={value}>{value}</p>
     </div>
   </div>
 );
@@ -89,6 +89,8 @@ const Payroll = () => {
     allowances: '', deductions: '', loans: '', tax: '', status: '', notes: '',
   });
   const [submitting, setSubmitting] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 10;
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
   const fetchPayrolls = useCallback(async () => {
@@ -127,6 +129,14 @@ const Payroll = () => {
       fetchEmployees();
     });
   }, [fetchEmployees]);
+
+  // ── Pagination ───────────────────────────────────────────────────────────
+  const totalPages = Math.max(1, Math.ceil(payrolls.length / PAGE_SIZE));
+  const pageStart = (currentPage - 1) * PAGE_SIZE;
+  const paginatedPayrolls = payrolls.slice(pageStart, pageStart + PAGE_SIZE);
+
+  useEffect(() => { setCurrentPage(1); }, [selectedMonth]);
+  useEffect(() => { if (currentPage > totalPages) setCurrentPage(totalPages); }, [totalPages, currentPage]);
 
   // ── Notifications ──────────────────────────────────────────────────────────
   const notify = (msg, isError = false) => {
@@ -367,7 +377,7 @@ const Payroll = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {payrolls.map((p) => {
+                {paginatedPayrolls.map((p) => {
                   const emp = p.employee || {};
                   const fullName = `${emp.firstName || ''} ${emp.lastName || ''}`.trim();
                   return (
@@ -423,6 +433,40 @@ const Payroll = () => {
                 })}
               </tbody>
             </table>
+          </div>
+        )}
+        {!loading && payrolls.length > PAGE_SIZE && (
+          <div className="px-6 py-4 border-t flex items-center justify-between flex-wrap gap-3">
+            <span className="text-sm text-gray-500">
+              Showing {pageStart + 1}–{Math.min(pageStart + PAGE_SIZE, payrolls.length)} of {payrolls.length}
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 rounded-lg border border-gray-300 text-sm disabled:opacity-40 hover:bg-gray-50 transition"
+              >
+                Prev
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setCurrentPage(p)}
+                  className={`w-9 h-9 rounded-lg text-sm font-medium transition ${
+                    p === currentPage ? 'bg-indigo-600 text-white' : 'border border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  {p}
+                </button>
+              ))}
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1.5 rounded-lg border border-gray-300 text-sm disabled:opacity-40 hover:bg-gray-50 transition"
+              >
+                Next
+              </button>
+            </div>
           </div>
         )}
       </div>
