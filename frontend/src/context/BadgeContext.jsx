@@ -31,9 +31,19 @@ export const BadgeProvider = ({ children }) => {
 
   useEffect(() => {
     fetchBadges();
-    // Poll every 60 seconds to keep badges somewhat in sync
+    // Poll every 60 seconds to keep badges somewhat in sync (fallback)
     const interval = setInterval(fetchBadges, 60000);
-    return () => clearInterval(interval);
+    
+    // Listen for real-time socket updates
+    const handleSocketUpdate = () => {
+      fetchBadges();
+    };
+    window.addEventListener("socket-badge-update", handleSocketUpdate);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("socket-badge-update", handleSocketUpdate);
+    };
   }, [fetchBadges]);
 
   return (
