@@ -237,7 +237,7 @@ const AddEmployeeModal = ({ isOpen, onClose, onSuccess, employee = null }) => {
   // ── Photo state ────────────────────────────────────────────────────────────
   const [photoFile, setPhotoFile] = useState(null);       // File object
   const [photoPreview, setPhotoPreview] = useState(      // preview URL
-    employee?.profilePhoto ? `http://localhost:5000/${employee.profilePhoto}` : null
+    employee?.profilePhoto ? (employee.profilePhoto.startsWith("http") ? employee.profilePhoto : `http://localhost:5000/${employee.profilePhoto}`) : null
   );
   const [photoError, setPhotoError] = useState("");
   const photoInputRef = useRef(null);
@@ -346,7 +346,7 @@ const AddEmployeeModal = ({ isOpen, onClose, onSuccess, employee = null }) => {
     setApiError("");
     setPhotoFile(null);
     setPhotoPreview(
-      employee?.profilePhoto ? `http://localhost:5000/${employee.profilePhoto}` : null
+      employee?.profilePhoto ? (employee.profilePhoto.startsWith("http") ? employee.profilePhoto : `http://localhost:5000/${employee.profilePhoto}`) : null
     );
     setPhotoError("");
     onClose();

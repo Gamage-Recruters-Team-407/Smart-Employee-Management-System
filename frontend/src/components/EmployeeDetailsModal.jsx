@@ -69,7 +69,7 @@ const EmployeeDetailsModal = ({ isOpen, onClose, employee }) => {
           
           <div className="w-20 h-20 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-3xl font-bold shadow-lg shadow-indigo-200 mb-4 overflow-hidden">
             {employee.profilePhoto ? (
-              <img src={employee.profilePhoto} alt="Profile" className="w-full h-full object-cover" />
+              <img src={employee.profilePhoto.startsWith("http") ? employee.profilePhoto : `${import.meta.env.VITE_API_URL?.replace("/api", "") || "http://localhost:5000"}/${employee.profilePhoto}`} alt="Profile" className="w-full h-full object-cover" />
             ) : (
               `${employee.firstName?.[0] || ""}${employee.lastName?.[0] || ""}`
             )}

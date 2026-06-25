@@ -58,7 +58,7 @@ const Avatar = ({ name, empId, profilePhoto }) => {
     return (
       <div className="relative w-9 h-9 flex-shrink-0">
         <img
-          src={`${base}/${profilePhoto}`}
+          src={profilePhoto.startsWith("http") ? profilePhoto : `${base}/${profilePhoto}`}
           alt={name}
           className="w-9 h-9 rounded-full object-cover border-2 border-gray-100 shadow-sm"
           onError={(e) => {
