@@ -12,6 +12,7 @@ import {
   buildTaskCapabilities,
 } from "../utils/taskPermissions.js";
 import { createNotificationForUser } from "./notificationController.js";
+import { notifyUserBadges } from "../services/websocketService.js";
 
 const STATUSES = TASK_STATUSES;
 
@@ -50,6 +51,21 @@ const getAssigneeSnapshot = async (assignedToId) => {
     assignedToEmail: employee.email?.toLowerCase(),
     employee,
   };
+};
+
+const notifyTaskAssignee = async (reqUser, assignedToId) => {
+  if (reqUser?._id || reqUser?.id) {
+    notifyUserBadges(reqUser._id || reqUser.id);
+  }
+  if (!assignedToId) return;
+  try {
+    const emp = await Employee.findById(assignedToId).select("userId");
+    if (emp?.userId && emp.userId.toString() !== (reqUser?._id?.toString() || reqUser?.id?.toString())) {
+      notifyUserBadges(emp.userId);
+    }
+  } catch (e) {
+    console.error("Failed to notify task assignee:", e);
+  }
 };
 
 const validateTaskInput = (
@@ -257,6 +273,8 @@ export const createTask = async (req, res) => {
       }
     }
 
+    notifyTaskAssignee(req.user, task.assignedTo);
+
     res.status(201).json(populated);
   } catch (error) {
     res.status(500).json({
@@ -311,6 +329,9 @@ export const updateTask = async (req, res) => {
     }
 
     await task.save();
+
+    notifyTaskAssignee(req.user, task.assignedTo);
+
     const populated = await Task.findById(task._id).populate(
       "assignedTo",
       "firstName lastName employeeId email department"
@@ -350,6 +371,8 @@ export const updateTaskStatus = async (req, res) => {
     }
 
     await task.save();
+
+    notifyTaskAssignee(req.user, task.assignedTo);
 
     const populated = await Task.findById(task._id).populate(
       "assignedTo",
@@ -394,6 +417,8 @@ export const updateTaskProgress = async (req, res) => {
     }
 
     await task.save();
+
+    notifyTaskAssignee(req.user, task.assignedTo);
 
     const populated = await Task.findById(task._id).populate(
       "assignedTo",
@@ -457,6 +482,8 @@ export const deleteTask = async (req, res) => {
         message: "Task not found",
       });
     }
+
+    notifyTaskAssignee(req.user, task.assignedTo);
 
     res.json({
       message: "Task deleted",

@@ -12,8 +12,8 @@ const useAttendanceSocket = (user, onAuthenticated) => {
   }, [onAuthenticated]);
 
   useEffect(() => {
-    // Only connect if the user exists and has an employeeId
-    if (!user || !user.employeeId) return;
+    // Only connect if the user exists
+    if (!user) return;
 
     // Determine the backend URL
     const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
@@ -35,7 +35,7 @@ const useAttendanceSocket = (user, onAuthenticated) => {
     socket.on("connect", () => {
       console.log("✅ Connected to server. Authenticating employee...");
       // Send the authenticate event — backend sets onlineStatus to "Online"
-      socket.emit("authenticate", { employeeId: user.employeeId });
+      socket.emit("authenticate", { employeeId: user.employeeId, userId: user.id || user._id });
     });
 
     socket.on("authenticated", (data) => {
@@ -50,6 +50,11 @@ const useAttendanceSocket = (user, onAuthenticated) => {
       console.log("📡 Attendance update received:", data);
     });
 
+    socket.on("badge-update", () => {
+      console.log("🔔 Badge update received via socket");
+      window.dispatchEvent(new CustomEvent("socket-badge-update"));
+    });
+
     socket.on("error", (err) => {
       console.error("❌ Socket error:", err.message);
     });
@@ -62,7 +67,7 @@ const useAttendanceSocket = (user, onAuthenticated) => {
     socket.on("reconnect", (attemptNumber) => {
       console.log(`🔄 Reconnected after ${attemptNumber} attempts`);
       // Re-authenticate after reconnection
-      socket.emit("authenticate", { employeeId: user.employeeId });
+      socket.emit("authenticate", { employeeId: user.employeeId, userId: user.id || user._id });
     });
 
     // Cleanup: runs when the component unmounts (logout) or tab closes
@@ -75,7 +80,7 @@ const useAttendanceSocket = (user, onAuthenticated) => {
         window.socket = null;
       }
     };
-  }, [user?.employeeId]); // Only reconnect when employeeId changes
+  }, [user?.id, user?._id, user?.employeeId]);
 
   return socketRef;
 };
