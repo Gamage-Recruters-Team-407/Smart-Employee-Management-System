@@ -994,6 +994,12 @@ const Notifications = () => {
 
   useEffect(() => {
     fetchNotifications();
+
+    const handleSocketUpdate = () => {
+      fetchNotifications();
+    };
+    window.addEventListener("socket-badge-update", handleSocketUpdate);
+    return () => window.removeEventListener("socket-badge-update", handleSocketUpdate);
   }, [fetchNotifications]);
 
   useEffect(() => {

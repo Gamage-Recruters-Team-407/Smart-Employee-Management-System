@@ -4,6 +4,7 @@ import {
   sendNotificationEmail,
   verifyEmailConnection,
 } from "../services/emailService.js";
+import { notifyUserBadges } from "../services/websocketService.js";
 
 const NOTIFICATION_TYPES = [
   "attendance",
@@ -66,6 +67,9 @@ export const createNotificationForUser = async ({
       );
     }
   }
+
+  // Notify frontend in real-time
+  notifyUserBadges(userId);
 
   return notification;
 };
@@ -206,6 +210,8 @@ export const markAsRead = async (req, res) => {
     notification.isRead = true;
     await notification.save();
 
+    notifyUserBadges(req.user._id);
+
     return res.status(200).json({
       success: true,
       data: notification,
@@ -227,6 +233,8 @@ export const markAllAsRead = async (req, res) => {
       { userId: req.user._id, isRead: false },
       { $set: { isRead: true } }
     );
+
+    notifyUserBadges(req.user._id);
 
     return res.status(200).json({
       success: true,
@@ -263,6 +271,8 @@ export const deleteNotification = async (req, res) => {
     }
 
     await notification.deleteOne();
+
+    notifyUserBadges(req.user._id);
 
     return res.status(200).json({
       success: true,

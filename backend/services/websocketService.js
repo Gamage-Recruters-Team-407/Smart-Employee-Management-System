@@ -6,6 +6,8 @@ import Employee from "../models/Employee.js";
 const formatTime = (date) =>
   `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 
+let ioInstance = null;
+
 export const initWebSocket = (server) => {
   const io = new Server(server, {
     cors: {
@@ -13,6 +15,8 @@ export const initWebSocket = (server) => {
       methods: ["GET", "POST"]
     }
   });
+
+  ioInstance = io;
 
   io.on("connection", (socket) => {
     // Keep track of the active session document ID for this specific socket connection
@@ -28,7 +32,13 @@ export const initWebSocket = (server) => {
     // Authenticate the user when they connect (and automatically mark their attendance check-in)
     socket.on("authenticate", async (data) => {
       try {
-        const { employeeId } = data;
+        const { employeeId, userId } = data || {};
+        if (userId) {
+          socket.join(`user-${userId.toString()}`);
+          console.log(`User socket joined: user-${userId.toString()}`);
+        }
+        if (!employeeId) return;
+
         // Optimize query by only selecting the '_id' field
         const employee = await Employee.findOne({ employeeId }).select("_id");
 
@@ -177,4 +187,11 @@ export const initWebSocket = (server) => {
   });
 
   return io;
+};
+
+export const notifyUserBadges = (userId) => {
+  if (ioInstance && userId) {
+    console.log(`🔔 Emitting badge-update to user-${userId.toString()}`);
+    ioInstance.to(`user-${userId.toString()}`).emit("badge-update");
+  }
 };
