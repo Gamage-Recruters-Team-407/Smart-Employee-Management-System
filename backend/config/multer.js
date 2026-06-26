@@ -58,4 +58,13 @@ export const imageUpload = multer({
   limits: { fileSize: 2 * 1024 * 1024 },
 });
 
+// ── Memory storage for documents that go straight to Cloudinary ──
+const memoryStorage = multer.memoryStorage();
+
+export const documentUpload = multer({
+  storage: memoryStorage,
+  fileFilter,                              // reuse PDF/JPG/PNG filter
+  limits: { fileSize: 5 * 1024 * 1024 },   // 5MB
+});
+
 export default upload;
