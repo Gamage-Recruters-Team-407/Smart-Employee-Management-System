@@ -3,9 +3,10 @@ import API from "../services/api";
 import { fetchEmployees as fetchEmployeesList } from "../services/employeeService";
 import TaskBoard from "../components/TaskBoard";
 import { useAuth } from "../context/AuthContext";
-import MyTasks from "./MyTasks";
+import EmployeeTasks from "./EmployeeTasks";
 import Issues from "./Issues";
 import DailyReports from "../components/DailyReports";
+import { useBadges } from "../context/BadgeContext";
 
 const TASK_STATUSES = ["To Do", "In Progress", "Review", "Completed"];
 
@@ -72,6 +73,7 @@ const Tasks = () => {
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
   const [activeTab, setActiveTab] = useState("manage"); // 'my' | 'manage'
+  const { activeTasks } = useBadges();
 
   const fetchTasks = useCallback(async () => {
     try {
@@ -223,7 +225,7 @@ const Tasks = () => {
       } else {
         alert(
           err.message ||
-            (isEdit ? "Failed to update task" : "Failed to create task")
+          (isEdit ? "Failed to update task" : "Failed to create task")
         );
       }
       console.error(err);
@@ -238,10 +240,9 @@ const Tasks = () => {
     ) : null;
 
   const inputClass = (name) =>
-    `w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 ${
-      touched[name] && errors[name]
-        ? "border-red-400 focus:ring-red-400"
-        : "border-gray-300 focus:ring-indigo-500"
+    `w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 ${touched[name] && errors[name]
+      ? "border-red-400 focus:ring-red-400"
+      : "border-gray-300 focus:ring-indigo-500"
     }`;
 
   const todayStr = new Date().toISOString().split("T")[0];
@@ -278,250 +279,251 @@ const Tasks = () => {
       <div className="flex gap-2 mb-6 bg-white rounded-2xl shadow p-2 w-fit">
         <button
           onClick={() => setActiveTab("my")}
-          className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition ${
-            activeTab === "my" ? "bg-indigo-600 text-white" : "text-gray-600 hover:bg-gray-50"
-          }`}
+          className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold transition ${activeTab === "my" ? "bg-indigo-600 text-white" : "text-gray-600 hover:bg-gray-50"
+            }`}
         >
           My Tasks
+          {activeTasks > 0 && (
+            <span className="inline-flex items-center justify-center min-w-[20px] h-[20px] px-1.5 rounded-full bg-red-500 text-white text-[11px] font-bold leading-none">
+              {activeTasks > 99 ? "99+" : activeTasks}
+            </span>
+          )}
         </button>
         <button
           onClick={() => setActiveTab("manage")}
-          className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition ${
-            activeTab === "manage" ? "bg-indigo-600 text-white" : "text-gray-600 hover:bg-gray-50"
-          }`}
+          className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition ${activeTab === "manage" ? "bg-indigo-600 text-white" : "text-gray-600 hover:bg-gray-50"
+            }`}
         >
           Task Management
         </button>
         <button
           onClick={() => setActiveTab("issues")}
-          className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition ${
-            activeTab === "issues" ? "bg-indigo-600 text-white" : "text-gray-600 hover:bg-gray-50"
-          }`}
+          className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition ${activeTab === "issues" ? "bg-indigo-600 text-white" : "text-gray-600 hover:bg-gray-50"
+            }`}
         >
           Issues
         </button>
         {(user?.role === "Admin" || user?.role === "HR") && (
           <button
             onClick={() => setActiveTab("reports")}
-            className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition ${
-              activeTab === "reports" ? "bg-indigo-600 text-white" : "text-gray-600 hover:bg-gray-50"
-            }`}
+            className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition ${activeTab === "reports" ? "bg-indigo-600 text-white" : "text-gray-600 hover:bg-gray-50"
+              }`}
           >
             Daily Reports
           </button>
         )}
       </div>
 
-      {activeTab === "my" && <MyTasks />}
+      {activeTab === "my" && <EmployeeTasks />}
 
       {activeTab === "manage" && (
         <>
-      <div className="flex flex-wrap justify-between items-center gap-4 mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-800">Task Management</h1>
-          <p className="text-gray-500 mt-1 max-w-2xl">
-            Create and assign tasks to employees and add comments. Employees update progress and status from the My Tasks page.
-          </p>
-        </div>
-        <button
-          onClick={openModal}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-semibold transition"
-        >
-          + Assign Task
-        </button>
-      </div>
-      <div className="mb-4 flex flex-wrap gap-2 text-xs text-gray-500">
-        <span className="font-medium text-gray-700">Workflow:</span>
-        {TASK_STATUSES.map((s, i) => (
-          <span key={s} className="flex items-center gap-2">
-            {i > 0 && <span>→</span>}
-            <span className="px-2 py-0.5 bg-gray-100 rounded-md">{s}</span>
-          </span>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-        {[
-          { label: "Total Tasks", value: stats.total, color: "bg-indigo-50 text-indigo-700" },
-          { label: "To Do", value: stats.todo, color: "bg-slate-50 text-slate-700" },
-          { label: "In Progress", value: stats.inProgress, color: "bg-blue-50 text-blue-700" },
-          { label: "Review", value: stats.review, color: "bg-amber-50 text-amber-700" },
-          { label: "Completed", value: stats.completed, color: "bg-green-50 text-green-700" },
-        ].map((s) => (
-          <div key={s.label} className={`rounded-xl p-4 ${s.color}`}>
-            <p className="text-sm font-medium opacity-80">{s.label}</p>
-            <p className="text-2xl font-bold">{s.value}</p>
-          </div>
-        ))}
-      </div>
-
-      {loading ? (
-        <p className="text-center text-gray-500 py-12">Loading tasks...</p>
-      ) : (
-        <TaskBoard
-          tasks={tasks}
-          onEdit={openEditModal}
-          onAddComment={handleAddComment}
-          onDelete={handleDelete}
-        />
-      )}
-
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-auto">
-            <div className="p-8">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-semibold">
-                  {modalMode === "edit" ? "Edit Task" : "Assign New Task"}
-                </h2>
-                <button
-                  onClick={closeModal}
-                  className="text-gray-500 hover:text-gray-700 text-3xl leading-none"
-                >
-                  ×
-                </button>
-              </div>
-
-              {Object.keys(errors).length > 0 && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
-                  Please fix the errors below before submitting.
-                </div>
-              )}
-
-              <form onSubmit={handleSubmitTask} className="space-y-4" noValidate>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Title <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    name="title"
-                    value={formData.title}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    maxLength={100}
-                    className={inputClass("title")}
-                    placeholder="Task title (min 3 characters)"
-                  />
-                  {fieldError("title")}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Description
-                  </label>
-                  <textarea
-                    name="description"
-                    value={formData.description}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    rows={3}
-                    maxLength={500}
-                    className={`${inputClass("description")} resize-y`}
-                    placeholder="Task details (max 500 characters)"
-                  />
-                  <p className="text-xs text-gray-400 mt-1 text-right">
-                    {formData.description.length}/500
-                  </p>
-                  {fieldError("description")}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Assign To <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    name="assignedTo"
-                    value={formData.assignedTo}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    disabled={employees.length === 0}
-                    className={inputClass("assignedTo")}
-                  >
-                    <option value="">
-                      {employees.length === 0
-                        ? "No employees available"
-                        : "Select employee"}
-                    </option>
-                    {employees.map((emp) => (
-                      <option key={emp._id} value={emp._id}>
-                        {emp.firstName} {emp.lastName}
-                        {emp.employeeId ? ` (${emp.employeeId})` : ""}
-                        {emp.department ? ` — ${emp.department}` : ""}
-                      </option>
-                    ))}
-                  </select>
-                  {employees.length === 0 && (
-                    <p className="text-amber-600 text-sm mt-1">
-                      Add employees from the Employees page first.
-                    </p>
-                  )}
-                  {fieldError("assignedTo")}
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Due Date <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="date"
-                      name="dueDate"
-                      value={formData.dueDate}
-                      onChange={handleChange}
-                      onBlur={handleBlur}
-                      min={modalMode === "edit" ? undefined : todayStr}
-                      className={inputClass("dueDate")}
-                    />
-                    {fieldError("dueDate")}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Initial Status <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      name="status"
-                      value={formData.status}
-                      onChange={handleChange}
-                      onBlur={handleBlur}
-                      className={inputClass("status")}
-                    >
-                      {TASK_STATUSES.map((s) => (
-                        <option key={s} value={s}>
-                          {s}
-                        </option>
-                      ))}
-                    </select>
-                    {fieldError("status")}
-                  </div>
-                </div>
-
-                <div className="flex gap-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={closeModal}
-                    className="flex-1 py-3 border border-gray-300 rounded-xl font-medium hover:bg-gray-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl"
-                  >
-                    {submitting
-                      ? modalMode === "edit"
-                        ? "Saving..."
-                        : "Creating..."
-                      : modalMode === "edit"
-                        ? "Save Changes"
-                        : "Create Task"}
-                  </button>
-                </div>
-              </form>
+          <div className="flex flex-wrap justify-between items-center gap-4 mb-8">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-800">Task Management</h1>
+              <p className="text-gray-500 mt-1 max-w-2xl">
+                Create and assign tasks to employees and add comments. Employees update progress and status from the My Tasks page.
+              </p>
             </div>
+            <button
+              onClick={openModal}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-semibold transition"
+            >
+              + Assign Task
+            </button>
           </div>
-        </div>
-      )}
+          <div className="mb-4 flex flex-wrap gap-2 text-xs text-gray-500">
+            <span className="font-medium text-gray-700">Workflow:</span>
+            {TASK_STATUSES.map((s, i) => (
+              <span key={s} className="flex items-center gap-2">
+                {i > 0 && <span>→</span>}
+                <span className="px-2 py-0.5 bg-gray-100 rounded-md">{s}</span>
+              </span>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+            {[
+              { label: "Total Tasks", value: stats.total, color: "bg-indigo-50 text-indigo-700" },
+              { label: "To Do", value: stats.todo, color: "bg-slate-50 text-slate-700" },
+              { label: "In Progress", value: stats.inProgress, color: "bg-blue-50 text-blue-700" },
+              { label: "Review", value: stats.review, color: "bg-amber-50 text-amber-700" },
+              { label: "Completed", value: stats.completed, color: "bg-green-50 text-green-700" },
+            ].map((s) => (
+              <div key={s.label} className={`rounded-xl p-4 ${s.color}`}>
+                <p className="text-sm font-medium opacity-80">{s.label}</p>
+                <p className="text-2xl font-bold">{s.value}</p>
+              </div>
+            ))}
+          </div>
+
+          {loading ? (
+            <p className="text-center text-gray-500 py-12">Loading tasks...</p>
+          ) : (
+            <TaskBoard
+              tasks={tasks}
+              onEdit={openEditModal}
+              onAddComment={handleAddComment}
+              onDelete={handleDelete}
+            />
+          )}
+
+          {isModalOpen && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-auto">
+                <div className="p-8">
+                  <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-2xl font-semibold">
+                      {modalMode === "edit" ? "Edit Task" : "Assign New Task"}
+                    </h2>
+                    <button
+                      onClick={closeModal}
+                      className="text-gray-500 hover:text-gray-700 text-3xl leading-none"
+                    >
+                      ×
+                    </button>
+                  </div>
+
+                  {Object.keys(errors).length > 0 && (
+                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+                      Please fix the errors below before submitting.
+                    </div>
+                  )}
+
+                  <form onSubmit={handleSubmitTask} className="space-y-4" noValidate>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Title <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        name="title"
+                        value={formData.title}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        maxLength={100}
+                        className={inputClass("title")}
+                        placeholder="Task title (min 3 characters)"
+                      />
+                      {fieldError("title")}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Description
+                      </label>
+                      <textarea
+                        name="description"
+                        value={formData.description}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        rows={3}
+                        maxLength={500}
+                        className={`${inputClass("description")} resize-y`}
+                        placeholder="Task details (max 500 characters)"
+                      />
+                      <p className="text-xs text-gray-400 mt-1 text-right">
+                        {formData.description.length}/500
+                      </p>
+                      {fieldError("description")}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Assign To <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        name="assignedTo"
+                        value={formData.assignedTo}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        disabled={employees.length === 0}
+                        className={inputClass("assignedTo")}
+                      >
+                        <option value="">
+                          {employees.length === 0
+                            ? "No employees available"
+                            : "Select employee"}
+                        </option>
+                        {employees.map((emp) => (
+                          <option key={emp._id} value={emp._id}>
+                            {emp.firstName} {emp.lastName}
+                            {emp.employeeId ? ` (${emp.employeeId})` : ""}
+                            {emp.department ? ` — ${emp.department}` : ""}
+                          </option>
+                        ))}
+                      </select>
+                      {employees.length === 0 && (
+                        <p className="text-amber-600 text-sm mt-1">
+                          Add employees from the Employees page first.
+                        </p>
+                      )}
+                      {fieldError("assignedTo")}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Due Date <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="date"
+                          name="dueDate"
+                          value={formData.dueDate}
+                          onChange={handleChange}
+                          onBlur={handleBlur}
+                          min={modalMode === "edit" ? undefined : todayStr}
+                          className={inputClass("dueDate")}
+                        />
+                        {fieldError("dueDate")}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Initial Status <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          name="status"
+                          value={formData.status}
+                          onChange={handleChange}
+                          onBlur={handleBlur}
+                          className={inputClass("status")}
+                        >
+                          {TASK_STATUSES.map((s) => (
+                            <option key={s} value={s}>
+                              {s}
+                            </option>
+                          ))}
+                        </select>
+                        {fieldError("status")}
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3 pt-4">
+                      <button
+                        type="button"
+                        onClick={closeModal}
+                        className="flex-1 py-3 border border-gray-300 rounded-xl font-medium hover:bg-gray-50"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={submitting}
+                        className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl"
+                      >
+                        {submitting
+                          ? modalMode === "edit"
+                            ? "Saving..."
+                            : "Creating..."
+                          : modalMode === "edit"
+                            ? "Save Changes"
+                            : "Create Task"}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
       {activeTab === "issues" && <Issues />}

@@ -111,8 +111,8 @@ const Sidebar = ({ isOpen }) => {
                   <span>{item.label}</span>
                   
                   <div className="flex gap-2 items-center">
-                    {item.label === "My Tasks" && activeTasks > 0 && (
-                      <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                    {(item.label === "My Tasks" || item.label === "Task Management") && activeTasks > 0 && (
+                      <span className="inline-flex items-center justify-center min-w-[20px] h-[20px] px-1.5 rounded-full bg-red-500 text-white text-[11px] font-bold leading-none">
                         {activeTasks}
                       </span>
                     )}
