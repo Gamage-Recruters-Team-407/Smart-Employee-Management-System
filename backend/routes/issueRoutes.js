@@ -11,6 +11,7 @@ import {
 } from "../controllers/issueController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import upload from "../config/multer.js";
+import { documentUpload } from "../config/multer.js";
 
 const router = express.Router();
 
@@ -18,7 +19,7 @@ const router = express.Router();
 router.use(protect);
 
 // Employee routes
-router.post("/report", upload.single("attachment"), reportIssue);
+router.post("/report", documentUpload.single("attachment"), reportIssue);
 router.get("/my", getMyIssues);
 router.get("/id/:id", getIssueById);
 router.put("/:id", upload.single("attachment"), editIssue);

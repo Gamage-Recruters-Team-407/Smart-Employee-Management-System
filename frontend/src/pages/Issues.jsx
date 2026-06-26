@@ -317,7 +317,7 @@ const Issues = () => {
                 <div className="flex gap-3">
                   {issue.attachment && (
                     <a
-                      href={`http://localhost:5000/${issue.attachment}`}
+                      href={issue.attachment}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-2 text-amber-600 hover:text-amber-700 font-medium text-sm"

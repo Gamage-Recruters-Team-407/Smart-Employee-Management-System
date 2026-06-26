@@ -1,5 +1,6 @@
 import Issue from "../models/Issue.js";
 import User from "../models/User.js";
+import cloudinary from "../config/cloudinary.js";
 
 // ─────────────────────────────────────────────
 // Helpers
@@ -12,6 +13,15 @@ const getReporterInfo = (user) => {
     reporterRole: user.role || "Employee",
   };
 };
+
+const uploadToCloudinary = (buffer, folder) =>
+  new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { folder, resource_type: "auto" }, // "auto" handles PDF + images
+      (error, result) => (error ? reject(error) : resolve(result))
+    );
+    stream.end(buffer);
+  });
 
 // ─────────────────────────────────────────────
 // Report Issue
@@ -51,7 +61,8 @@ export const reportIssue = async (req, res) => {
     let attachmentOriginalName = null;
 
     if (req.file) {
-      attachment = req.file.path;
+      const result = await uploadToCloudinary(req.file.buffer, "issue-attachments");
+      attachment = result.secure_url;            // full https URL
       attachmentOriginalName = req.file.originalname;
     }
 
@@ -71,6 +82,7 @@ export const reportIssue = async (req, res) => {
       issue,
     });
   } catch (error) {
+    console.error("Report issue error:", error);
     res.status(500).json({
       message: "Server error",
       error: error.message,
