@@ -39,6 +39,12 @@ const MyTasks = () => {
 
   useEffect(() => {
     fetchMyTasks();
+
+    const handleSocketUpdate = () => {
+      fetchMyTasks();
+    };
+    window.addEventListener("socket-badge-update", handleSocketUpdate);
+    return () => window.removeEventListener("socket-badge-update", handleSocketUpdate);
   }, [fetchMyTasks]);
 
   const { refreshBadges } = useBadges();

@@ -35,4 +35,15 @@ const notificationSchema = new mongoose.Schema(
 
 notificationSchema.index({ userId: 1, createdAt: -1 });
 
+// Automatically emit real-time updates whenever a notification changes
+import { notifyUserBadges } from "../services/websocketService.js";
+
+notificationSchema.post("save", function (doc) {
+  if (doc?.userId) notifyUserBadges(doc.userId);
+});
+
+notificationSchema.post("findOneAndDelete", function (doc) {
+  if (doc?.userId) notifyUserBadges(doc.userId);
+});
+
 export default mongoose.model("Notification", notificationSchema);
