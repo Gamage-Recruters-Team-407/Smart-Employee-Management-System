@@ -24,6 +24,8 @@ const BREAK_CONFIG = {
   }
 };
 
+const BREAK_TIMEZONE = process.env.BREAK_TIMEZONE || process.env.APP_TIMEZONE || 'Asia/Colombo';
+
 /**
  * @desc Record logout time / Mark employee as inactive (Auto logout)
  * @route POST /api/attendance/logout
@@ -66,8 +68,26 @@ export const recordLogout = async (req, res) => {
 };
 
 // ─── HELPER FUNCTIONS ──────────────────────────────────────────────────────
+const getZonedHourMinute = (date = new Date(), timeZone = BREAK_TIMEZONE) => {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone,
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit'
+  }).formatToParts(date);
+
+  const hourPart = parts.find((p) => p.type === 'hour')?.value || '00';
+  const minutePart = parts.find((p) => p.type === 'minute')?.value || '00';
+
+  return {
+    hours: Number(hourPart),
+    minutes: Number(minutePart)
+  };
+};
+
 const getMinutesSinceMidnight = (date = new Date()) => {
-  return date.getHours() * 60 + date.getMinutes();
+  const { hours, minutes } = getZonedHourMinute(date);
+  return hours * 60 + minutes;
 };
 
 const isBreakAvailable = (breakType, now = new Date()) => {
@@ -109,6 +129,7 @@ const getCurrentBreakType = (now = new Date()) => {
 
 const getCurrentTimeString = () => {
   return new Date().toLocaleTimeString('en-US', {
+    timeZone: BREAK_TIMEZONE,
     hour12: false,
     hour: '2-digit',
     minute: '2-digit'
