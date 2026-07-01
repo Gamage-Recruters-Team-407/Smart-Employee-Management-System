@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useLocation,  } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import AuthForm from "../components/common/LoginForm";
+import { getGoogleAuthStartUrl } from "../utils/googleAuth";
 
 const Login = () => {
   //  'signin' හෝ 'signup' තෝරාගැනීමට state එකක්
@@ -43,8 +44,7 @@ const Login = () => {
 
   const handleGoogleSignUp = () => {
     clearError();
-    const url = new URL("/api/auth/google", window.location.origin);
-    window.location.assign(url.href);
+    window.location.assign(getGoogleAuthStartUrl());
   };
 
   const handleTabChange = (tab) => {
