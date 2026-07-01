@@ -42,7 +42,7 @@ app.use(cors({
   origin: isProduction
     ? (origin, callback) => {
       const isExplicitlyAllowed =
-        allowedOrigins.includes(origin) || origin === process.env.FRONTEND_URL;
+        allowedOrigins.includes(origin) || origin === process.env.FRONTEND_URL || (origin && origin.endsWith(".vercel.app"));
 
       let isLocalDevOrigin = false;
       if (origin) {
