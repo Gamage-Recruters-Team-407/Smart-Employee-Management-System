@@ -1,6 +1,7 @@
 import express from "express";
 import multer from "multer";
 import path from "path";
+import fs from "fs";
 
 const router = express.Router();
 
@@ -17,9 +18,15 @@ import {
 import { protect } from "../middleware/authMiddleware.js";
 import { authorize } from "../middleware/roleMiddleware.js";
 
+const medicalUploadDir = path.join(process.cwd(), "uploads", "medical");
+
+if (process.env.VERCEL !== "1" && !fs.existsSync(medicalUploadDir)) {
+  fs.mkdirSync(medicalUploadDir, { recursive: true });
+}
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "uploads/medical/");
+    cb(null, medicalUploadDir);
   },
   filename: (req, file, cb) => {
     cb(null, `medical_${Date.now()}${path.extname(file.originalname)}`);
