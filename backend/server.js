@@ -68,7 +68,8 @@ app.use(cors({
 }));
 
 app.use(express.json());
-app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+const uploadsPath = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME ? path.join("/tmp", "uploads") : path.join(process.cwd(), "uploads");
+app.use("/uploads", express.static(uploadsPath));
 
 app.get("/", (_req, res) => res.send("SEMS Backend Running"));
 app.get("/api", (_req, res) => res.json({ message: "Smart Employee Management API" }));

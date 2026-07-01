@@ -2,10 +2,14 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 
-// Ensure uploads/ directory exists
-const UPLOAD_DIR = "uploads";
-if (!fs.existsSync(UPLOAD_DIR)) {
-  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+// Ensure uploads/ directory exists safely (use /tmp in serverless environments like Vercel)
+const UPLOAD_DIR = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME ? path.join("/tmp", "uploads") : "uploads";
+try {
+  if (!fs.existsSync(UPLOAD_DIR)) {
+    fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+  }
+} catch (err) {
+  console.warn("Notice: Could not create local uploads folder (read-only serverless filesystem):", err.message);
 }
 
 // Disk storage — unique timestamped filename to prevent collisions

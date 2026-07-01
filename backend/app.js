@@ -17,7 +17,8 @@ const __dirname = path.dirname(__filename);
 
 app.use(cors());
 app.use(express.json());
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+const uploadsPath = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME ? path.join("/tmp", "uploads") : path.join(__dirname, "uploads");
+app.use("/uploads", express.static(uploadsPath));
 
 app.get("/api/auth/google/status", getGoogleAuthStatus);
 app.get("/api/auth/google/callback", handleGoogleCallback);
