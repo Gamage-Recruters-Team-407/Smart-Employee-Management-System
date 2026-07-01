@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
+import authRoutes from "./routes/authRoutes.js";
 import employeeRoutes from "./routes/employeeRoutes.js";
 import documentRoutes from "./routes/documentRoutes.js";
 import {
@@ -22,6 +23,7 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.get("/api/auth/google/status", getGoogleAuthStatus);
 app.get("/api/auth/google/callback", handleGoogleCallback);
 app.get("/api/auth/google", redirectToGoogle);
+app.use("/api/auth", authRoutes);
 
 app.use("/api/employees", employeeRoutes);
 app.use("/api/employees/:id/documents", documentRoutes);
