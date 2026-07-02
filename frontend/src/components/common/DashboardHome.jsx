@@ -3,9 +3,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useEmployeeProfile } from "../../hooks/useEmployeeProfile";
-import { 
-  User, Briefcase, Award, Clock, Coffee, Utensils, 
-  Moon, Wifi, WifiOff 
+import {
+  User, Briefcase, Award, Clock, Coffee, Utensils,
+  Moon, Wifi, WifiOff
 } from "lucide-react";
 import DashboardStats from "./DashboardStats";
 import RecentActivity from "./RecentActivity";
@@ -51,7 +51,7 @@ const DashboardHome = () => {
       const timerId = setTimeout(() => {
         fetchBreakStatus();
       }, 0);
-      
+
       const interval = setInterval(() => {
         fetchBreakStatus();
       }, 30000);
@@ -71,7 +71,7 @@ const DashboardHome = () => {
 
       window.addEventListener("socket-authenticated", handleSocketAuth);
       window.addEventListener("socket-disconnected", handleSocketDisconnect);
-      
+
       return () => {
         clearTimeout(timerId);
         clearInterval(interval);
@@ -135,7 +135,7 @@ const DashboardHome = () => {
     const onlineStatus = getOnlineStatusDisplay();
     const statusColor = getStatusColor(onlineStatus);
     const statusIcon = getStatusIcon(onlineStatus);
-    
+
     const isOnBreak = breakStatus?.isOnBreak || false;
     const currentBreak = breakStatus?.currentBreak || null;
     const remainingSeconds = currentBreak?.remainingSeconds || 0;
@@ -230,7 +230,7 @@ const DashboardHome = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Break Timer Component */}
           <BreakTimer />
-          
+
           {/* Working Hours */}
           <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-6 border border-indigo-100">
             <h4 className="font-semibold text-gray-700 mb-3">Working Hours</h4>
@@ -250,10 +250,10 @@ const DashboardHome = () => {
                 </span>
               </div>
               <div className="mt-3 h-2 bg-gray-200 rounded-full overflow-hidden">
-                <div 
+                <div
                   className="h-full bg-indigo-600 rounded-full transition-all duration-1000"
-                  style={{ 
-                    width: `${Math.min(100, ((currentTime.getHours() * 60 + currentTime.getMinutes() - 510) / (1050 - 510)) * 100)}%` 
+                  style={{
+                    width: `${Math.min(100, ((currentTime.getHours() * 60 + currentTime.getMinutes() - 510) / (1050 - 510)) * 100)}%`
                   }}
                 />
               </div>
@@ -326,7 +326,7 @@ const DashboardHome = () => {
   return (
     <div className="space-y-6">
       <DashboardStats />
-      
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
         <div className="lg:col-span-2">
           <AdminAttendanceTable />
