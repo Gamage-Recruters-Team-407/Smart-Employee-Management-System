@@ -307,7 +307,7 @@ const Payroll = () => {
       )}
 
       {/* Summary stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
         <StatCard icon={Users} label="Total Employees" value={summary?.totalEmployees ?? 0} color="bg-indigo-500" />
         <StatCard icon={DollarSign} label="Total Net Salary" value={fmt(summary?.totalNetSalary)} color="bg-emerald-500" />
         <StatCard icon={TrendingUp} label="Total Tax Deducted" value={fmt(summary?.totalTax)} color="bg-red-500" />

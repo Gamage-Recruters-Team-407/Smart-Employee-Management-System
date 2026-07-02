@@ -322,6 +322,22 @@ const Dashboard = () => {
     };
   }, []);
 
+    // ─── SIDEBAR RESPONSIVE AUTO-RESET ─────────────────────────────────────────
+  // Automatically expands the sidebar back to its original state when maximizing to desktop
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) { 
+        setSidebarOpen(true);
+      }
+    };
+
+    window.addEventListener("resize", handleResize);
+    handleResize(); // Call on mount to check initial screen size
+
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+
   // ─── EFFECT: REFETCH WHEN LOGIN STATE CHANGES ─────────────────────────────
   useEffect(() => {
     if (isLoggedIn && fetchAttendanceRef.current) {
