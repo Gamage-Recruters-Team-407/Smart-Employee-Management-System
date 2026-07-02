@@ -5,7 +5,11 @@ import bcrypt from "bcryptjs";
 import User from "../models/User.js";
 import Employee from "../models/Employee.js";
 
-dotenv.config({ path: "./backend/.env" });
+// Dynamically set the path to the .env file.
+// This allows the script to be run from either the project root or the /backend directory.
+import { fileURLToPath } from 'url';
+import path from 'path';
+dotenv.config({ path: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../.env') });
 
 const DEFAULT_ADMIN = {
   name: "Admin User",
