@@ -84,6 +84,7 @@ app.use(express.json());
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // ── Health / root ───────────────────────────────────────────────────────────
+app.get(["/favicon.ico", "/favicon.png"], (_req, res) => res.status(204).end());
 app.get("/", (_req, res) => res.send("SEMS Backend Running"));
 app.get("/api", (_req, res) =>
   res.json({ message: "Smart Employee Management API" })
