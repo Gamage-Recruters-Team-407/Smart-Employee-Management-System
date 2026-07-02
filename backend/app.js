@@ -94,6 +94,22 @@ app.get("/api/auth/google/status", getGoogleAuthStatus);
 app.get("/api/auth/google/callback", handleGoogleCallback);
 app.get("/api/auth/google", redirectToGoogle);
 
+// ── Database connection middleware for Serverless ───────────────────────────
+app.use(async (req, res, next) => {
+  if (req.method !== "OPTIONS" && req.path.startsWith("/api")) {
+    try {
+      await connectDB();
+    } catch (err) {
+      console.error("Database connection failed in serverless request:", err);
+      return res.status(500).json({
+        message: "Database connection failed",
+        error: err.message,
+      });
+    }
+  }
+  next();
+});
+
 // ── API routes (keep in sync with server.js) ────────────────────────────────
 app.use("/api/auth", authRoutes);
 app.use("/api/employees", employeeRoutes);
