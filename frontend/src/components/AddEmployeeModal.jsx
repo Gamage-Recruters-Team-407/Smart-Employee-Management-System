@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   X,
   User,
@@ -241,6 +241,23 @@ const AddEmployeeModal = ({ isOpen, onClose, onSuccess, employee = null }) => {
   );
   const [photoError, setPhotoError] = useState("");
   const photoInputRef = useRef(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setForm(employee?._id ? buildFormFromEmployee(employee) : INITIAL_FORM);
+      setErrors({});
+      setTouched(new Set());
+      setApiError("");
+      setPhotoFile(null);
+      setPhotoPreview(
+        employee?.profilePhoto
+          ? (employee.profilePhoto.startsWith("http")
+              ? employee.profilePhoto
+              : `http://localhost:5000/${employee.profilePhoto}`)
+          : null
+      );
+    }
+  }, [isOpen, employee]);
 
   if (!isOpen) return null;
 
