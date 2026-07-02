@@ -24,6 +24,6 @@ router.get('/break/remaining', attendanceController.getBreakRemaining);
 router.post('/update-status', attendanceController.updateStatus);
 
 // ─── ADMIN ROUTES ────────────────────────────────────────────────────────
-router.get('/admin/summary', authorize('Admin', 'HR'), attendanceController.getAdminSummary);
+router.get('/admin/summary', authorize('Admin', 'HR', 'Manager'), attendanceController.getAdminSummary);
 
 export default router;

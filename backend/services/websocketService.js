@@ -191,24 +191,35 @@ export const initWebSocket = (server) => {
           const now = new Date();
           const timeString = formatTime(now);
 
-          // Mark checkout time and logout time on disconnect
-          const updated = await Attendance.findByIdAndUpdate(currentAttendanceId, {
-            $set: {
+          const attendanceDoc = await Attendance.findById(currentAttendanceId);
+          if (attendanceDoc) {
+            const isOnBreak = Boolean(attendanceDoc.breakType);
+            const updateFields = {
               activityStatus: false,
-              onlineStatus: "Offline",
-              checkOutTime: timeString,
               logoutTime: now
+            };
+
+            if (!isOnBreak) {
+              updateFields.onlineStatus = "Offline";
+              updateFields.checkOutTime = timeString;
             }
-          }, { returnDocument: 'after' });
 
-          console.log(`Employee ${currentEmployeeId} disconnected. Offline. Leave time marked: ${timeString}`);
+            const updated = await Attendance.findByIdAndUpdate(currentAttendanceId, {
+              $set: updateFields
+            }, { returnDocument: 'after' });
 
-          // Broadcast to admin room
-          io.to("admin").emit("attendance-update", {
-            employeeId: currentEmployeeId,
-            onlineStatus: "Offline",
-            checkOutTime: timeString
-          });
+            const finalStatus = isOnBreak ? attendanceDoc.onlineStatus : "Offline";
+            const finalCheckOut = isOnBreak ? attendanceDoc.checkOutTime : timeString;
+
+            console.log(`Employee ${currentEmployeeId} disconnected. Status: ${finalStatus}`);
+
+            // Broadcast to admin room
+            io.to("admin").emit("attendance-update", {
+              employeeId: currentEmployeeId,
+              onlineStatus: finalStatus,
+              checkOutTime: finalCheckOut
+            });
+          }
         } catch (error) {
           console.error("Error updating offline status:", error);
         }

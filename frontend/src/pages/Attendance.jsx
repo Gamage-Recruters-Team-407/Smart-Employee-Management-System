@@ -305,9 +305,12 @@ const Attendance = () => {
                         (a) => a.employee?._id === emp._id || a.employee === emp._id || a.employeeId === emp.employeeId
                       );
                       const empStatus = record?.status || "Not Marked";
-                      const onlineStatus = record?.onlineStatus || "Offline";
                       const breakType = record?.breakType || null;
-                      const statusBadge = getOnlineStatusBadge(onlineStatus);
+                      const effectiveOnlineStatus = breakType === 'breakfast' ? 'Breakfast'
+                                                  : breakType === 'lunch' ? 'Lunch'
+                                                  : breakType === 'tea' ? 'Tea Time'
+                                                  : record?.onlineStatus || "Offline";
+                      const statusBadge = getOnlineStatusBadge(effectiveOnlineStatus);
                       
                       return (
                         <tr key={emp._id} className="hover:bg-gray-50/50 transition-colors">
