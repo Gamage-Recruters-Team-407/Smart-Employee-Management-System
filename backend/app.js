@@ -124,7 +124,7 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/daily-reports", dailyReportRoutes);
 app.use("/api/issues", issueRoutes);
 
-// ── HTTP server + Socket.IO ─────────────────────────────────────────────────
+// ── HTTP server + Socket.IO  ─────────────────────────────────────────────────
 const server = http.createServer(app);
 initWebSocket(server);
 
