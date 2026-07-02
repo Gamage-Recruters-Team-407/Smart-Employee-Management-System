@@ -37,18 +37,25 @@ const AdminAttendanceTable = () => {
         try {
           console.log("Received attendance-update:", data);
           setAttendanceRecords(prev =>
-            prev.map(record =>
-              record.employeeId === data.employeeId
-                ? {
+            prev.map(record => {
+              const isMatch =
+                (data.employeeId && record.employeeId === data.employeeId) ||
+                (data.employeeId && record._id === data.employeeId) ||
+                (data.employeeObjId && (record._id === data.employeeObjId || record.employeeId === data.employeeObjId)) ||
+                (data.employeeId && String(record.employeeId).toLowerCase() === String(data.employeeId).toLowerCase());
+
+              if (isMatch) {
+                return {
                   ...record,
-                  onlineStatus: data.onlineStatus,
+                  onlineStatus: data.onlineStatus !== undefined ? data.onlineStatus : record.onlineStatus,
                   breakType: data.breakType !== undefined ? data.breakType : record.breakType,
                   status: data.status !== undefined ? data.status : record.status,
                   checkInTime: data.checkInTime !== undefined ? data.checkInTime : record.checkInTime,
                   checkOutTime: data.checkOutTime !== undefined ? data.checkOutTime : record.checkOutTime
-                }
-                : record
-            )
+                };
+              }
+              return record;
+            })
           );
         } catch (e) {
           console.error("Socket message error:", e);

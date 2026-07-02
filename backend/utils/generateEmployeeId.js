@@ -17,35 +17,47 @@ const generateEmployeeId = async () => {
   // don't collide with IDs that were created before this counter existed.
   const existing = await Counter.findById("employeeId");
   if (!existing) {
-    // Find the highest numeric suffix among all existing employee IDs
-    const lastEmployee = await Employee.findOne({ employeeId: { $exists: true, $ne: null } })
-      .sort({ createdAt: -1 })
-      .select("employeeId");
-
-    let seed = 0;
-    if (lastEmployee?.employeeId) {
-      const parts = lastEmployee.employeeId.split("-");
-      const n = parseInt(parts[1], 10);
-      if (!isNaN(n)) seed = n;
+    const allEmployees = await Employee.find({ employeeId: { $exists: true, $ne: null } }).select("employeeId");
+    let maxSeed = 0;
+    for (const emp of allEmployees) {
+      if (emp.employeeId) {
+        const match = emp.employeeId.match(/\d+$/);
+        if (match) {
+          const n = parseInt(match[0], 10);
+          if (!isNaN(n) && n > maxSeed) maxSeed = n;
+        }
+      }
     }
 
-    // Create the counter at the seeded value (upsert = safe if two requests race here)
     await Counter.findByIdAndUpdate(
       "employeeId",
-      { $setOnInsert: { seq: seed } },
+      { $setOnInsert: { seq: maxSeed } },
       { upsert: true, returnDocument: 'after' }
     );
   }
 
   // Atomically increment and return the new sequence number
-  const counter = await Counter.findByIdAndUpdate(
+  let counter = await Counter.findByIdAndUpdate(
     "employeeId",
     { $inc: { seq: 1 } },
     { returnDocument: 'after', upsert: true }
   );
 
-  const padded = String(counter.seq).padStart(3, "0");
-  return `EMP-${padded}`;
+  let seq = counter.seq;
+  let candidate = `emp-${String(seq).padStart(3, "0")}`;
+
+  // Ensure case-insensitive uniqueness against existing records
+  while (await Employee.exists({ employeeId: { $regex: new RegExp(`^${candidate}$`, "i") } })) {
+    counter = await Counter.findByIdAndUpdate(
+      "employeeId",
+      { $inc: { seq: 1 } },
+      { returnDocument: 'after', upsert: true }
+    );
+    seq = counter.seq;
+    candidate = `emp-${String(seq).padStart(3, "0")}`;
+  }
+
+  return candidate;
 };
 
 export default generateEmployeeId;

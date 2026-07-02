@@ -225,3 +225,10 @@ export const notifyUserBadges = (userId) => {
     ioInstance.to(`user-${userId.toString()}`).emit("badge-update");
   }
 };
+
+export const notifyAdminAttendanceUpdate = (data) => {
+  if (ioInstance && data) {
+    console.log(" Server broadcasting attendance-update to admin room:", data);
+    ioInstance.to("admin").emit("attendance-update", data);
+  }
+};

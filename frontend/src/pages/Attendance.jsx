@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import API from "../services/api";
+import { io } from "socket.io-client";
+import { getSocketConfig } from "../utils/socketConfig";
 import { format } from "date-fns";
 import { 
   AlertCircle, 
@@ -85,6 +87,46 @@ const Attendance = () => {
 
     fetchAdminData();
   }, [selectedDate, isAdminOrHR]);
+
+  useEffect(() => {
+    if (!isAdminOrHR) return;
+    let socket = null;
+    try {
+      const { url, options } = getSocketConfig();
+      socket = io(url, options);
+      socket.on("connect", () => {
+        socket.emit("join-admin");
+      });
+      socket.on("attendance-update", (data) => {
+        setAttendanceData(prev =>
+          prev.map(record => {
+            const isMatch =
+              (data.employeeId && record.employeeId === data.employeeId) ||
+              (data.employeeId && record._id === data.employeeId) ||
+              (data.employeeObjId && (record._id === data.employeeObjId || record.employeeId === data.employeeObjId)) ||
+              (data.employeeId && String(record.employeeId).toLowerCase() === String(data.employeeId).toLowerCase());
+
+            if (isMatch) {
+              return {
+                ...record,
+                onlineStatus: data.onlineStatus !== undefined ? data.onlineStatus : record.onlineStatus,
+                breakType: data.breakType !== undefined ? data.breakType : record.breakType,
+                status: data.status !== undefined ? data.status : record.status,
+                checkInTime: data.checkInTime !== undefined ? data.checkInTime : record.checkInTime,
+                checkOutTime: data.checkOutTime !== undefined ? data.checkOutTime : record.checkOutTime
+              };
+            }
+            return record;
+          })
+        );
+      });
+    } catch (error) {
+      console.warn("Socket.IO error:", error);
+    }
+    return () => {
+      if (socket) socket.disconnect();
+    };
+  }, [isAdminOrHR]);
 
   // ─── STATUS BADGE COLOR ──────────────────────────────────────────────────
   const getStatusColor = (status) => {

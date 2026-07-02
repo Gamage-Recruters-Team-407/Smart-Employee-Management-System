@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import User from "../models/User.js";
 import Employee from "../models/Employee.js";
+import generateEmployeeId from "./generateEmployeeId.js";
 
 const DEFAULT_ADMIN = {
   name: "Admin User",
@@ -36,8 +37,9 @@ const seedHrManager = async () => {
 
   const employeeExists = await Employee.findOne({ email: DEFAULT_HR_MANAGER.email });
   if (!employeeExists) {
+    const newId = await generateEmployeeId();
     await Employee.create({
-      employeeId: "emp-hr-001",
+      employeeId: newId,
       firstName: "HR",
       lastName: "Manager",
       email: DEFAULT_HR_MANAGER.email,
@@ -65,6 +67,7 @@ export const seedDefaultUser = async () => {
       console.log("Default admin password reset to admin123");
     }
     await seedHrManager();
+    await normalizeAllEmployeeIds();
     return;
   }
 
@@ -80,4 +83,33 @@ export const seedDefaultUser = async () => {
   );
 
   await seedHrManager();
+  await normalizeAllEmployeeIds();
+};
+
+const normalizeAllEmployeeIds = async () => {
+  try {
+    const employees = await Employee.find({});
+    for (const emp of employees) {
+      if (!emp.employeeId) continue;
+      const isStandardLowercase = /^emp-\d{3,}$/.test(emp.employeeId);
+      if (!isStandardLowercase) {
+        const lowered = emp.employeeId.toLowerCase();
+        const isLoweredStandard = /^emp-\d{3,}$/.test(lowered);
+        const collision = await Employee.findOne({ _id: { $ne: emp._id }, employeeId: lowered });
+
+        if (isLoweredStandard && !collision) {
+          console.log(`Normalized ID from ${emp.employeeId} to ${lowered}`);
+          emp.employeeId = lowered;
+          await emp.save();
+        } else {
+          const freshId = await generateEmployeeId();
+          console.log(`Reassigned non-standard ID ${emp.employeeId} to ${freshId}`);
+          emp.employeeId = freshId;
+          await emp.save();
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("Normalize employee IDs error:", err.message);
+  }
 };
