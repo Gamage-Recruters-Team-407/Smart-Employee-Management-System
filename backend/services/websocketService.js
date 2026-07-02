@@ -9,11 +9,15 @@ const formatTime = (date) =>
 let ioInstance = null;
 
 export const initWebSocket = (server) => {
+  const isVercel = !!process.env.VERCEL;
+
   const io = new Server(server, {
     cors: {
-      origin: "*", // Adjust to match your frontend URL in production
+      origin: "*",
       methods: ["GET", "POST"]
-    }
+    },
+    // On Vercel, only websocket transport is supported (no long-polling)
+    ...(isVercel && { transports: ["websocket"] }),
   });
 
   ioInstance = io;

@@ -3,13 +3,13 @@
   "builds": [
     {
       "src": "app.js",
-      "use": "@vercel/node"
+      "use": "@vercel/node",
+      "config": { "fluid": true }
     }
   ],
   "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "/app.js"
-    }
+    { "source": "/socket.io/(.*)", "destination": "/app.js" },
+    { "source": "/api/(.*)", "destination": "/app.js" },
+    { "source": "/(.*)", "destination": "/app.js" }
   ]
 }
