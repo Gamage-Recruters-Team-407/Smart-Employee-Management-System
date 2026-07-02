@@ -96,19 +96,11 @@ const PORT = process.env.PORT || 5000;
 const HOST = process.env.HOST || "0.0.0.0";
 let serverInstance = null;
 let isStarting = false;
-const server = http.createServer(app);
 
 const startServer = async () => {
   if (serverInstance || isStarting) {
     return;
   }
-// Connect to the database and seed default data when the server starts.
-// In a serverless environment, this will run when the function instance starts.
-connectDB().then(() => {
-  seedDefaultUser();
-  seedSamplePayroll();
-});
-initWebSocket(server);
 
   isStarting = true;
 
@@ -147,4 +139,3 @@ initWebSocket(server);
 };
 
 startServer();
-export default server;
