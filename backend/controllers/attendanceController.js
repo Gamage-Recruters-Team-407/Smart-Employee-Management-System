@@ -1,6 +1,7 @@
 import Attendance from '../models/Attendance.js';
 import Employee from '../models/Employee.js';
 import { getEmployeeIdForRequest } from '../utils/employeeUserLink.js';
+import { notifyAdminAttendanceUpdate } from '../services/websocketService.js';
 
 // ─── BREAK CONFIGURATION ──────────────────────────────────────────────────
 const BREAK_CONFIG = {
@@ -381,6 +382,16 @@ export const markAttendance = async (req, res) => {
     await attendance.save();
     await attendance.populate('employee', 'firstName lastName employeeId');
 
+    notifyAdminAttendanceUpdate({
+      employeeId: attendance.employee?.employeeId,
+      employeeObjId: attendance.employee?._id,
+      onlineStatus: attendance.onlineStatus,
+      breakType: attendance.breakType || null,
+      status: attendance.status,
+      checkInTime: attendance.checkInTime || null,
+      checkOutTime: attendance.checkOutTime || null
+    });
+
     res.status(200).json({
       success: true,
       message: 'Attendance marked successfully',
@@ -467,6 +478,16 @@ export const startBreak = async (req, res) => {
     await attendance.save();
     await attendance.populate('employee', 'firstName lastName employeeId');
 
+    notifyAdminAttendanceUpdate({
+      employeeId: attendance.employee?.employeeId,
+      employeeObjId: attendance.employee?._id,
+      onlineStatus: breakLabel,
+      breakType: breakType,
+      status: attendance.status,
+      checkInTime: attendance.checkInTime || null,
+      checkOutTime: attendance.checkOutTime || null
+    });
+
     res.status(200).json({
       success: true,
       message: `${breakLabel} break started`,
@@ -519,6 +540,16 @@ export const endBreak = async (req, res) => {
 
     await attendance.save();
     await attendance.populate('employee', 'firstName lastName employeeId');
+
+    notifyAdminAttendanceUpdate({
+      employeeId: attendance.employee?.employeeId,
+      employeeObjId: attendance.employee?._id,
+      onlineStatus: 'Online',
+      breakType: null,
+      status: attendance.status,
+      checkInTime: attendance.checkInTime || null,
+      checkOutTime: attendance.checkOutTime || null
+    });
 
     res.status(200).json({
       success: true,
@@ -771,6 +802,16 @@ export const updateStatus = async (req, res) => {
 
     await attendance.save();
     await attendance.populate('employee', 'firstName lastName employeeId');
+
+    notifyAdminAttendanceUpdate({
+      employeeId: attendance.employee?.employeeId,
+      employeeObjId: attendance.employee?._id,
+      onlineStatus: attendance.onlineStatus,
+      breakType: attendance.breakType || null,
+      status: attendance.status,
+      checkInTime: attendance.checkInTime || null,
+      checkOutTime: attendance.checkOutTime || null
+    });
 
     res.status(200).json({
       success: true,
