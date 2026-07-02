@@ -1,6 +1,7 @@
 // frontend/src/hooks/useAttendanceSocket.js
 import { useEffect, useRef } from "react";
 import { io } from "socket.io-client";
+import { getSocketConfig } from "../utils/socketConfig";
 
 const useAttendanceSocket = (user, onAuthenticated) => {
   const socketRef = useRef(null);
@@ -15,14 +16,13 @@ const useAttendanceSocket = (user, onAuthenticated) => {
     // Only connect if the user exists
     if (!user) return;
 
-    // Determine the backend URL
-    const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
+    // Use shared socket configuration
+    const { url, options } = getSocketConfig();
 
     // Connect to the WebSocket
-    const socket = io(backendUrl, {
-      reconnection: true,
+    const socket = io(url, {
+      ...options,
       reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
     });
 
     socketRef.current = socket;

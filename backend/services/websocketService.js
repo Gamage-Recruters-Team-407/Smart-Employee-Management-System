@@ -2,18 +2,47 @@ import { Server } from "socket.io";
 import Attendance from "../models/Attendance.js";
 import Employee from "../models/Employee.js";
 
-// Helper function to format time as HH:MM
-const formatTime = (date) =>
-  `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+const TIMEZONE = process.env.APP_TIMEZONE || process.env.BREAK_TIMEZONE || "Asia/Colombo";
+
+const getZonedParts = (date = new Date()) => {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: TIMEZONE,
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+  }).formatToParts(date);
+
+  const hours = Number(parts.find((p) => p.type === "hour")?.value || 0);
+  const minutes = Number(parts.find((p) => p.type === "minute")?.value || 0);
+  return { hours, minutes };
+};
+
+const formatTime = (date = new Date()) => {
+  const { hours, minutes } = getZonedParts(date);
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+};
+
+const getZonedDateString = (date = new Date()) => {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+};
 
 let ioInstance = null;
 
 export const initWebSocket = (server) => {
+  const isVercel = !!process.env.VERCEL;
+
   const io = new Server(server, {
     cors: {
-      origin: "*", // Adjust to match your frontend URL in production
+      origin: "*",
       methods: ["GET", "POST"]
-    }
+    },
+    // On Vercel, only websocket transport is supported (no long-polling)
+    ...(isVercel && { transports: ["websocket"] }),
   });
 
   ioInstance = io;
@@ -47,10 +76,11 @@ export const initWebSocket = (server) => {
           return;
         }
 
-        const today = new Date().toISOString().split('T')[0];
         const now = new Date();
+        const today = getZonedDateString(now);
         const timeString = formatTime(now);
-        const totalMinutes = now.getHours() * 60 + now.getMinutes();
+        const { hours, minutes } = getZonedParts(now);
+        const totalMinutes = hours * 60 + minutes;
         const lateThreshold = 9 * 60 + 30; // 9:30 AM
 
         // Find existing attendance or create a new one

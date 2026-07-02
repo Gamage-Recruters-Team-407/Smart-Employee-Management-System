@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { RefreshCw, Wifi, WifiOff, Coffee, Utensils, Moon, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import API from "../../services/api";
 import { io } from "socket.io-client";
+import { getSocketConfig } from "../../utils/socketConfig";
 
 const AdminAttendanceTable = () => {
   const [attendanceRecords, setAttendanceRecords] = useState([]);
@@ -23,8 +24,8 @@ const AdminAttendanceTable = () => {
     let socket = null;
     
     try {
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
-      socket = io(backendUrl);
+      const { url, options } = getSocketConfig();
+      socket = io(url, options);
 
       socket.on("connect", () => {
         console.log("Socket.IO connected for admin attendance");

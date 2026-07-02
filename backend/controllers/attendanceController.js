@@ -85,6 +85,15 @@ const getZonedHourMinute = (date = new Date(), timeZone = BREAK_TIMEZONE) => {
   };
 };
 
+const getZonedDateString = (date = new Date(), timeZone = BREAK_TIMEZONE) => {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(date);
+};
+
 const getMinutesSinceMidnight = (date = new Date()) => {
   const { hours, minutes } = getZonedHourMinute(date);
   return hours * 60 + minutes;
@@ -128,7 +137,7 @@ const getCurrentBreakType = (now = new Date()) => {
 };
 
 const getCurrentTimeString = () => {
-  return new Date().toLocaleTimeString('en-US', {
+  return new Date().toLocaleTimeString('en-GB', {
     timeZone: BREAK_TIMEZONE,
     hour12: false,
     hour: '2-digit',
@@ -233,7 +242,7 @@ export const checkIn = async (req, res) => {
     }
 
     const now = new Date();
-    const minutes = now.getHours() * 60 + now.getMinutes();
+    const minutes = getMinutesSinceMidnight(now);
     const onTime = minutes >= 510 && minutes <= 570;
 
     attendance.checkInTime = checkInTime || getCurrentTimeString();
@@ -263,12 +272,19 @@ export const checkOut = async (req, res) => {
   try {
     const { date, checkOutTime } = req.body;
     const employeeId = await getEmployeeIdForRequest(req);
-    const today = date || new Date().toISOString().split('T')[0];
+    const today = date || getZonedDateString();
 
-    const attendance = await Attendance.findOne({
+    let attendance = await Attendance.findOne({
       employee: employeeId,
       date: today
     });
+
+    if (!attendance) {
+      attendance = await Attendance.findOne({
+        employee: employeeId,
+        checkInTime: { $ne: null }
+      }).sort({ date: -1 });
+    }
 
     if (!attendance) {
       return res.status(404).json({
@@ -281,13 +297,6 @@ export const checkOut = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Cannot check out without checking in'
-      });
-    }
-
-    if (attendance.checkOutTime) {
-      return res.status(400).json({
-        success: false,
-        message: 'Already checked out today'
       });
     }
 
@@ -360,7 +369,7 @@ export const markAttendance = async (req, res) => {
     }
 
     const now = new Date();
-    const minutes = now.getHours() * 60 + now.getMinutes();
+    const minutes = getMinutesSinceMidnight(now);
     const onTimeLimit = 9 * 60 + 30;
     const isOnTime = minutes <= onTimeLimit;
     const statusText = isOnTime ? 'Present' : 'Late';
