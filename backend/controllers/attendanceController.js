@@ -805,8 +805,6 @@ export const getAdminSummary = async (req, res) => {
         att => att.employee.toString() === emp._id.toString()
       );
 
-      const activeBreakLabel = record?.breakType && BREAK_CONFIG[record.breakType] ? BREAK_CONFIG[record.breakType].label : null;
-
       return {
         _id: record?._id || `att_${emp._id}`,
         employeeId: emp.employeeId,
@@ -819,7 +817,7 @@ export const getAdminSummary = async (req, res) => {
         status: record?.status || 'Absent',
         checkInTime: record?.checkInTime || null,
         checkOutTime: record?.checkOutTime || null,
-        onlineStatus: activeBreakLabel || record?.onlineStatus || 'Offline',
+        onlineStatus: record?.onlineStatus || 'Offline',
         breakType: record?.breakType || null,
         isOnLeave: record?.isOnLeave || false,
         leaveType: record?.leaveType || null,

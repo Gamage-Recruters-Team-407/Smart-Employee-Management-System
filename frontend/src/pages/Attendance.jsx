@@ -100,48 +100,34 @@ const Attendance = () => {
   };
 
   // ─── ONLINE STATUS BADGE ──────────────────────────────────────────────────
-  const getOnlineStatusBadge = (onlineStatus) => {
-    if (onlineStatus === 'Online') {
-      return {
-        label: 'Online',
-        icon: <Wifi size={14} className="text-emerald-500" />,
-        className: 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-      };
-    } else if (onlineStatus === 'Breakfast') {
-      return {
-        label: 'Breakfast',
-        icon: <Coffee size={14} className="text-amber-500" />,
-        className: 'bg-amber-100 text-amber-700 border border-amber-200'
-      };
-    } else if (onlineStatus === 'Lunch') {
-      return {
-        label: 'Lunch',
-        icon: <Utensils size={14} className="text-orange-500" />,
-        className: 'bg-orange-100 text-orange-700 border border-orange-200'
-      };
-    } else if (onlineStatus === 'Tea Time') {
-      return {
-        label: 'Tea Time',
-        icon: <Moon size={14} className="text-blue-500" />,
-        className: 'bg-blue-100 text-blue-700 border border-blue-200'
-      };
-    } else {
+  const getOnlineStatusBadge = (onlineStatus, breakType) => {
+    if (breakType || ['Breakfast', 'Lunch', 'Tea Time', 'Tea'].includes(onlineStatus)) {
       return {
         label: 'Offline',
         icon: <WifiOff size={14} className="text-gray-400" />,
         className: 'bg-gray-100 text-gray-600 border border-gray-200'
       };
     }
+    if (onlineStatus === 'Online') {
+      return {
+        label: 'Online',
+        icon: <Wifi size={14} className="text-emerald-500" />,
+        className: 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+      };
+    }
+    return {
+      label: 'Offline',
+      icon: <WifiOff size={14} className="text-gray-400" />,
+      className: 'bg-gray-100 text-gray-600 border border-gray-200'
+    };
   };
 
   // ─── GET BREAK LABEL ──────────────────────────────────────────────────────
-  const getBreakLabel = (breakType) => {
-    switch (breakType) {
-      case 'breakfast': return '🍳 Breakfast';
-      case 'lunch': return '🍽️ Lunch';
-      case 'tea': return '☕ Tea Time';
-      default: return '—';
-    }
+  const getBreakLabel = (breakType, onlineStatus) => {
+    if (breakType === 'breakfast' || onlineStatus === 'Breakfast') return '🍳 Breakfast';
+    if (breakType === 'lunch' || onlineStatus === 'Lunch') return '🍽️ Lunch';
+    if (breakType === 'tea' || onlineStatus === 'Tea Time' || onlineStatus === 'Tea') return '☕ Tea Time';
+    return '—';
   };
 
   // ─── EXPORT CSV ──────────────────────────────────────────────────────────
@@ -305,12 +291,10 @@ const Attendance = () => {
                         (a) => a.employee?._id === emp._id || a.employee === emp._id || a.employeeId === emp.employeeId
                       );
                       const empStatus = record?.status || "Not Marked";
+                      const onlineStatus = record?.onlineStatus || "Offline";
                       const breakType = record?.breakType || null;
-                      const effectiveOnlineStatus = breakType === 'breakfast' ? 'Breakfast'
-                                                  : breakType === 'lunch' ? 'Lunch'
-                                                  : breakType === 'tea' ? 'Tea Time'
-                                                  : record?.onlineStatus || "Offline";
-                      const statusBadge = getOnlineStatusBadge(effectiveOnlineStatus);
+                      const statusBadge = getOnlineStatusBadge(onlineStatus, breakType);
+                      const breakLabel = getBreakLabel(breakType, onlineStatus);
                       
                       return (
                         <tr key={emp._id} className="hover:bg-gray-50/50 transition-colors">
@@ -331,7 +315,7 @@ const Attendance = () => {
                             </span>
                           </td>
                           <td className="px-6 py-4 text-center text-sm text-gray-600">
-                            {breakType ? getBreakLabel(breakType) : "—"}
+                            {breakLabel}
                           </td>
                         </tr>
                       );

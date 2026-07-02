@@ -131,39 +131,40 @@ const AdminAttendanceTable = () => {
     };
   }, [fetchAttendanceRecords]);
 
+  // ─── BREAK HELPERS ────────────────────────────────────────────────────────
+  const isOnBreakfast = (r) => r?.onlineStatus === "Breakfast" || r?.breakType === "breakfast";
+  const isOnLunch = (r) => r?.onlineStatus === "Lunch" || r?.breakType === "lunch";
+  const isOnTea = (r) => r?.onlineStatus === "Tea Time" || r?.onlineStatus === "Tea" || r?.breakType === "tea";
+  const isOnAnyBreak = (r) => isOnBreakfast(r) || isOnLunch(r) || isOnTea(r);
+
   // ─── GET STATUS BADGE ─────────────────────────────────────────────────────
-  const getStatusBadge = (status, onlineStatus) => {
-    if (onlineStatus === 'Online') {
-      return {
-        label: 'Online',
-        className: 'bg-emerald-100 text-emerald-700 border border-emerald-200',
-        icon: <Wifi size={12} className="text-emerald-500" />
-      };
-    } else if (onlineStatus === 'Breakfast') {
-      return {
-        label: 'Breakfast',
-        className: 'bg-amber-100 text-amber-700 border border-amber-200',
-        icon: <Coffee size={12} className="text-amber-500" />
-      };
-    } else if (onlineStatus === 'Lunch') {
-      return {
-        label: 'Lunch',
-        className: 'bg-orange-100 text-orange-700 border border-orange-200',
-        icon: <Utensils size={12} className="text-orange-500" />
-      };
-    } else if (onlineStatus === 'Tea Time') {
-      return {
-        label: 'Tea Time',
-        className: 'bg-blue-100 text-blue-700 border border-blue-200',
-        icon: <Moon size={12} className="text-blue-500" />
-      };
-    } else {
+  const getStatusBadge = (status, onlineStatus, breakType) => {
+    if (breakType || ['Breakfast', 'Lunch', 'Tea Time', 'Tea'].includes(onlineStatus)) {
       return {
         label: 'Offline',
         className: 'bg-gray-100 text-gray-600 border border-gray-200',
         icon: <WifiOff size={12} className="text-gray-400" />
       };
     }
+    if (onlineStatus === 'Online') {
+      return {
+        label: 'Online',
+        className: 'bg-emerald-100 text-emerald-700 border border-emerald-200',
+        icon: <Wifi size={12} className="text-emerald-500" />
+      };
+    }
+    return {
+      label: 'Offline',
+      className: 'bg-gray-100 text-gray-600 border border-gray-200',
+      icon: <WifiOff size={12} className="text-gray-400" />
+    };
+  };
+
+  const getBreakLabel = (breakType, onlineStatus) => {
+    if (breakType === 'breakfast' || onlineStatus === 'Breakfast') return '🍳 Breakfast';
+    if (breakType === 'lunch' || onlineStatus === 'Lunch') return '🍽️ Lunch';
+    if (breakType === 'tea' || onlineStatus === 'Tea Time' || onlineStatus === 'Tea') return '☕ Tea Time';
+    return '—';
   };
 
   // ─── GET ATTENDANCE STATUS COLOR ─────────────────────────────────────────
@@ -178,13 +179,6 @@ const AdminAttendanceTable = () => {
     return colors[status] || "bg-gray-100 text-gray-600";
   };
 
-  const getEffectiveOnlineStatus = (r) => {
-    if (r.breakType === 'breakfast') return 'Breakfast';
-    if (r.breakType === 'lunch') return 'Lunch';
-    if (r.breakType === 'tea') return 'Tea Time';
-    return r.onlineStatus || 'Offline';
-  };
-
   // ─── FILTER RECORDS ──────────────────────────────────────────────────────
   const getFilteredRecords = () => {
     let records = attendanceRecords;
@@ -192,15 +186,15 @@ const AdminAttendanceTable = () => {
     // Apply status filter
     if (filter !== "all") {
       if (filter === "online") {
-        records = records.filter(r => getEffectiveOnlineStatus(r) === "Online");
+        records = records.filter(r => r.onlineStatus === "Online" && !isOnAnyBreak(r));
       } else if (filter === "breakfast") {
-        records = records.filter(r => getEffectiveOnlineStatus(r) === "Breakfast");
+        records = records.filter(r => isOnBreakfast(r));
       } else if (filter === "lunch") {
-        records = records.filter(r => getEffectiveOnlineStatus(r) === "Lunch");
+        records = records.filter(r => isOnLunch(r));
       } else if (filter === "tea") {
-        records = records.filter(r => getEffectiveOnlineStatus(r) === "Tea Time");
+        records = records.filter(r => isOnTea(r));
       } else if (filter === "offline") {
-        records = records.filter(r => getEffectiveOnlineStatus(r) === "Offline");
+        records = records.filter(r => (r.onlineStatus === "Offline" || !r.onlineStatus) && !isOnAnyBreak(r));
       }
     }
 
@@ -227,11 +221,11 @@ const AdminAttendanceTable = () => {
   // ─── STATS ──────────────────────────────────────────────────────────────
   const stats = {
     total: attendanceRecords.length,
-    online: attendanceRecords.filter(r => getEffectiveOnlineStatus(r) === "Online").length,
-    breakfast: attendanceRecords.filter(r => getEffectiveOnlineStatus(r) === "Breakfast").length,
-    lunch: attendanceRecords.filter(r => getEffectiveOnlineStatus(r) === "Lunch").length,
-    tea: attendanceRecords.filter(r => getEffectiveOnlineStatus(r) === "Tea Time").length,
-    offline: attendanceRecords.filter(r => getEffectiveOnlineStatus(r) === "Offline").length,
+    online: attendanceRecords.filter(r => r.onlineStatus === "Online" && !isOnAnyBreak(r)).length,
+    breakfast: attendanceRecords.filter(r => isOnBreakfast(r)).length,
+    lunch: attendanceRecords.filter(r => isOnLunch(r)).length,
+    tea: attendanceRecords.filter(r => isOnTea(r)).length,
+    offline: attendanceRecords.filter(r => (r.onlineStatus === "Offline" || !r.onlineStatus) && !isOnAnyBreak(r)).length,
   };
 
   // ─── RENDER ──────────────────────────────────────────────────────────────
@@ -380,12 +374,13 @@ const AdminAttendanceTable = () => {
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Department</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Attendance</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Break</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {paginatedRecords.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-4 py-12 text-center text-gray-400 text-sm">
+                <td colSpan={5} className="px-4 py-12 text-center text-gray-400 text-sm">
                   {loading ? 'Loading...' : 'No attendance records found for this date'}
                 </td>
               </tr>
@@ -393,9 +388,11 @@ const AdminAttendanceTable = () => {
               paginatedRecords.map((record) => {
                 const statusBadge = getStatusBadge(
                   record.status,
-                  getEffectiveOnlineStatus(record)
+                  record.onlineStatus,
+                  record.breakType
                 );
                 const attendanceStatusColor = getAttendanceStatusColor(record.status);
+                const breakLabel = getBreakLabel(record.breakType, record.onlineStatus);
 
                 return (
                   <tr key={record._id || record.employeeId} className="hover:bg-gray-50/50 transition-colors">
@@ -416,6 +413,9 @@ const AdminAttendanceTable = () => {
                         {statusBadge.icon}
                         {statusBadge.label}
                       </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {breakLabel}
                     </td>
                   </tr>
                 );
