@@ -2,7 +2,6 @@ import { Route, Routes, Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import { BadgeProvider } from "./context/BadgeContext";
 
-
 // ─── PAGES & COMPONENTS IMPORTS ─────────────────────────────────────────────
 import Login from "./pages/Login";
 import GoogleAuthCallback from "./pages/GoogleAuthCallback";
@@ -51,13 +50,16 @@ function App() {
   return (
     <BadgeProvider>
       <Routes>
-        {/* 🔓 Public Routes (ඕනෑම අයෙකුට පිවිසිය හැක) */}
+        {/* 🔓 Public Routes */}
         <Route path="/login" element={<Login />} />
         <Route path="/auth/google/callback" element={<GoogleAuthCallback />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
+        
+        {/* 🔑 Password Reset Routes - Both OTP and Token flows */}
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/reset-password/:token" element={<ResetPassword />} />
 
-        {/* 🔐 Protected Dashboard Routes (ලොග් වූ අයට පමණි) */}
+        {/* 🔐 Protected Dashboard Routes */}
         <Route
           path="/"
           element={
@@ -66,7 +68,7 @@ function App() {
             </ProtectedRoute>
           }
         >
-          {/* Dashboard Shell එක ඇතුළත තියෙන Sub-Routes */}
+          {/* Dashboard Shell - Sub-Routes */}
           <Route index element={<DashboardHome />} />
           <Route path="employees" element={<Employees />} />
           <Route path="employees/:id" element={<EmployeeAccount />} />
@@ -88,9 +90,9 @@ function App() {
           <Route path="issues" element={<Issues />} />
         </Route>
 
-      {/* 🔄 වැරදි Route එකක් ගැහුවොත් Auto මුල් පිටුවට හරවා යවයි (Catch-all) */}
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        {/* 🔄Route Auto (Catch-all) */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </BadgeProvider>
   );
 }

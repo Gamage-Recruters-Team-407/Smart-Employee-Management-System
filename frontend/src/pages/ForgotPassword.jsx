@@ -1,12 +1,11 @@
-// pages/ForgotPassword.jsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, ArrowLeft, Loader2, CheckCircle, AlertCircle, Key, Lock, Eye, EyeOff } from 'lucide-react';
 import { authAPI } from '../services/api';
 
 const ForgotPassword = () => {
   const navigate = useNavigate();
-  const [step, setStep] = useState(1); // 1: Email, 2: Code, 3: New Password
+  const [step, setStep] = useState(1);
   const [email, setEmail] = useState('');
   const [resetCode, setResetCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -16,6 +15,17 @@ const ForgotPassword = () => {
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  // ─── RESEND COOLDOWN TIMER ───────────────────────────────
+  useEffect(() => {
+    if (resendCooldown > 0) {
+      const timer = setTimeout(() => {
+        setResendCooldown(resendCooldown - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendCooldown]);
 
   const validateEmail = (email) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -23,55 +33,43 @@ const ForgotPassword = () => {
 
   const validatePasswordStrength = (pwd) => {
     const errors = [];
-    
-    if (pwd.length < 6) {
-      errors.push('at least 6 characters');
-    }
-    if (!/[A-Z]/.test(pwd)) {
-      errors.push('one uppercase letter');
-    }
-    if (!/[a-z]/.test(pwd)) {
-      errors.push('one lowercase letter');
-    }
-    if (!/[0-9]/.test(pwd)) {
-      errors.push('one number');
-    }
-    
+    if (pwd.length < 6) errors.push('at least 6 characters');
+    if (!/[A-Z]/.test(pwd)) errors.push('one uppercase letter');
+    if (!/[a-z]/.test(pwd)) errors.push('one lowercase letter');
+    if (!/[0-9]/.test(pwd)) errors.push('one number');
     return errors;
   };
 
   const getPasswordStrength = (pwd) => {
-    if (!pwd) return { level: 0, text: '', color: '' };
-    
+    if (!pwd) return { level: 0, text: '', color: '', width: '0%' };
     const errors = validatePasswordStrength(pwd);
     const strength = 4 - errors.length;
-    
     if (strength <= 1) return { level: 1, text: 'Weak', color: 'text-red-600', width: '25%' };
     if (strength === 2) return { level: 2, text: 'Fair', color: 'text-yellow-600', width: '50%' };
     if (strength === 3) return { level: 3, text: 'Good', color: 'text-blue-600', width: '75%' };
     return { level: 4, text: 'Strong', color: 'text-green-600', width: '100%' };
   };
 
-  // Step 1: Send Reset Code to Email
+  // ─── STEP 1: SEND RESET CODE ─────────────────────────────
   const handleSendCode = async (e) => {
     e.preventDefault();
     setError('');
-    
+    setSuccessMessage('');
+
     if (!email.trim()) {
       setError('Email is required');
       return;
     }
-    
+
     if (!validateEmail(email)) {
       setError('Please enter a valid email address');
       return;
     }
-    
+
     setLoading(true);
-    
     try {
       await authAPI.forgotPassword(email);
-      setSuccessMessage(`Reset code sent to ${email}`);
+      setSuccessMessage(`📧 Reset code sent to ${email}`);
       setStep(2);
     } catch (err) {
       setError(err.response?.data?.message || 'Unable to process request. Please try again.');
@@ -80,29 +78,27 @@ const ForgotPassword = () => {
     }
   };
 
-  // Step 2: Verify Code and Reset Password
+  // ─── STEP 2: VERIFY CODE ─────────────────────────────────
   const handleVerifyCode = async (e) => {
     e.preventDefault();
     setError('');
     setFieldErrors({});
-    
+
     if (!resetCode.trim()) {
       setError('Please enter the reset code');
       return;
     }
-    
+
     if (resetCode.length !== 6) {
       setError('Reset code must be 6 digits');
       return;
     }
-    
+
     setLoading(true);
-    
     try {
-      // Verify the code
       await authAPI.verifyResetCode(email, resetCode);
       setStep(3);
-      setSuccessMessage('Code verified! Please enter your new password.');
+      setSuccessMessage('✅ Code verified! Please enter your new password.');
     } catch (err) {
       setError(err.response?.data?.message || 'Invalid or expired reset code');
     } finally {
@@ -110,14 +106,13 @@ const ForgotPassword = () => {
     }
   };
 
-  // Step 3: Set New Password
+  // ─── STEP 3: RESET PASSWORD ──────────────────────────────
   const handleResetPassword = async (e) => {
     e.preventDefault();
     setError('');
     setFieldErrors({});
-    
+
     const errors = {};
-    
     if (!newPassword) {
       errors.newPassword = 'Password is required';
     } else {
@@ -126,28 +121,44 @@ const ForgotPassword = () => {
         errors.newPassword = `Password must contain: ${strengthErrors.join(', ')}`;
       }
     }
-    
+
     if (!confirmPassword) {
       errors.confirmPassword = 'Please confirm your password';
     } else if (newPassword !== confirmPassword) {
       errors.confirmPassword = 'Passwords do not match';
     }
-    
+
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
       return;
     }
-    
+
     setLoading(true);
-    
     try {
       await authAPI.resetPasswordWithCode(email, resetCode, newPassword);
-      setSuccessMessage('Password reset successful! Redirecting to login...');
+      setSuccessMessage('🎉 Password reset successful! Redirecting to login...');
       setTimeout(() => {
         navigate('/login');
       }, 2000);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to reset password. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ─── RESEND CODE ──────────────────────────────────────────
+  const handleResendCode = async () => {
+    if (resendCooldown > 0) return;
+
+    setLoading(true);
+    setError('');
+    try {
+      await authAPI.forgotPassword(email);
+      setSuccessMessage('📧 A new reset code has been sent to your email.');
+      setResendCooldown(60);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to resend code. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -164,7 +175,7 @@ const ForgotPassword = () => {
             <span className="text-white font-bold text-3xl">S</span>
           </div>
         </div>
-        
+
         {step === 1 && (
           <>
             <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
@@ -175,7 +186,7 @@ const ForgotPassword = () => {
             </p>
           </>
         )}
-        
+
         {step === 2 && (
           <>
             <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
@@ -186,7 +197,7 @@ const ForgotPassword = () => {
             </p>
           </>
         )}
-        
+
         {step === 3 && (
           <>
             <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
@@ -201,26 +212,25 @@ const ForgotPassword = () => {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow-xl rounded-2xl sm:px-10 border border-gray-100">
-          
           {successMessage && (
-            <div className="mb-4 flex items-start gap-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-xl px-4 py-3">
+            <div className="mb-4 flex items-start gap-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-xl px-4 py-3 animate-fade-in">
               <CheckCircle size={18} className="mt-0.5 shrink-0" />
               <span>{successMessage}</span>
             </div>
           )}
-          
+
           {error && (
-            <div className="mb-4 flex items-start gap-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">
+            <div className="mb-4 flex items-start gap-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3 animate-shake">
               <AlertCircle size={18} className="mt-0.5 shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
-          {/* Step 1: Email Form */}
+          {/* ─── STEP 1: EMAIL FORM ────────────────────────── */}
           {step === 1 && (
-            <form onSubmit={handleSendCode} className="space-y-6">
+            <form onSubmit={handleSendCode} className="space-y-5">
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1.5">
                   Email Address
                 </label>
                 <div className="relative">
@@ -239,11 +249,11 @@ const ForgotPassword = () => {
                   />
                 </div>
               </div>
-              
+
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:opacity-70 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl shadow-lg shadow-indigo-100 transition duration-200 text-sm"
+                className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:opacity-70 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-xl shadow-lg shadow-indigo-100 transition duration-200 text-sm"
               >
                 {loading ? (
                   <>
@@ -254,7 +264,7 @@ const ForgotPassword = () => {
                   'Send Reset Code'
                 )}
               </button>
-              
+
               <div className="text-center">
                 <Link
                   to="/login"
@@ -267,11 +277,11 @@ const ForgotPassword = () => {
             </form>
           )}
 
-          {/* Step 2: Code Verification Form */}
+          {/* ─── STEP 2: CODE VERIFICATION ────────────────── */}
           {step === 2 && (
-            <form onSubmit={handleVerifyCode} className="space-y-6">
+            <form onSubmit={handleVerifyCode} className="space-y-5">
               <div>
-                <label htmlFor="resetCode" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="resetCode" className="block text-sm font-medium text-gray-700 mb-1.5">
                   Reset Code
                 </label>
                 <div className="relative">
@@ -294,11 +304,11 @@ const ForgotPassword = () => {
                   Enter the 6-digit code sent to your email
                 </p>
               </div>
-              
+
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:opacity-70 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl shadow-lg shadow-indigo-100 transition duration-200 text-sm"
+                className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:opacity-70 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-xl shadow-lg shadow-indigo-100 transition duration-200 text-sm"
               >
                 {loading ? (
                   <>
@@ -309,7 +319,7 @@ const ForgotPassword = () => {
                   'Verify Code'
                 )}
               </button>
-              
+
               <div className="text-center space-y-2">
                 <button
                   type="button"
@@ -321,22 +331,24 @@ const ForgotPassword = () => {
                 <div>
                   <button
                     type="button"
-                    onClick={handleSendCode}
-                    className="text-xs text-gray-500 hover:text-gray-700"
+                    onClick={handleResendCode}
+                    disabled={loading || resendCooldown > 0}
+                    className="text-xs text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Didn't receive code? Resend
+                    {resendCooldown > 0
+                      ? `Resend available in ${resendCooldown}s`
+                      : "Didn't receive code? Resend"}
                   </button>
                 </div>
               </div>
             </form>
           )}
 
-          {/* Step 3: New Password Form */}
+          {/* ─── STEP 3: NEW PASSWORD ─────────────────────── */}
           {step === 3 && (
-            <form onSubmit={handleResetPassword} className="space-y-6">
-              {/* New Password */}
+            <form onSubmit={handleResetPassword} className="space-y-5">
               <div>
-                <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 mb-1.5">
                   New Password
                 </label>
                 <div className="relative">
@@ -350,8 +362,9 @@ const ForgotPassword = () => {
                       setFieldErrors(prev => ({ ...prev, newPassword: '' }));
                     }}
                     placeholder="Enter new password"
-                    className={`w-full pl-11 pr-12 py-3 rounded-xl border text-sm outline-none transition focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
-                      ${fieldErrors.newPassword ? "border-red-400 bg-red-50" : "border-gray-200 bg-gray-50/50 focus:bg-white"}`}
+                    className={`w-full pl-11 pr-12 py-3 rounded-xl border text-sm outline-none transition focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${
+                      fieldErrors.newPassword ? "border-red-400 bg-red-50" : "border-gray-200 bg-gray-50/50 focus:bg-white"
+                    }`}
                   />
                   <button
                     type="button"
@@ -361,14 +374,18 @@ const ForgotPassword = () => {
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
-                
-                {/* Password Strength Indicator */}
+
                 {newPassword && (
                   <div className="mt-2">
                     <div className="flex items-center gap-2">
                       <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                        <div 
-                          className={`h-full transition-all duration-300 ${passwordStrength.level === 1 ? 'bg-red-500' : passwordStrength.level === 2 ? 'bg-yellow-500' : passwordStrength.level === 3 ? 'bg-blue-500' : 'bg-green-500'}`}
+                        <div
+                          className={`h-full transition-all duration-300 ${
+                            passwordStrength.level === 1 ? 'bg-red-500' :
+                            passwordStrength.level === 2 ? 'bg-yellow-500' :
+                            passwordStrength.level === 3 ? 'bg-blue-500' :
+                            'bg-green-500'
+                          }`}
                           style={{ width: passwordStrength.width }}
                         />
                       </div>
@@ -381,41 +398,41 @@ const ForgotPassword = () => {
                     </div>
                   </div>
                 )}
-                
+
                 {fieldErrors.newPassword && (
                   <p className="mt-1 text-xs text-red-600">{fieldErrors.newPassword}</p>
                 )}
               </div>
-              
-              {/* Confirm Password */}
+
               <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1.5">
                   Confirm New Password
                 </label>
                 <div className="relative">
                   <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
                   <input
                     id="confirmPassword"
-                    type={showPassword ? "text" : "password"}
+                    type="password"
                     value={confirmPassword}
                     onChange={(e) => {
                       setConfirmPassword(e.target.value);
                       setFieldErrors(prev => ({ ...prev, confirmPassword: '' }));
                     }}
                     placeholder="Confirm your new password"
-                    className={`w-full pl-11 pr-4 py-3 rounded-xl border text-sm outline-none transition focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
-                      ${fieldErrors.confirmPassword ? "border-red-400 bg-red-50" : "border-gray-200 bg-gray-50/50 focus:bg-white"}`}
+                    className={`w-full pl-11 pr-4 py-3 rounded-xl border text-sm outline-none transition focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${
+                      fieldErrors.confirmPassword ? "border-red-400 bg-red-50" : "border-gray-200 bg-gray-50/50 focus:bg-white"
+                    }`}
                   />
                 </div>
                 {fieldErrors.confirmPassword && (
                   <p className="mt-1 text-xs text-red-600">{fieldErrors.confirmPassword}</p>
                 )}
               </div>
-              
+
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:opacity-70 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl shadow-lg shadow-indigo-100 transition duration-200 text-sm"
+                className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:opacity-70 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-xl shadow-lg shadow-indigo-100 transition duration-200 text-sm"
               >
                 {loading ? (
                   <>
@@ -426,6 +443,16 @@ const ForgotPassword = () => {
                   'Reset Password'
                 )}
               </button>
+
+              <div className="text-center">
+                <Link
+                  to="/login"
+                  className="inline-flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-500 font-medium"
+                >
+                  <ArrowLeft size={16} />
+                  Back to Sign In
+                </Link>
+              </div>
             </form>
           )}
         </div>
