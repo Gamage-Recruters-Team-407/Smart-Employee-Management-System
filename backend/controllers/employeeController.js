@@ -5,6 +5,7 @@ import Employee from "../models/Employee.js";
 import Task from "../models/Task.js";
 import AuditLog from "../models/AuditLog.js";
 import User from "../models/User.js";
+import Leave from "../models/Leave.js";
 import generateEmployeeId from "../utils/generateEmployeeId.js";
 import { resolveEmployeeForAuthUser } from "../utils/employeeUserLink.js";
 
@@ -153,6 +154,11 @@ export const getEmployees = async (req, res) => {
     const sortOrder = sortDir === "asc" ? 1 : -1;
 
     // MongoDB Aggregation Pipeline: Filter, Sort, Tasks-Lookup සහ Pagination එකවර සිදු කරයි
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
     const [employees, totalCount] = await Promise.all([
       Employee.aggregate([
         { $match: query },
@@ -164,20 +170,88 @@ export const getEmployees = async (req, res) => {
             as: "assignedTasks",
           },
         },
+        // ─── Leave Lookup: අද දින approved leave ද බලයි ───────────────────────
+        {
+          $lookup: {
+            from: "leaves",
+            let: { empId: "$_id" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ["$employee", "$$empId"] },
+                      { $eq: ["$status", "Approved"] },
+                      { $lte: ["$startDate", todayEnd] },
+                      { $gte: ["$endDate", today] },
+                    ],
+                  },
+                },
+              },
+              { $limit: 1 },
+            ],
+            as: "activeLeaves",
+          },
+        },
         {
           $addFields: {
             taskCount: { $size: "$assignedTasks" },
             // Frontend එකේ සාමාන්‍ය භාවිතය සඳහා formatted full name එක සකසයි
-            name: { $trim: { input: { $concat: ["$firstName", " ", "$lastName"] } } }
+            name: { $trim: { input: { $concat: ["$firstName", " ", "$lastName"] } } },
+            // අද දින approved leave ඇත්නම් true වේ
+            isOnLeaveToday: { $gt: [{ $size: "$activeLeaves" }, 0] },
           },
         },
-        { $project: { assignedTasks: 0 } },
+        { $project: { assignedTasks: 0, activeLeaves: 0 } },
         { $sort: { [safeSortField]: sortOrder } },
         { $skip: skip },
         { $limit: limit },
       ]),
       Employee.countDocuments(query),
     ]);
+
+    // ─── DB Status Sync: isOnLeaveToday flag අනුව bulk update ─────────────────
+    // Aggregation pipeline ෙකෙ DB change කරන්න නෑ, ඉතින් result ලැබුණාට පස්සේ update
+    const toSetOnLeave = employees
+      .filter((e) => e.isOnLeaveToday && e.status !== "On Leave")
+      .map((e) => e._id);
+
+    const toRestoreActive = employees
+      .filter((e) => !e.isOnLeaveToday && e.status === "On Leave")
+      .map((e) => e._id);
+
+    if (toSetOnLeave.length > 0 || toRestoreActive.length > 0) {
+      const bulkOps = [];
+
+      if (toSetOnLeave.length > 0) {
+        bulkOps.push({
+          updateMany: {
+            filter: { _id: { $in: toSetOnLeave } },
+            update: { $set: { status: "On Leave" } },
+          },
+        });
+      }
+
+      if (toRestoreActive.length > 0) {
+        bulkOps.push({
+          updateMany: {
+            filter: { _id: { $in: toRestoreActive } },
+            update: { $set: { status: "Active" } },
+          },
+        });
+      }
+
+      // Fire-and-forget: response block නොකර background ෙකෙ update කරනවා
+      Employee.bulkWrite(bulkOps).catch((err) =>
+        console.error("[leave-sync] Bulk status update error:", err.message)
+      );
+
+      // In-memory patch: response ෙකෙ updated status immediately reflect කරනවා
+      employees.forEach((e) => {
+        if (e.isOnLeaveToday && e.status !== "On Leave") e.status = "On Leave";
+        else if (!e.isOnLeaveToday && e.status === "On Leave") e.status = "Active";
+      });
+    }
 
     return res.status(200).json({
       success: true,
@@ -209,7 +283,32 @@ export const getEmployeeById = async (req, res) => {
       return res.status(404).json({ success: false, message: "Employee not found." });
     }
 
-    return res.status(200).json({ success: true, data: employee });
+    // ─── Leave Check: අද approved leave ඇද්ද? ─────────────────────────────
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    const activeLeave = await Leave.findOne({
+      employee: employee._id,
+      status: "Approved",
+      startDate: { $lte: todayEnd },
+      endDate: { $gte: today },
+    });
+
+    const isOnLeaveToday = !!activeLeave;
+
+    // DB status auto-update: leave ඇත්නම් "On Leave", නැත්නම් "Active" ලෙස restore
+    if (isOnLeaveToday && employee.status !== "On Leave") {
+      employee.status = "On Leave";
+      await employee.save();
+    } else if (!isOnLeaveToday && employee.status === "On Leave") {
+      // Leave ඉවර වුණොත් නැවත "Active" ලෙස restore කරනවා
+      employee.status = "Active";
+      await employee.save();
+    }
+
+    return res.status(200).json({ success: true, data: employee, isOnLeaveToday });
   } catch (error) {
     console.error("getEmployeeById error:", error);
     return res.status(500).json({ success: false, message: "Server error while fetching employee.", error: error.message });
@@ -470,22 +569,50 @@ export const uploadProfilePhoto = async (req, res) => {
 
 export const getEmployeeStats = async (req, res) => {
   try {
-    const [result] = await Employee.aggregate([
-      {
-        $group: {
-          _id: null,
-          total: { $sum: 1 },
-          active: { $sum: { $cond: [{ $eq: ["$status", "Active"] }, 1, 0] } },
-          inactive: { $sum: { $cond: [{ $eq: ["$status", "Inactive"] }, 1, 0] } },
-          onLeave: { $sum: { $cond: [{ $eq: ["$status", "On Leave"] }, 1, 0] } },
-          terminated: { $sum: { $cond: [{ $eq: ["$status", "Terminated"] }, 1, 0] } },
+    // Leave table ෙකෙන් අද approved leave ඇති employees ගේ unique IDs ගනිමු
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    const [result, onLeaveTodayDocs] = await Promise.all([
+      Employee.aggregate([
+        {
+          $group: {
+            _id: null,
+            total: { $sum: 1 },
+            active: { $sum: { $cond: [{ $eq: ["$status", "Active"] }, 1, 0] } },
+            inactive: { $sum: { $cond: [{ $eq: ["$status", "Inactive"] }, 1, 0] } },
+            // DB status "On Leave" ලෙස manually set කළ employees
+            onLeaveStatus: { $sum: { $cond: [{ $eq: ["$status", "On Leave"] }, 1, 0] } },
+            terminated: { $sum: { $cond: [{ $eq: ["$status", "Terminated"] }, 1, 0] } },
+          },
         },
-      },
+      ]),
+      // Leave table ෙකෙන් අද approved leave ඇති unique employees
+      Leave.distinct("employee", {
+        status: "Approved",
+        startDate: { $lte: todayEnd },
+        endDate: { $gte: today },
+      }),
     ]);
+
+    // aggregate() returns an ARRAY — result[0] ෙකෙ object ගන්නා
+    const base = result[0] || { total: 0, onLeaveStatus: 0, active: 0, inactive: 0, terminated: 0 };
+
+    // DB status "On Leave" + Leave table ෙකෙන් on leave — unique ගණනක් ලෙස
+    // onLeaveTodayDocs.length = leave table ෙකෙන් ආ count (DB status change නොකළ ඒවා ද ඇතුළු)
+    const onLeaveCount = Math.max(base.onLeaveStatus, onLeaveTodayDocs.length);
 
     return res.status(200).json({
       success: true,
-      data: result || { total: 0, active: 0, inactive: 0, onLeave: 0, terminated: 0 },
+      data: {
+        total: base.total,
+        active: base.active,
+        inactive: base.inactive,
+        onLeave: onLeaveCount,
+        terminated: base.terminated,
+      },
     });
   } catch (error) {
     console.error("getEmployeeStats error:", error);
@@ -604,6 +731,30 @@ export const getMyProfile = async (req, res) => {
     if (!employee) {
       return res.status(404).json({ message: "Employee profile not found for this account." });
     }
+
+    // ─── Leave Check: getEmployeeById ෙකෙ logic ෙකෙකෙම ─────────────────────
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    const activeLeave = await Leave.findOne({
+      employee: employee._id,
+      status: "Approved",
+      startDate: { $lte: todayEnd },
+      endDate: { $gte: today },
+    });
+
+    const isOnLeaveToday = !!activeLeave;
+
+    if (isOnLeaveToday && employee.status !== "On Leave") {
+      employee.status = "On Leave";
+      await employee.save();
+    } else if (!isOnLeaveToday && employee.status === "On Leave") {
+      employee.status = "Active";
+      await employee.save();
+    }
+
     return res.status(200).json(employee);
   } catch (error) {
     return res.status(500).json({ message: "Error fetching profile", error: error.message });

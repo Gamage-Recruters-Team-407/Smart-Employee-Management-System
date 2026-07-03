@@ -5,7 +5,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useEmployeeProfile } from "../../hooks/useEmployeeProfile";
 import {
   User, Briefcase, Award, Clock, Coffee, Utensils,
-  Moon, Wifi, WifiOff
+  Moon, Wifi, WifiOff, CalendarX
 } from "lucide-react";
 import DashboardStats from "./DashboardStats";
 import RecentActivity from "./RecentActivity";
@@ -27,6 +27,7 @@ const DashboardHome = () => {
 
   const [currentTime, setCurrentTime] = useState(new Date());
   const [breakStatus, setBreakStatus] = useState(null);
+  const [isOnLeaveToday, setIsOnLeaveToday] = useState(false);
 
   // ─── TICKING CLOCK ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -48,6 +49,22 @@ const DashboardHome = () => {
   // ─── EFFECT: FETCH BREAK STATUS ON MOUNT ──────────────────────────────
   useEffect(() => {
     if (user?.role === 'Employee') {
+      // Leave check: අද approved leave ඇද්ද?
+      API.get('/leaves/my-leaves').then((res) => {
+        const leaves = Array.isArray(res.data) ? res.data : [];
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayEnd = new Date();
+        todayEnd.setHours(23, 59, 59, 999);
+        const onLeave = leaves.some(
+          (l) =>
+            l.status === 'Approved' &&
+            new Date(l.startDate) <= todayEnd &&
+            new Date(l.endDate) >= today
+        );
+        setIsOnLeaveToday(onLeave);
+      }).catch(() => {});
+
       const timerId = setTimeout(() => {
         fetchBreakStatus();
       }, 0);
@@ -104,6 +121,11 @@ const DashboardHome = () => {
 
   // ─── GET ONLINE STATUS DISPLAY ──────────────────────────────────────────
   const getOnlineStatusDisplay = () => {
+    // ── Leave override 1: /leaves/my-leaves API check ────────────────────
+    if (isOnLeaveToday) return 'On Leave';
+    // ── Leave override 2: employee.status DB field ─────────────────────
+    // Backend ෙකෙ getEmployeeById ෙකෙ DB status "On Leave" ලෙස set කරනවා
+    if (employee?.status === 'On Leave') return 'On Leave';
     if (breakStatus?.isOnBreak && breakStatus?.currentBreak) {
       return breakStatus.currentBreak.label;
     }
@@ -115,6 +137,7 @@ const DashboardHome = () => {
 
   const getStatusColor = (status) => {
     if (status === 'Online') return 'text-emerald-600';
+    if (status === 'On Leave') return 'text-amber-600';
     if (status === 'Breakfast') return 'text-amber-600';
     if (status === 'Lunch') return 'text-orange-600';
     if (status === 'Tea Time') return 'text-blue-600';
@@ -124,6 +147,7 @@ const DashboardHome = () => {
   const getStatusIcon = (status) => {
     if (status === 'Online') return <Wifi size={16} className="text-emerald-500" />;
     if (status === 'Offline') return <WifiOff size={16} className="text-gray-400" />;
+    if (status === 'On Leave') return <CalendarX size={16} className="text-amber-500" />;
     if (status === 'Breakfast') return <Coffee size={16} className="text-amber-500" />;
     if (status === 'Lunch') return <Utensils size={16} className="text-orange-500" />;
     if (status === 'Tea Time') return <Moon size={16} className="text-blue-500" />;
@@ -202,7 +226,11 @@ const DashboardHome = () => {
           </div>
 
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-50 flex items-center gap-4 hover:shadow-md transition-shadow">
-            <div className={`p-3 rounded-xl ${onlineStatus === 'Online' ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-600'}`}>
+            <div className={`p-3 rounded-xl ${
+              onlineStatus === 'Online' ? 'bg-emerald-50 text-emerald-600'
+            : onlineStatus === 'On Leave' ? 'bg-amber-50 text-amber-600'
+            : 'bg-orange-50 text-orange-600'
+          }`}>
               <Clock size={24} />
             </div>
             <div>

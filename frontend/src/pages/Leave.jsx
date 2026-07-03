@@ -178,6 +178,58 @@ const Leave = () => {
             </button>
           </div>
 
+          {/* ── RECENT LEAVES ─────────────────────────────────────────────────── */}
+          {leaves.length > 0 && (
+            <div className="mb-8">
+              <h2 className="text-lg font-semibold text-gray-700 mb-4">Recent Leaves</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {[...leaves]
+                  .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+                  .slice(0, 3)
+                  .map((leave) => {
+                    const statusStyles = {
+                      Approved: { pill: 'bg-green-100 text-green-700', bar: 'bg-green-500', dot: 'bg-green-400' },
+                      Rejected: { pill: 'bg-red-100 text-red-700', bar: 'bg-red-500', dot: 'bg-red-400' },
+                      Pending:  { pill: 'bg-amber-100 text-amber-700', bar: 'bg-amber-400', dot: 'bg-amber-400' },
+                      Cancelled:{ pill: 'bg-gray-100 text-gray-500', bar: 'bg-gray-300', dot: 'bg-gray-400' },
+                    };
+                    const style = statusStyles[leave.status] || statusStyles.Pending;
+                    const start = new Date(leave.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                    const end   = new Date(leave.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                    return (
+                      <div key={leave._id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow">
+                        <div className={`h-1 w-full ${style.bar}`} />
+                        <div className="p-5">
+                          <div className="flex items-start justify-between mb-3">
+                            <div>
+                              <span className="text-xs font-semibold text-indigo-600 uppercase tracking-wider bg-indigo-50 px-2 py-0.5 rounded-md">
+                                {leave.leaveType}
+                              </span>
+                            </div>
+                            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full flex items-center gap-1.5 ${style.pill}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${style.dot}`} />
+                              {leave.status}
+                            </span>
+                          </div>
+                          <p className="text-sm font-semibold text-gray-800 mb-1">
+                            {start} → {end}
+                          </p>
+                          <p className="text-xs text-gray-400 mb-3">
+                            {leave.totalDays} {leave.totalDays === 1 ? 'day' : 'days'}
+                          </p>
+                          {leave.reason && (
+                            <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed">
+                              {leave.reason}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
+
           <div className='bg-white rounded-2xl shadow overflow-hidden'>
             <div className='overflow-x-auto'>
               <table className='w-full'>

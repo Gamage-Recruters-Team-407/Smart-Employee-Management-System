@@ -11,10 +11,10 @@ const AVATAR_COLORS = [
 ];
 
 const STATUS_CONFIG = {
-  Active:     { icon: UserCheck, bg: "bg-emerald-50", text: "text-emerald-700", dot: "bg-emerald-500" },
-  Inactive:   { icon: UserX,    bg: "bg-gray-50",    text: "text-gray-600",    dot: "bg-gray-400" },
-  "On Leave": { icon: Clock,    bg: "bg-amber-50",   text: "text-amber-700",   dot: "bg-amber-500" },
-  Terminated: { icon: AlertTriangle, bg: "bg-red-50", text: "text-red-700",     dot: "bg-red-500" },
+  Active: { icon: UserCheck, bg: "bg-emerald-50", text: "text-emerald-700", dot: "bg-emerald-500" },
+  Inactive: { icon: UserX, bg: "bg-gray-50", text: "text-gray-600", dot: "bg-gray-400" },
+  "On Leave": { icon: Clock, bg: "bg-amber-50", text: "text-amber-700", dot: "bg-amber-500" },
+  Terminated: { icon: AlertTriangle, bg: "bg-red-50", text: "text-red-700", dot: "bg-red-500" },
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -79,9 +79,8 @@ const EmployeeCard = ({
 
   return (
     <div
-      className={`relative bg-white rounded-2xl border shadow-sm overflow-hidden transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 group ${
-        isSelected ? "border-indigo-400 ring-2 ring-indigo-200" : "border-gray-100"
-      }`}
+      className={`relative bg-white rounded-2xl border shadow-sm overflow-hidden transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 group ${isSelected ? "border-indigo-400 ring-2 ring-indigo-200" : "border-gray-100"
+        }`}
     >
       {/* Selection checkbox */}
       <div className="absolute top-3 right-3 z-10">
