@@ -512,12 +512,12 @@ const Employees = () => {
             <BarChart3 size={15} /> Analytics
           </button>
 
-          <button
+          {/* <button
             onClick={() => { setEditTarget(null); setShowAddModal(true); }}
             className="px-4 py-2 text-sm font-semibold text-white rounded-lg bg-indigo-600 hover:bg-indigo-700 shadow-sm transition flex items-center gap-1.5"
           >
             <Plus size={16} /> Add Employee
-          </button>
+          </button> */}
         </div>
       </div>
 
