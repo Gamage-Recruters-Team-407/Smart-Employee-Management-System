@@ -65,22 +65,22 @@ const Sidebar = ({ isOpen, onClose, toggle }) => {
 
   return (
     <>
-      {/* Mobile / Tablet Overlay */}
+      {/* Mobile / Tablet / 1024px Overlay */}
       {isOpen && (
         <div
           onClick={handleClose}
-          className="fixed inset-0 bg-black/40 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/40 z-40 xl:hidden"
         />
       )}
 
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-50 h-screen bg-white border-r overflow-hidden transform transition-transform duration-300 ease-in-out flex-shrink-0 w-64 ${
-          isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        className={`fixed xl:static inset-y-0 left-0 z-50 h-screen bg-white border-r overflow-hidden transform transition-transform duration-300 ease-in-out flex-shrink-0 w-64 ${
+          isOpen ? "translate-x-0" : "-translate-x-full xl:translate-x-0"
         }`}
       >
         <div className="p-6">
-          {/* Mobile Close Button */}
-          <div className="lg:hidden flex justify-end mb-4">
+          {/* Mobile / Tablet Close Button */}
+          <div className="xl:hidden flex justify-end mb-4">
             <button
               type="button"
               onClick={handleClose}
@@ -117,7 +117,7 @@ const Sidebar = ({ isOpen, onClose, toggle }) => {
                   onClick={() => {
                     if (
                       typeof window !== "undefined" &&
-                      window.innerWidth < 1024
+                      window.innerWidth < 1280
                     ) {
                       handleClose();
                     }
@@ -142,10 +142,10 @@ const Sidebar = ({ isOpen, onClose, toggle }) => {
                       )}
                   </div>
 
-                  <div className="flex items-center justify-between w-full">
-                    <span>{item.label}</span>
+                  <div className="flex items-center justify-between w-full min-w-0">
+                    <span className="truncate">{item.label}</span>
 
-                    <div className="flex gap-2 items-center">
+                    <div className="flex gap-2 items-center flex-shrink-0">
                       {(item.label === "My Tasks" ||
                         item.label === "Task Management") &&
                         activeTasks > 0 && (
