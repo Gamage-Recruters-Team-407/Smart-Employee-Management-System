@@ -165,9 +165,9 @@ const TiltCard = ({ children, className = "" }) => {
         transformStyle: "preserve-3d",
         perspective: 1000,
       }}
-      className={`group relative bg-white border border-zinc-200 rounded-xl p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.04),0_2px_8px_rgba(0,0,0,0.04)] transition-shadow duration-300 flex flex-col justify-between ${className}`}
+      className={`group relative bg-white border border-zinc-200 rounded-xl p-4 sm:p-5 lg:p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.04),0_2px_8px_rgba(0,0,0,0.04)] transition-shadow duration-300 flex flex-col justify-between min-w-0 ${className}`}
     >
-      <div className="w-full h-full flex flex-col justify-between flex-1">
+      <div className="w-full h-full flex flex-col justify-between flex-1 min-w-0">
         {children}
       </div>
     </motion.div>
@@ -283,7 +283,7 @@ const HeroSection = ({
         />
       </div>
 
-      <div className="relative p-8 md:p-10 flex flex-col md:flex-row md:items-end justify-between gap-8 z-10 min-h-[260px]">
+      <div className="relative p-5 sm:p-6 lg:p-10 flex flex-col xl:flex-row xl:items-end justify-between gap-6 xl:gap-8 z-10 min-h-[260px]">
         <div className="max-w-xl flex flex-col justify-between h-full">
           <div>
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-zinc-200 text-[11.5px] font-medium uppercase text-zinc-500 mb-5 shadow-sm">
@@ -333,11 +333,11 @@ const HeroSection = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-3 self-start md:self-end mt-4 md:mt-0">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 self-start xl:self-end mt-4 xl:mt-0 w-full xl:w-auto">
           <button
             type="button"
             onClick={() => setIsDrawerOpen(true)}
-            className="flex flex-col items-center justify-center bg-white border border-zinc-200 px-5 py-3 rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.06)] hover:border-zinc-300 transition-all h-[64px]"
+            className="w-full sm:w-auto flex flex-col items-center justify-center bg-white border border-zinc-200 px-5 py-3 rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.06)] hover:border-zinc-300 transition-all min-h-[64px]"
           >
             <span className="text-[12px] text-zinc-400 uppercase mb-1">
               System
@@ -351,7 +351,7 @@ const HeroSection = ({
             type="button"
             onClick={handleMarkAllAsRead}
             disabled={actionId === "all" || unreadCount === 0}
-            className="bg-[#635BFF] hover:bg-[#4A42DD] text-white px-5 rounded-2xl text-[14px] font-medium transition-colors shadow-[0_2px_4px_rgba(99,91,255,0.2)] disabled:opacity-50 flex items-center justify-center h-[64px]"
+            className="w-full sm:w-auto bg-[#635BFF] hover:bg-[#4A42DD] text-white px-5 rounded-2xl text-[14px] font-medium transition-colors shadow-[0_2px_4px_rgba(99,91,255,0.2)] disabled:opacity-50 flex items-center justify-center min-h-[64px]"
           >
             {actionId === "all" ? "Updating..." : "Quick action"}
           </button>
@@ -373,7 +373,7 @@ const ReportsPanel = ({
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: 0.1, ease: "easeOut" }}
-      className="bg-white rounded-2xl border border-zinc-200 shadow-[0_1px_3px_rgba(0,0,0,0.05)] p-6 lg:p-8"
+      className="bg-white rounded-2xl border border-zinc-200 shadow-[0_1px_3px_rgba(0,0,0,0.05)] p-4 sm:p-5 lg:p-6 min-w-0"
     >
       <div className="flex items-center justify-between mb-8">
         <div>
@@ -401,11 +401,11 @@ const ReportsPanel = ({
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
         <TiltCard>
           <div className="h-full flex flex-col justify-between">
             <div className="mb-6">
-              <div className="flex items-center gap-3 mb-4">
+              <div className="flex items-start gap-3 mb-4 min-w-0">
                 <div className="w-8 h-8 rounded-lg bg-zinc-100 flex items-center justify-center">
                   <FileText size={16} className="text-zinc-700" />
                 </div>
@@ -428,7 +428,7 @@ const ReportsPanel = ({
                   <select
                     value={selectedPayrollId}
                     onChange={(e) => setSelectedPayrollId(e.target.value)}
-                    className="w-full border border-zinc-200 rounded-lg px-3 py-2 text-[14px] text-zinc-900 bg-white hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-[#635BFF]/20 focus:border-[#635BFF] transition-all appearance-none cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.03)]"
+                    className="w-full min-w-0 border border-zinc-200 rounded-lg px-3 py-2 pr-8 text-[14px] text-zinc-900 bg-white hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-[#635BFF]/20 focus:border-[#635BFF] transition-all appearance-none cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.03)] truncate"
                   >
                     {payrolls.map((p) => {
                       const emp = p.employee;
@@ -1146,7 +1146,7 @@ const Notifications = () => {
   const recentNotifications = notifications.slice(0, 3);
 
   return (
-    <div className="min-h-screen bg-[#fafafa] p-6 lg:p-8 font-sans">
+    <div className="min-h-screen bg-[#fafafa] p-4 sm:p-6 lg:p-8 font-sans w-full min-w-0 overflow-x-hidden">
       <div className="max-w-7xl mx-auto space-y-6">
         <HeroSection
           unreadCount={unreadCount}
@@ -1192,8 +1192,8 @@ const Notifications = () => {
           </motion.div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <div className="lg:col-span-8 flex flex-col gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+          <div className="xl:col-span-8 flex flex-col gap-6 min-w-0">
             <ReportsPanel
               payrolls={payrolls}
               selectedPayrollId={selectedPayrollId}
@@ -1203,7 +1203,7 @@ const Notifications = () => {
             />
           </div>
 
-          <div className="lg:col-span-4 flex flex-col gap-6">
+          <div className="xl:col-span-4 flex flex-col gap-6 min-w-0">
             <RecentNotifications
               loading={loading}
               recentNotifications={recentNotifications}

@@ -10,7 +10,10 @@ import API from "../services/api";
 import { io } from "socket.io-client";
 
 const Dashboard = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+  if (typeof window === "undefined") return false;
+  return window.innerWidth >= 1280;
+});
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { employee } = useEmployeeProfile({
@@ -47,6 +50,17 @@ const Dashboard = () => {
   // Check if user is Employee (not Admin or HR)
   const isEmployee = user?.role === "Employee";
   const isAdminOrHR = user?.role === "Admin" || user?.role === "HR";
+
+  useEffect(() => {
+  const handleResize = () => {
+    setSidebarOpen(window.innerWidth >= 1280);
+  };
+
+  handleResize();
+  window.addEventListener("resize", handleResize);
+
+  return () => window.removeEventListener("resize", handleResize);
+}, []);
 
   // ─── STORAGE ─────────────────────────────────
   let storedUser = {};
@@ -443,30 +457,31 @@ const Dashboard = () => {
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden">
       <Sidebar
-        isOpen={sidebarOpen}
-        toggle={() => setSidebarOpen(!sidebarOpen)}
-      />
+  isOpen={sidebarOpen}
+  onClose={() => setSidebarOpen(false)}
+  toggle={() => setSidebarOpen((prev) => !prev)}
+/>
 
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* ─── HEADER / NAVBAR SECTION ──────────────────────────────────────── */}
         <header className="bg-white shadow-sm z-10 px-4 sm:px-6 h-11 sm:h-12 flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 min-w-0">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="lg:hidden p-1 hover:bg-gray-100 rounded-lg"
+              className="xl:hidden p-1 hover:bg-gray-100 rounded-lg"
             >
               {sidebarOpen ? <X size={18} /> : <Menu size={18} />}
             </button>
 
-            <h1 className="text-base sm:text-lg font-bold text-gray-800">Dashboard</h1>
+            <h1 className="text-base sm:text-lg font-bold text-gray-800 truncate">Dashboard</h1>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-2.5">
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-shrink-0">
             {isLoggedIn ? (
               <>
                 {/* ─── USER PROFILE SECTION ──────────────────────────────────── */}
                 <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 sm:w-8 h-8 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-[11px] sm:text-xs select-none ring-2 ring-indigo-100 flex-shrink-0">
+                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-[11px] sm:text-xs select-none ring-2 ring-indigo-100 flex-shrink-0">
                     {profilePicture ? (
                       <img 
                         src={profilePicture} 
@@ -486,7 +501,7 @@ const Dashboard = () => {
 
                 {/* ─── ATTENDANCE MARK BUTTON - Only for Employees ────────────── */}
                 {isEmployee && (
-                  <div className="hidden lg:block">
+                  <div className="hidden xl:block">
                     {renderAttendanceSection()}
                   </div>
                 )}
@@ -513,13 +528,13 @@ const Dashboard = () => {
 
         {/* ─── MOBILE ATTENDANCE SECTION - Only for Employees ────────────────── */}
         {isEmployee && (
-          <div className="lg:hidden px-4 py-2 bg-gray-50 border-b border-gray-200">
+          <div className="xl:hidden px-4 py-2 bg-gray-50 border-b border-gray-200">
             {renderAttendanceSection()}
           </div>
         )}
 
         {/* ─── MAIN CONTENT AREA ────────────────────────────────────────────── */}
-        <main className="flex-1 overflow-auto p-4 sm:p-6">
+        <main className="flex-1 overflow-auto p-4 sm:p-6 min-w-0">
           <Outlet />
         </main>
       </div>

@@ -31,13 +31,21 @@ const monthLabel = (m) => {
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
 const StatCard = ({ icon: Icon, label, value, color }) => (
-  <div className="bg-white rounded-2xl shadow p-5 sm:p-6 flex items-center gap-4 sm:gap-5">
+  <div className="bg-white rounded-2xl shadow p-5 sm:p-6 flex items-center gap-4 sm:gap-5 min-w-0 w-full">
     <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center flex-shrink-0 ${color}`}>
       <Icon size={24} className="text-white" />
     </div>
-    <div className="min-w-0">
-      <p className="text-sm text-gray-500 truncate">{label}</p>
-      <p className="text-lg sm:text-xl font-bold text-gray-800 mt-0.5 truncate" title={value}>{value}</p>
+
+    <div className="min-w-0 flex-1">
+      <p className="text-sm text-gray-500 leading-tight break-words">
+        {label}
+      </p>
+      <p
+        className="text-base sm:text-lg xl:text-xl font-bold text-gray-800 mt-0.5 break-words"
+        title={value}
+      >
+        {value}
+      </p>
     </div>
   </div>
 );
@@ -307,7 +315,7 @@ const Payroll = () => {
       )}
 
       {/* Summary stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
         <StatCard icon={Users} label="Total Employees" value={summary?.totalEmployees ?? 0} color="bg-indigo-500" />
         <StatCard icon={DollarSign} label="Total Net Salary" value={fmt(summary?.totalNetSalary)} color="bg-emerald-500" />
         <StatCard icon={TrendingUp} label="Total Tax Deducted" value={fmt(summary?.totalTax)} color="bg-red-500" />
@@ -361,7 +369,7 @@ const Payroll = () => {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="min-w-[1000px] w-full">
               <thead className="bg-gray-50 border-b">
                 <tr>
                   <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Employee</th>
