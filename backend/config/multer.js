@@ -3,8 +3,10 @@ import path from "path";
 import fs from "fs";
 
 // Ensure uploads/ directory exists
-const UPLOAD_DIR = "uploads";
-if (!fs.existsSync(UPLOAD_DIR)) {
+const UPLOAD_DIR = path.join(process.cwd(), "uploads");
+const canUseDiskUploads = process.env.VERCEL !== "1";
+
+if (canUseDiskUploads && !fs.existsSync(UPLOAD_DIR)) {
   fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 }
 

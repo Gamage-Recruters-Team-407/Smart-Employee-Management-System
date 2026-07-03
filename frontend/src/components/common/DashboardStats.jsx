@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Users, Clock, CalendarCheck, TrendingUp } from 'lucide-react';
 import API from '../../services/api';
 import { io } from 'socket.io-client';
+import { getSocketConfig } from '../../utils/socketConfig';
 
 const DashboardStats = () => {
   const [stats, setStats] = useState({
@@ -30,8 +31,8 @@ const DashboardStats = () => {
 
     let socket = null;
     try {
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
-      socket = io(backendUrl);
+      const { url, options } = getSocketConfig();
+      socket = io(url, options);
 
       socket.on("connect", () => {
         console.log("DashboardStats socket connected");

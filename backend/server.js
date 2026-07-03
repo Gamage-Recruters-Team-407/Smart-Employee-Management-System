@@ -42,7 +42,7 @@ app.use(cors({
   origin: isProduction
     ? (origin, callback) => {
       const isExplicitlyAllowed =
-        allowedOrigins.includes(origin) || origin === process.env.FRONTEND_URL;
+        allowedOrigins.includes(origin) || origin === process.env.FRONTEND_URL || (origin && origin.endsWith(".vercel.app"));
 
       let isLocalDevOrigin = false;
       if (origin) {
@@ -70,6 +70,7 @@ app.use(cors({
 app.use(express.json());
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
+app.get(["/favicon.ico", "/favicon.png"], (_req, res) => res.status(204).end());
 app.get("/", (_req, res) => res.send("SEMS Backend Running"));
 app.get("/api", (_req, res) => res.json({ message: "Smart Employee Management API" }));
 
@@ -138,4 +139,10 @@ const startServer = async () => {
   }
 };
 
-startServer();
+if (!process.env.VERCEL && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
+  startServer();
+} else {
+  connectDB();
+}
+
+export default app;
