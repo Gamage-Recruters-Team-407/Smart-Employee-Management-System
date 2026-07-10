@@ -16,6 +16,7 @@ import {
 } from "../controllers/employeeController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { imageUpload } from "../config/multer.js";
+import documentRoutes from "./documentRoutes.js";
 
 const router = Router();
 
@@ -41,5 +42,7 @@ router.post("/:id/photo", imageUpload.single("photo"), uploadProfilePhoto);
 router.get("/:id", getEmployeeById);
 router.put("/:id", updateEmployee);
 router.delete("/:id", deleteEmployee);
+
+router.use("/:id/documents", documentRoutes);
 
 export default router;
