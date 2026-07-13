@@ -97,15 +97,38 @@ const filterPayrollsForLoggedUser = (payrollList, user) => {
   const loggedEmployeeId = getUserEmployeeId(user);
   const loggedEmail = getUserEmail(user);
 
+  // ---------------------------------------------------------
+  // Admin → See all payslips
+  // ---------------------------------------------------------
   if (loggedRole === "Admin") {
     return list;
   }
 
+  // ---------------------------------------------------------
+  // HR → See all payslips
+  // ---------------------------------------------------------
   if (loggedRole === "HR") {
-    return list.filter((payroll) => normalizeRole(payroll?.role) !== "Admin");
+    return list;
   }
 
-  if (loggedRole === "Employee" || loggedRole === "Manager") {
+  // ---------------------------------------------------------
+  // Manager → See Manager + Employee payslips
+  // ---------------------------------------------------------
+  if (loggedRole === "Manager") {
+    return list.filter((payroll) => {
+      const employeeRole = normalizeRole(
+        payroll?.employee?.userId?.role ||
+        payroll?.employee?.role
+      );
+
+      return ["Manager", "Employee"].includes(employeeRole);
+    });
+  }
+
+  // ---------------------------------------------------------
+  // Employee → See own payslip only
+  // ---------------------------------------------------------
+  if (loggedRole === "Employee") {
     return list.filter((payroll) => {
       const payrollEmployeeId = getPayrollEmployeeId(payroll);
       const payrollEmployeeUserId = getPayrollEmployeeUserId(payroll);
@@ -428,20 +451,20 @@ const ReportsPanel = ({
                     className="w-full min-w-0 border border-zinc-200 rounded-lg px-3 py-2 pr-8 text-[14px] text-zinc-900 bg-white hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-[#635BFF]/20 focus:border-[#635BFF] transition-all appearance-none cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.03)] truncate"
                   >
                     {payrolls.map((p) => {
-                      const emp = p.employee;
+  const emp = p.employee;
 
-                      const name = emp
-                        ? `${emp.firstName || ""} ${emp.lastName || ""}`.trim()
-                        : "Employee";
+  const name = emp
+    ? `${emp.firstName || ""} ${emp.lastName || ""}`.trim()
+    : "Employee";
 
-                      return (
-                        <option key={p._id} value={p._id}>
-                          {p.month || "—"} ·{" "}
-                          {name || emp?.employeeId || p._id} ·{" "}
-                          {emp?.userId?.role || emp?.role || "No Role"}
-                        </option>
-                      );
-                    })}
+  return (
+    <option key={p._id} value={p._id}>
+      {p.month || "—"} ·{" "}
+      {name || emp?.employeeId || p._id} ·{" "}
+      {emp?.userId?.role || emp?.role || "No Role"}
+    </option>
+  );
+})}
                   </select>
 
                   <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-400">

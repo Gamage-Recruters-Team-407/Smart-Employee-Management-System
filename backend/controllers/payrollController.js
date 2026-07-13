@@ -61,43 +61,97 @@ export const getPayrolls = async (req, res) => {
     const { month, year, employeeId } = req.query;
     const filter = {};
 
+    // Month / year filtering
     if (month) {
       const norm = normalizeMonthYear(month, year);
-      if (norm.month) filter.month = norm.month;
-      if (norm.year) filter.year = norm.year;
+
+      if (norm.month) {
+        filter.month = norm.month;
+      }
+
+      if (norm.year) {
+        filter.year = norm.year;
+      }
     } else if (year) {
       filter.year = parseInt(year, 10);
     }
-    
-    if (isPrivileged(req)) {
-      if (employeeId) filter.employee = employeeId;
-    } else {
+
+    const loggedRole = req.user?.role;
+
+    // ---------------------------------------------------------
+    // Admin + HR → Can see all payroll records
+    // ---------------------------------------------------------
+    if (loggedRole === "Admin" || loggedRole === "HR") {
+      if (employeeId) {
+        filter.employee = employeeId;
+      }
+    }
+
+    // ---------------------------------------------------------
+    // Manager → Can see Manager + Employee payroll records
+    // ---------------------------------------------------------
+    else if (loggedRole === "Manager") {
+      const employees = await Employee.find({})
+        .select("_id role userId")
+        .populate("userId", "role");
+
+      const allowedEmployeeIds = employees
+        .filter((employee) => {
+          // Signup role from User collection gets first priority
+          const effectiveRole =
+            employee?.userId?.role ||
+            employee?.role ||
+            "";
+
+          return ["Manager", "Employee"].includes(effectiveRole);
+        })
+        .map((employee) => employee._id);
+
+      filter.employee = {
+        $in: allowedEmployeeIds
+      };
+    }
+
+    // ---------------------------------------------------------
+    // Employee → Can only see own payroll
+    // ---------------------------------------------------------
+    else {
       const ownId = await getOwnEmployeeId(req);
-      if (!ownId) return res.status(200).json({ success: true, data: [] });
+
+      if (!ownId) {
+        return res.status(200).json({
+          success: true,
+          data: []
+        });
+      }
+
       filter.employee = ownId;
     }
 
+    // Fetch payroll records with employee + signup role
     const payrolls = await Payroll.find(filter)
-  .populate({
-    path: "employee",
-    select:
-      "firstName lastName email employeeId department designation role userId",
-    populate: {
-      path: "userId",
-      select: "role"
-    }
-  })
-  .sort({ createdAt: -1 });
+      .populate({
+        path: "employee",
+        select:
+          "firstName lastName email employeeId department designation role userId",
+        populate: {
+          path: "userId",
+          select: "role"
+        }
+      })
+      .sort({ createdAt: -1 });
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       data: payrolls
     });
+
   } catch (error) {
-    console.error('Get payrolls error:', error);
-    res.status(500).json({
+    console.error("Get payrolls error:", error);
+
+    return res.status(500).json({
       success: false,
-      message: 'Failed to fetch payroll records',
+      message: "Failed to fetch payroll records",
       error: error.message
     });
   }
@@ -109,32 +163,75 @@ export const getPayrollById = async (req, res) => {
     const { id } = req.params;
 
     const payroll = await Payroll.findById(id)
-      .populate('employee', 'firstName lastName email employeeId department designation');
+      .populate({
+        path: "employee",
+        select:
+          "firstName lastName email employeeId department designation role userId",
+        populate: {
+          path: "userId",
+          select: "role"
+        }
+      });
 
     if (!payroll) {
       return res.status(404).json({
         success: false,
-        message: 'Payroll record not found'
+        message: "Payroll record not found"
       });
     }
 
-    if (!isPrivileged(req)) {
-      const ownId = await getOwnEmployeeId(req);
-      const ownerId = payroll.employee?._id || payroll.employee;
-      if (!ownId || String(ownerId) !== String(ownId)) {
-        return res.status(403).json({ success: false, message: 'Not authorized to view this payroll record' });
-      }
+    const loggedRole = req.user?.role;
+
+    // Admin + HR can view any payroll
+    if (loggedRole === "Admin" || loggedRole === "HR") {
+      return res.status(200).json({
+        success: true,
+        data: payroll
+      });
     }
 
-    res.status(200).json({
+    // Manager can view Manager + Employee payrolls
+    if (loggedRole === "Manager") {
+      const payrollEmployeeRole =
+        payroll?.employee?.userId?.role ||
+        payroll?.employee?.role ||
+        "";
+
+      if (!["Manager", "Employee"].includes(payrollEmployeeRole)) {
+        return res.status(403).json({
+          success: false,
+          message: "Not authorized to view this payroll record"
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: payroll
+      });
+    }
+
+    // Employee can only view own payroll
+    const ownId = await getOwnEmployeeId(req);
+    const ownerId = payroll.employee?._id || payroll.employee;
+
+    if (!ownId || String(ownerId) !== String(ownId)) {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to view this payroll record"
+      });
+    }
+
+    return res.status(200).json({
       success: true,
       data: payroll
     });
+
   } catch (error) {
-    console.error('Get payroll by id error:', error);
-    res.status(500).json({
+    console.error("Get payroll by id error:", error);
+
+    return res.status(500).json({
       success: false,
-      message: 'Failed to fetch payroll record',
+      message: "Failed to fetch payroll record",
       error: error.message
     });
   }
