@@ -78,8 +78,16 @@ export const getPayrolls = async (req, res) => {
     }
 
     const payrolls = await Payroll.find(filter)
-      .populate('employee', 'firstName lastName email employeeId department designation')
-      .sort({ createdAt: -1 });
+  .populate({
+    path: "employee",
+    select:
+      "firstName lastName email employeeId department designation role userId",
+    populate: {
+      path: "userId",
+      select: "role"
+    }
+  })
+  .sort({ createdAt: -1 });
 
     res.status(200).json({
       success: true,
