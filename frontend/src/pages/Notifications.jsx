@@ -97,15 +97,38 @@ const filterPayrollsForLoggedUser = (payrollList, user) => {
   const loggedEmployeeId = getUserEmployeeId(user);
   const loggedEmail = getUserEmail(user);
 
+  // ---------------------------------------------------------
+  // Admin → See all payslips
+  // ---------------------------------------------------------
   if (loggedRole === "Admin") {
     return list;
   }
 
+  // ---------------------------------------------------------
+  // HR → See all payslips
+  // ---------------------------------------------------------
   if (loggedRole === "HR") {
-    return list.filter((payroll) => normalizeRole(payroll?.role) !== "Admin");
+    return list;
   }
 
-  if (loggedRole === "Employee" || loggedRole === "Manager") {
+  // ---------------------------------------------------------
+  // Manager → See Manager + Employee payslips
+  // ---------------------------------------------------------
+  if (loggedRole === "Manager") {
+    return list.filter((payroll) => {
+      const employeeRole = normalizeRole(
+        payroll?.employee?.userId?.role ||
+        payroll?.employee?.role
+      );
+
+      return ["Manager", "Employee"].includes(employeeRole);
+    });
+  }
+
+  // ---------------------------------------------------------
+  // Employee → See own payslip only
+  // ---------------------------------------------------------
+  if (loggedRole === "Employee") {
     return list.filter((payroll) => {
       const payrollEmployeeId = getPayrollEmployeeId(payroll);
       const payrollEmployeeUserId = getPayrollEmployeeUserId(payroll);
@@ -187,18 +210,16 @@ const NotificationItem = memo(
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95 }}
         transition={{ duration: 0.2 }}
-        className={`group relative p-4 rounded-2xl border transition-all duration-200 ${
-          isUnread
+        className={`group relative p-4 rounded-2xl border transition-all duration-200 ${isUnread
             ? "bg-white border-indigo-100 shadow-sm shadow-indigo-500/5 hover:border-indigo-200"
             : "bg-zinc-50/50 border-zinc-100 hover:bg-white hover:border-zinc-200"
-        }`}
+          }`}
       >
         <div className="flex gap-4">
           <div className="flex-shrink-0 mt-0.5">
             <div
-              className={`w-9 h-9 rounded-xl flex items-center justify-center border transition-all duration-300 ${
-                TYPE_STYLES[notification.type] || TYPE_STYLES.system
-              }`}
+              className={`w-9 h-9 rounded-xl flex items-center justify-center border transition-all duration-300 ${TYPE_STYLES[notification.type] || TYPE_STYLES.system
+                }`}
             >
               {TYPE_ICONS[notification.type] || TYPE_ICONS.system}
             </div>
@@ -207,11 +228,10 @@ const NotificationItem = memo(
           <div className="flex-1 min-w-0">
             <div className="flex justify-between items-start mb-1 gap-2">
               <h4
-                className={`text-[15px] font-semibold truncate transition-colors ${
-                  isUnread
+                className={`text-[15px] font-semibold truncate transition-colors ${isUnread
                     ? "text-zinc-900"
                     : "text-zinc-600 group-hover:text-zinc-900"
-                }`}
+                  }`}
               >
                 {notification.title}
               </h4>
@@ -431,19 +451,20 @@ const ReportsPanel = ({
                     className="w-full min-w-0 border border-zinc-200 rounded-lg px-3 py-2 pr-8 text-[14px] text-zinc-900 bg-white hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-[#635BFF]/20 focus:border-[#635BFF] transition-all appearance-none cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.03)] truncate"
                   >
                     {payrolls.map((p) => {
-                      const emp = p.employee;
-                      const name = emp
-                        ? `${emp.firstName || ""} ${emp.lastName || ""}`.trim()
-                        : "Employee";
+  const emp = p.employee;
 
-                      return (
-                        <option key={p._id} value={p._id}>
-                          {p.month || "—"} ·{" "}
-                          {name || emp?.employeeId || p._id} ·{" "}
-                          {p.role || "No Role"}
-                        </option>
-                      );
-                    })}
+  const name = emp
+    ? `${emp.firstName || ""} ${emp.lastName || ""}`.trim()
+    : "Employee";
+
+  return (
+    <option key={p._id} value={p._id}>
+      {p.month || "—"} ·{" "}
+      {name || emp?.employeeId || p._id} ·{" "}
+      {emp?.userId?.role || emp?.role || "No Role"}
+    </option>
+  );
+})}
                   </select>
 
                   <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-400">
@@ -732,11 +753,10 @@ const EmailStatusCard = ({
             <div className="pt-3 mt-1 border-t border-zinc-200/50 flex justify-between items-center text-[12px] text-zinc-400">
               <span className="uppercase">Verification</span>
               <span
-                className={`font-medium ${
-                  emailStatus.verification.ok
+                className={`font-medium ${emailStatus.verification.ok
                     ? "text-emerald-600"
                     : "text-amber-600 truncate max-w-[150px]"
-                }`}
+                  }`}
               >
                 {emailStatus.verification.message}
               </span>
@@ -849,11 +869,10 @@ const NotificationsDrawer = ({
                   <button
                     key={tab}
                     onClick={() => setActiveFilter(tab)}
-                    className={`flex-shrink-0 px-3 py-1.5 rounded-full text-[11.5px] font-medium transition-colors ${
-                      activeFilter === tab
+                    className={`flex-shrink-0 px-3 py-1.5 rounded-full text-[11.5px] font-medium transition-colors ${activeFilter === tab
                         ? "bg-zinc-900 text-white"
                         : "bg-white border border-zinc-200 text-zinc-600 hover:bg-zinc-50"
-                    }`}
+                      }`}
                   >
                     {tab}
                   </button>
@@ -941,8 +960,8 @@ const Notifications = () => {
       const list = Array.isArray(res.data?.data)
         ? res.data.data
         : Array.isArray(res.data)
-        ? res.data
-        : [];
+          ? res.data
+          : [];
 
       const visiblePayrolls = filterPayrollsForLoggedUser(list, user);
 
@@ -1031,8 +1050,8 @@ const Notifications = () => {
     } catch (err) {
       setEmailActionMsg(
         err.response?.data?.message ||
-          err.message ||
-          "Failed to send test email"
+        err.message ||
+        "Failed to send test email"
       );
     } finally {
       setEmailLoading("");
@@ -1181,11 +1200,10 @@ const Notifications = () => {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className={`p-4 border rounded-xl text-xs flex items-start gap-3 ${
-              pdfMessage.includes("successfully")
+            className={`p-4 border rounded-xl text-xs flex items-start gap-3 ${pdfMessage.includes("successfully")
                 ? "bg-emerald-50 border-emerald-100 text-emerald-700"
                 : "bg-amber-50 border-amber-100 text-amber-700"
-            }`}
+              }`}
           >
             <CheckCircle2 size={16} className="mt-0.5 flex-shrink-0" />
             <p className="font-semibold">{pdfMessage}</p>

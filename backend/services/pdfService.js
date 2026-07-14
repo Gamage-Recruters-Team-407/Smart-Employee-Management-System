@@ -61,7 +61,7 @@ const getEmployeeLabel = (employee) => {
   const name = [employee.firstName, employee.lastName]
     .filter(Boolean)
     .join(" ")
-    .trim();
+    .trim() || employee.name || "";
 
   const id = employee.employeeId ? ` (${employee.employeeId})` : "";
   return name ? `${name}${id}` : employee.employeeId || "—";
@@ -136,12 +136,30 @@ const drawTable = (doc, columns, rows) => {
   drawHeader();
 
   rows.forEach((row, index) => {
-    ensureSpace(doc, rowHeight + 8);
+    // Calculate the dynamic height for this row based on the cell content
+    let maxCellHeight = 0;
+    columns.forEach((column) => {
+      const rawValue = row[column.key];
+      const value =
+        rawValue === undefined || rawValue === null ? "—" : String(rawValue);
+
+      const cellHeight = doc.heightOfString(value, {
+        width: column.width - 8,
+      });
+      if (cellHeight > maxCellHeight) {
+        maxCellHeight = cellHeight;
+      }
+    });
+
+    // Add padding and enforce a minimum row height of 20
+    const dynamicRowHeight = Math.max(rowHeight, Math.ceil(maxCellHeight) + 12);
+
+    ensureSpace(doc, dynamicRowHeight + 8);
     let x = startX;
     const y = doc.y;
 
     if (index % 2 === 1) {
-      doc.rect(startX, y, CONTENT_WIDTH, rowHeight).fill("#fafafa");
+      doc.rect(startX, y, CONTENT_WIDTH, dynamicRowHeight).fill("#fafafa");
       doc.fillColor("#000000");
     }
 
@@ -159,12 +177,12 @@ const drawTable = (doc, columns, rows) => {
     });
 
     doc
-      .moveTo(startX, y + rowHeight)
-      .lineTo(startX + CONTENT_WIDTH, y + rowHeight)
+      .moveTo(startX, y + dynamicRowHeight)
+      .lineTo(startX + CONTENT_WIDTH, y + dynamicRowHeight)
       .strokeColor("#e6e6e6")
       .stroke();
     doc.strokeColor("#000000");
-    doc.y = y + rowHeight;
+    doc.y = y + dynamicRowHeight;
   });
 };
 
@@ -270,9 +288,9 @@ export const generateAttendancePDF = async ({
 }) => {
   const tableRows = records.map((record) => ({
     employee: getEmployeeLabel(record.employee),
-    date: formatDate(record.createdAt || record.loginTime),
-    login: formatDateTime(record.loginTime),
-    logout: formatDateTime(record.logoutTime),
+    date: formatDate(record.createdAt || record.checkInTime),
+    login: record.checkInTime || "—",
+    logout: record.checkOutTime || "—",
     status: record.status || "—",
     location: record.location || "—",
   }));
@@ -351,20 +369,25 @@ export const generatePerformancePDF = async ({
   subtitle,
   records = [],
 }) => {
-  const tableRows = records.map((record) => ({
-    employee: getEmployeeLabel(record.employee),
-    attendanceScore: record.attendanceScore ?? "—",
-    taskCompletionRate:
-      record.taskCompletionRate !== undefined
-        ? `${record.taskCompletionRate}%`
-        : "—",
-    qualityScore: record.qualityScore ?? "—",
-    overallScore: record.overallScore ?? "—",
-    feedback:
-      record.managerFeedback && record.managerFeedback.length > 30
-        ? `${record.managerFeedback.slice(0, 27)}...`
-        : record.managerFeedback || "—",
-  }));
+  const tableRows = records.map((record) => {
+    const lastFeedbackObj = record.managerFeedback?.[record.managerFeedback.length - 1];
+    const feedbackText = lastFeedbackObj?.feedback || "—";
+
+    return {
+      employee: getEmployeeLabel(record.employee),
+      attendanceScore: record.attendanceScore ?? "—",
+      taskCompletionRate:
+        record.taskCompletionRate !== undefined
+          ? `${record.taskCompletionRate}%`
+          : "—",
+      qualityScore: record.qualityScore ?? "—",
+      overallScore: record.overallScore ?? "—",
+      feedback:
+        feedbackText && feedbackText !== "—" && feedbackText.length > 30
+          ? `${feedbackText.slice(0, 27)}...`
+          : feedbackText,
+    };
+  });
 
   return buildPdfBuffer((doc) => {
     drawReportHeader(doc, { companyName, title, subtitle });
