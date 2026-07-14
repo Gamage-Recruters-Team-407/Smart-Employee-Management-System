@@ -61,7 +61,7 @@ const getEmployeeLabel = (employee) => {
   const name = [employee.firstName, employee.lastName]
     .filter(Boolean)
     .join(" ")
-    .trim();
+    .trim() || employee.name || "";
 
   const id = employee.employeeId ? ` (${employee.employeeId})` : "";
   return name ? `${name}${id}` : employee.employeeId || "—";
@@ -270,9 +270,9 @@ export const generateAttendancePDF = async ({
 }) => {
   const tableRows = records.map((record) => ({
     employee: getEmployeeLabel(record.employee),
-    date: formatDate(record.createdAt || record.loginTime),
-    login: formatDateTime(record.loginTime),
-    logout: formatDateTime(record.logoutTime),
+    date: formatDate(record.createdAt || record.checkInTime),
+    login: record.checkInTime || "—",
+    logout: record.checkOutTime || "—",
     status: record.status || "—",
     location: record.location || "—",
   }));
@@ -351,20 +351,25 @@ export const generatePerformancePDF = async ({
   subtitle,
   records = [],
 }) => {
-  const tableRows = records.map((record) => ({
-    employee: getEmployeeLabel(record.employee),
-    attendanceScore: record.attendanceScore ?? "—",
-    taskCompletionRate:
-      record.taskCompletionRate !== undefined
-        ? `${record.taskCompletionRate}%`
-        : "—",
-    qualityScore: record.qualityScore ?? "—",
-    overallScore: record.overallScore ?? "—",
-    feedback:
-      record.managerFeedback && record.managerFeedback.length > 30
-        ? `${record.managerFeedback.slice(0, 27)}...`
-        : record.managerFeedback || "—",
-  }));
+  const tableRows = records.map((record) => {
+    const lastFeedbackObj = record.managerFeedback?.[record.managerFeedback.length - 1];
+    const feedbackText = lastFeedbackObj?.feedback || "—";
+
+    return {
+      employee: getEmployeeLabel(record.employee),
+      attendanceScore: record.attendanceScore ?? "—",
+      taskCompletionRate:
+        record.taskCompletionRate !== undefined
+          ? `${record.taskCompletionRate}%`
+          : "—",
+      qualityScore: record.qualityScore ?? "—",
+      overallScore: record.overallScore ?? "—",
+      feedback:
+        feedbackText && feedbackText !== "—" && feedbackText.length > 30
+          ? `${feedbackText.slice(0, 27)}...`
+          : feedbackText,
+    };
+  });
 
   return buildPdfBuffer((doc) => {
     drawReportHeader(doc, { companyName, title, subtitle });
