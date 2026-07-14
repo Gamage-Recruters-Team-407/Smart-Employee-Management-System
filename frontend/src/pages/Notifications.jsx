@@ -97,15 +97,38 @@ const filterPayrollsForLoggedUser = (payrollList, user) => {
   const loggedEmployeeId = getUserEmployeeId(user);
   const loggedEmail = getUserEmail(user);
 
+  // ---------------------------------------------------------
+  // Admin → See all payslips
+  // ---------------------------------------------------------
   if (loggedRole === "Admin") {
     return list;
   }
 
+  // ---------------------------------------------------------
+  // HR → See all payslips
+  // ---------------------------------------------------------
   if (loggedRole === "HR") {
-    return list.filter((payroll) => normalizeRole(payroll?.role) !== "Admin");
+    return list;
   }
 
-  if (loggedRole === "Employee" || loggedRole === "Manager") {
+  // ---------------------------------------------------------
+  // Manager → See Manager + Employee payslips
+  // ---------------------------------------------------------
+  if (loggedRole === "Manager") {
+    return list.filter((payroll) => {
+      const employeeRole = normalizeRole(
+        payroll?.employee?.userId?.role ||
+        payroll?.employee?.role
+      );
+
+      return ["Manager", "Employee"].includes(employeeRole);
+    });
+  }
+
+  // ---------------------------------------------------------
+  // Employee → See own payslip only
+  // ---------------------------------------------------------
+  if (loggedRole === "Employee") {
     return list.filter((payroll) => {
       const payrollEmployeeId = getPayrollEmployeeId(payroll);
       const payrollEmployeeUserId = getPayrollEmployeeUserId(payroll);
@@ -165,9 +188,9 @@ const TiltCard = ({ children, className = "" }) => {
         transformStyle: "preserve-3d",
         perspective: 1000,
       }}
-      className={`group relative bg-white border border-zinc-200 rounded-xl p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.04),0_2px_8px_rgba(0,0,0,0.04)] transition-shadow duration-300 flex flex-col justify-between ${className}`}
+      className={`group relative bg-white border border-zinc-200 rounded-xl p-4 sm:p-5 lg:p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.04),0_2px_8px_rgba(0,0,0,0.04)] transition-shadow duration-300 flex flex-col justify-between min-w-0 ${className}`}
     >
-      <div className="w-full h-full flex flex-col justify-between flex-1">
+      <div className="w-full h-full flex flex-col justify-between flex-1 min-w-0">
         {children}
       </div>
     </motion.div>
@@ -187,18 +210,16 @@ const NotificationItem = memo(
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95 }}
         transition={{ duration: 0.2 }}
-        className={`group relative p-4 rounded-2xl border transition-all duration-200 ${
-          isUnread
+        className={`group relative p-4 rounded-2xl border transition-all duration-200 ${isUnread
             ? "bg-white border-indigo-100 shadow-sm shadow-indigo-500/5 hover:border-indigo-200"
             : "bg-zinc-50/50 border-zinc-100 hover:bg-white hover:border-zinc-200"
-        }`}
+          }`}
       >
         <div className="flex gap-4">
           <div className="flex-shrink-0 mt-0.5">
             <div
-              className={`w-9 h-9 rounded-xl flex items-center justify-center border transition-all duration-300 ${
-                TYPE_STYLES[notification.type] || TYPE_STYLES.system
-              }`}
+              className={`w-9 h-9 rounded-xl flex items-center justify-center border transition-all duration-300 ${TYPE_STYLES[notification.type] || TYPE_STYLES.system
+                }`}
             >
               {TYPE_ICONS[notification.type] || TYPE_ICONS.system}
             </div>
@@ -207,11 +228,10 @@ const NotificationItem = memo(
           <div className="flex-1 min-w-0">
             <div className="flex justify-between items-start mb-1 gap-2">
               <h4
-                className={`text-[15px] font-semibold truncate transition-colors ${
-                  isUnread
+                className={`text-[15px] font-semibold truncate transition-colors ${isUnread
                     ? "text-zinc-900"
                     : "text-zinc-600 group-hover:text-zinc-900"
-                }`}
+                  }`}
               >
                 {notification.title}
               </h4>
@@ -283,7 +303,7 @@ const HeroSection = ({
         />
       </div>
 
-      <div className="relative p-8 md:p-10 flex flex-col md:flex-row md:items-end justify-between gap-8 z-10 min-h-[260px]">
+      <div className="relative p-5 sm:p-6 lg:p-10 flex flex-col xl:flex-row xl:items-end justify-between gap-6 xl:gap-8 z-10 min-h-[260px]">
         <div className="max-w-xl flex flex-col justify-between h-full">
           <div>
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-zinc-200 text-[11.5px] font-medium uppercase text-zinc-500 mb-5 shadow-sm">
@@ -333,11 +353,11 @@ const HeroSection = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-3 self-start md:self-end mt-4 md:mt-0">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 self-start xl:self-end mt-4 xl:mt-0 w-full xl:w-auto">
           <button
             type="button"
             onClick={() => setIsDrawerOpen(true)}
-            className="flex flex-col items-center justify-center bg-white border border-zinc-200 px-5 py-3 rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.06)] hover:border-zinc-300 transition-all h-[64px]"
+            className="w-full sm:w-auto flex flex-col items-center justify-center bg-white border border-zinc-200 px-5 py-3 rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.06)] hover:border-zinc-300 transition-all min-h-[64px]"
           >
             <span className="text-[12px] text-zinc-400 uppercase mb-1">
               System
@@ -351,7 +371,7 @@ const HeroSection = ({
             type="button"
             onClick={handleMarkAllAsRead}
             disabled={actionId === "all" || unreadCount === 0}
-            className="bg-[#635BFF] hover:bg-[#4A42DD] text-white px-5 rounded-2xl text-[14px] font-medium transition-colors shadow-[0_2px_4px_rgba(99,91,255,0.2)] disabled:opacity-50 flex items-center justify-center h-[64px]"
+            className="w-full sm:w-auto bg-[#635BFF] hover:bg-[#4A42DD] text-white px-5 rounded-2xl text-[14px] font-medium transition-colors shadow-[0_2px_4px_rgba(99,91,255,0.2)] disabled:opacity-50 flex items-center justify-center min-h-[64px]"
           >
             {actionId === "all" ? "Updating..." : "Quick action"}
           </button>
@@ -373,7 +393,7 @@ const ReportsPanel = ({
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: 0.1, ease: "easeOut" }}
-      className="bg-white rounded-2xl border border-zinc-200 shadow-[0_1px_3px_rgba(0,0,0,0.05)] p-6 lg:p-8"
+      className="bg-white rounded-2xl border border-zinc-200 shadow-[0_1px_3px_rgba(0,0,0,0.05)] p-4 sm:p-5 lg:p-6 min-w-0"
     >
       <div className="flex items-center justify-between mb-8">
         <div>
@@ -401,11 +421,11 @@ const ReportsPanel = ({
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
         <TiltCard>
           <div className="h-full flex flex-col justify-between">
             <div className="mb-6">
-              <div className="flex items-center gap-3 mb-4">
+              <div className="flex items-start gap-3 mb-4 min-w-0">
                 <div className="w-8 h-8 rounded-lg bg-zinc-100 flex items-center justify-center">
                   <FileText size={16} className="text-zinc-700" />
                 </div>
@@ -428,22 +448,23 @@ const ReportsPanel = ({
                   <select
                     value={selectedPayrollId}
                     onChange={(e) => setSelectedPayrollId(e.target.value)}
-                    className="w-full border border-zinc-200 rounded-lg px-3 py-2 text-[14px] text-zinc-900 bg-white hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-[#635BFF]/20 focus:border-[#635BFF] transition-all appearance-none cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.03)]"
+                    className="w-full min-w-0 border border-zinc-200 rounded-lg px-3 py-2 pr-8 text-[14px] text-zinc-900 bg-white hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-[#635BFF]/20 focus:border-[#635BFF] transition-all appearance-none cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.03)] truncate"
                   >
                     {payrolls.map((p) => {
-                      const emp = p.employee;
-                      const name = emp
-                        ? `${emp.firstName || ""} ${emp.lastName || ""}`.trim()
-                        : "Employee";
+  const emp = p.employee;
 
-                      return (
-                        <option key={p._id} value={p._id}>
-                          {p.month || "—"} ·{" "}
-                          {name || emp?.employeeId || p._id} ·{" "}
-                          {p.role || "No Role"}
-                        </option>
-                      );
-                    })}
+  const name = emp
+    ? `${emp.firstName || ""} ${emp.lastName || ""}`.trim()
+    : "Employee";
+
+  return (
+    <option key={p._id} value={p._id}>
+      {p.month || "—"} ·{" "}
+      {name || emp?.employeeId || p._id} ·{" "}
+      {emp?.userId?.role || emp?.role || "No Role"}
+    </option>
+  );
+})}
                   </select>
 
                   <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-400">
@@ -732,11 +753,10 @@ const EmailStatusCard = ({
             <div className="pt-3 mt-1 border-t border-zinc-200/50 flex justify-between items-center text-[12px] text-zinc-400">
               <span className="uppercase">Verification</span>
               <span
-                className={`font-medium ${
-                  emailStatus.verification.ok
+                className={`font-medium ${emailStatus.verification.ok
                     ? "text-emerald-600"
                     : "text-amber-600 truncate max-w-[150px]"
-                }`}
+                  }`}
               >
                 {emailStatus.verification.message}
               </span>
@@ -849,11 +869,10 @@ const NotificationsDrawer = ({
                   <button
                     key={tab}
                     onClick={() => setActiveFilter(tab)}
-                    className={`flex-shrink-0 px-3 py-1.5 rounded-full text-[11.5px] font-medium transition-colors ${
-                      activeFilter === tab
+                    className={`flex-shrink-0 px-3 py-1.5 rounded-full text-[11.5px] font-medium transition-colors ${activeFilter === tab
                         ? "bg-zinc-900 text-white"
                         : "bg-white border border-zinc-200 text-zinc-600 hover:bg-zinc-50"
-                    }`}
+                      }`}
                   >
                     {tab}
                   </button>
@@ -941,8 +960,8 @@ const Notifications = () => {
       const list = Array.isArray(res.data?.data)
         ? res.data.data
         : Array.isArray(res.data)
-        ? res.data
-        : [];
+          ? res.data
+          : [];
 
       const visiblePayrolls = filterPayrollsForLoggedUser(list, user);
 
@@ -1031,8 +1050,8 @@ const Notifications = () => {
     } catch (err) {
       setEmailActionMsg(
         err.response?.data?.message ||
-          err.message ||
-          "Failed to send test email"
+        err.message ||
+        "Failed to send test email"
       );
     } finally {
       setEmailLoading("");
@@ -1146,7 +1165,7 @@ const Notifications = () => {
   const recentNotifications = notifications.slice(0, 3);
 
   return (
-    <div className="min-h-screen bg-[#fafafa] p-6 lg:p-8 font-sans">
+    <div className="min-h-screen bg-[#fafafa] p-4 sm:p-6 lg:p-8 font-sans w-full min-w-0 overflow-x-hidden">
       <div className="max-w-7xl mx-auto space-y-6">
         <HeroSection
           unreadCount={unreadCount}
@@ -1181,19 +1200,18 @@ const Notifications = () => {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className={`p-4 border rounded-xl text-xs flex items-start gap-3 ${
-              pdfMessage.includes("successfully")
+            className={`p-4 border rounded-xl text-xs flex items-start gap-3 ${pdfMessage.includes("successfully")
                 ? "bg-emerald-50 border-emerald-100 text-emerald-700"
                 : "bg-amber-50 border-amber-100 text-amber-700"
-            }`}
+              }`}
           >
             <CheckCircle2 size={16} className="mt-0.5 flex-shrink-0" />
             <p className="font-semibold">{pdfMessage}</p>
           </motion.div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <div className="lg:col-span-8 flex flex-col gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+          <div className="xl:col-span-8 flex flex-col gap-6 min-w-0">
             <ReportsPanel
               payrolls={payrolls}
               selectedPayrollId={selectedPayrollId}
@@ -1203,7 +1221,7 @@ const Notifications = () => {
             />
           </div>
 
-          <div className="lg:col-span-4 flex flex-col gap-6">
+          <div className="xl:col-span-4 flex flex-col gap-6 min-w-0">
             <RecentNotifications
               loading={loading}
               recentNotifications={recentNotifications}

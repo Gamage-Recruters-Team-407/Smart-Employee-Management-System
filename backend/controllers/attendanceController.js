@@ -1,6 +1,7 @@
 import Attendance from '../models/Attendance.js';
 import Employee from '../models/Employee.js';
 import { getEmployeeIdForRequest } from '../utils/employeeUserLink.js';
+import { notifyAdminAttendanceUpdate } from '../services/websocketService.js';
 
 // ─── BREAK CONFIGURATION ──────────────────────────────────────────────────
 const BREAK_CONFIG = {
@@ -85,6 +86,15 @@ const getZonedHourMinute = (date = new Date(), timeZone = BREAK_TIMEZONE) => {
   };
 };
 
+const getZonedDateString = (date = new Date(), timeZone = BREAK_TIMEZONE) => {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(date);
+};
+
 const getMinutesSinceMidnight = (date = new Date()) => {
   const { hours, minutes } = getZonedHourMinute(date);
   return hours * 60 + minutes;
@@ -128,7 +138,7 @@ const getCurrentBreakType = (now = new Date()) => {
 };
 
 const getCurrentTimeString = () => {
-  return new Date().toLocaleTimeString('en-US', {
+  return new Date().toLocaleTimeString('en-GB', {
     timeZone: BREAK_TIMEZONE,
     hour12: false,
     hour: '2-digit',
@@ -233,7 +243,7 @@ export const checkIn = async (req, res) => {
     }
 
     const now = new Date();
-    const minutes = now.getHours() * 60 + now.getMinutes();
+    const minutes = getMinutesSinceMidnight(now);
     const onTime = minutes >= 510 && minutes <= 570;
 
     attendance.checkInTime = checkInTime || getCurrentTimeString();
@@ -263,12 +273,19 @@ export const checkOut = async (req, res) => {
   try {
     const { date, checkOutTime } = req.body;
     const employeeId = await getEmployeeIdForRequest(req);
-    const today = date || new Date().toISOString().split('T')[0];
+    const today = date || getZonedDateString();
 
-    const attendance = await Attendance.findOne({
+    let attendance = await Attendance.findOne({
       employee: employeeId,
       date: today
     });
+
+    if (!attendance) {
+      attendance = await Attendance.findOne({
+        employee: employeeId,
+        checkInTime: { $ne: null }
+      }).sort({ date: -1 });
+    }
 
     if (!attendance) {
       return res.status(404).json({
@@ -281,13 +298,6 @@ export const checkOut = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Cannot check out without checking in'
-      });
-    }
-
-    if (attendance.checkOutTime) {
-      return res.status(400).json({
-        success: false,
-        message: 'Already checked out today'
       });
     }
 
@@ -360,7 +370,7 @@ export const markAttendance = async (req, res) => {
     }
 
     const now = new Date();
-    const minutes = now.getHours() * 60 + now.getMinutes();
+    const minutes = getMinutesSinceMidnight(now);
     const onTimeLimit = 9 * 60 + 30;
     const isOnTime = minutes <= onTimeLimit;
     const statusText = isOnTime ? 'Present' : 'Late';
@@ -371,6 +381,16 @@ export const markAttendance = async (req, res) => {
 
     await attendance.save();
     await attendance.populate('employee', 'firstName lastName employeeId');
+
+    notifyAdminAttendanceUpdate({
+      employeeId: attendance.employee?.employeeId,
+      employeeObjId: attendance.employee?._id,
+      onlineStatus: attendance.onlineStatus,
+      breakType: attendance.breakType || null,
+      status: attendance.status,
+      checkInTime: attendance.checkInTime || null,
+      checkOutTime: attendance.checkOutTime || null
+    });
 
     res.status(200).json({
       success: true,
@@ -458,6 +478,16 @@ export const startBreak = async (req, res) => {
     await attendance.save();
     await attendance.populate('employee', 'firstName lastName employeeId');
 
+    notifyAdminAttendanceUpdate({
+      employeeId: attendance.employee?.employeeId,
+      employeeObjId: attendance.employee?._id,
+      onlineStatus: breakLabel,
+      breakType: breakType,
+      status: attendance.status,
+      checkInTime: attendance.checkInTime || null,
+      checkOutTime: attendance.checkOutTime || null
+    });
+
     res.status(200).json({
       success: true,
       message: `${breakLabel} break started`,
@@ -510,6 +540,16 @@ export const endBreak = async (req, res) => {
 
     await attendance.save();
     await attendance.populate('employee', 'firstName lastName employeeId');
+
+    notifyAdminAttendanceUpdate({
+      employeeId: attendance.employee?.employeeId,
+      employeeObjId: attendance.employee?._id,
+      onlineStatus: 'Online',
+      breakType: null,
+      status: attendance.status,
+      checkInTime: attendance.checkInTime || null,
+      checkOutTime: attendance.checkOutTime || null
+    });
 
     res.status(200).json({
       success: true,
@@ -762,6 +802,16 @@ export const updateStatus = async (req, res) => {
 
     await attendance.save();
     await attendance.populate('employee', 'firstName lastName employeeId');
+
+    notifyAdminAttendanceUpdate({
+      employeeId: attendance.employee?.employeeId,
+      employeeObjId: attendance.employee?._id,
+      onlineStatus: attendance.onlineStatus,
+      breakType: attendance.breakType || null,
+      status: attendance.status,
+      checkInTime: attendance.checkInTime || null,
+      checkOutTime: attendance.checkOutTime || null
+    });
 
     res.status(200).json({
       success: true,

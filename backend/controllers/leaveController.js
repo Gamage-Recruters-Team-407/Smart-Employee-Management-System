@@ -1,6 +1,7 @@
 import Leave from "../models/Leave.js";
 import { sendLeaveApprovalEmail } from "../services/emailService.js";
 import Employee from "../models/Employee.js";
+import { resolveEmployeeForAuthUser } from "../utils/employeeUserLink.js";
 
 // ─────────────────────────────────────────────
 // Helpers
@@ -95,26 +96,23 @@ export const applyLeave = async (req, res) => {
 // Employee Leave History
 // ─────────────────────────────────────────────
 
-export const getMyLeaves =
-  async (req, res) => {
-    try {
-      const leaves = await Leave.find({
-        employee: req.user._id,
-      })
-        .sort({ createdAt: -1 })
-        .populate(
-          "reviewedBy",
-          "name email"
-        );
+export const getMyLeaves = async (req, res) => {
+  try {
+    const employee = await resolveEmployeeForAuthUser(req.user, { createIfMissing: true });
 
-      res.status(200).json(leaves);
-    } catch (error) {
-      res.status(500).json({
-        message: "Server error",
-        error: error.message,
-      });
+    if (!employee) {
+      return res.status(404).json({ message: "Employee profile not found." });
     }
-  };
+
+    const leaves = await Leave.find({ employee: employee._id })
+      .sort({ createdAt: -1 })
+      .populate("reviewedBy", "name email");
+
+    res.status(200).json(leaves);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
 
 // ─────────────────────────────────────────────
 // Get All Leaves

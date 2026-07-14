@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import API from "../services/api";
+import { io } from "socket.io-client";
+import { getSocketConfig } from "../utils/socketConfig";
 import { format } from "date-fns";
 import { 
   AlertCircle, 
@@ -86,6 +88,46 @@ const Attendance = () => {
     fetchAdminData();
   }, [selectedDate, isAdminOrHR]);
 
+  useEffect(() => {
+    if (!isAdminOrHR) return;
+    let socket = null;
+    try {
+      const { url, options } = getSocketConfig();
+      socket = io(url, options);
+      socket.on("connect", () => {
+        socket.emit("join-admin");
+      });
+      socket.on("attendance-update", (data) => {
+        setAttendanceData(prev =>
+          prev.map(record => {
+            const isMatch =
+              (data.employeeId && record.employeeId === data.employeeId) ||
+              (data.employeeId && record._id === data.employeeId) ||
+              (data.employeeObjId && (record._id === data.employeeObjId || record.employeeId === data.employeeObjId)) ||
+              (data.employeeId && String(record.employeeId).toLowerCase() === String(data.employeeId).toLowerCase());
+
+            if (isMatch) {
+              return {
+                ...record,
+                onlineStatus: data.onlineStatus !== undefined ? data.onlineStatus : record.onlineStatus,
+                breakType: data.breakType !== undefined ? data.breakType : record.breakType,
+                status: data.status !== undefined ? data.status : record.status,
+                checkInTime: data.checkInTime !== undefined ? data.checkInTime : record.checkInTime,
+                checkOutTime: data.checkOutTime !== undefined ? data.checkOutTime : record.checkOutTime
+              };
+            }
+            return record;
+          })
+        );
+      });
+    } catch (error) {
+      console.warn("Socket.IO error:", error);
+    }
+    return () => {
+      if (socket) socket.disconnect();
+    };
+  }, [isAdminOrHR]);
+
   // ─── STATUS BADGE COLOR ──────────────────────────────────────────────────
   const getStatusColor = (status) => {
     switch (status) {
@@ -100,48 +142,34 @@ const Attendance = () => {
   };
 
   // ─── ONLINE STATUS BADGE ──────────────────────────────────────────────────
-  const getOnlineStatusBadge = (onlineStatus) => {
-    if (onlineStatus === 'Online') {
-      return {
-        label: 'Online',
-        icon: <Wifi size={14} className="text-emerald-500" />,
-        className: 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-      };
-    } else if (onlineStatus === 'Breakfast') {
-      return {
-        label: 'Breakfast',
-        icon: <Coffee size={14} className="text-amber-500" />,
-        className: 'bg-amber-100 text-amber-700 border border-amber-200'
-      };
-    } else if (onlineStatus === 'Lunch') {
-      return {
-        label: 'Lunch',
-        icon: <Utensils size={14} className="text-orange-500" />,
-        className: 'bg-orange-100 text-orange-700 border border-orange-200'
-      };
-    } else if (onlineStatus === 'Tea Time') {
-      return {
-        label: 'Tea Time',
-        icon: <Moon size={14} className="text-blue-500" />,
-        className: 'bg-blue-100 text-blue-700 border border-blue-200'
-      };
-    } else {
+  const getOnlineStatusBadge = (onlineStatus, breakType) => {
+    if (breakType || ['Breakfast', 'Lunch', 'Tea Time', 'Tea'].includes(onlineStatus)) {
       return {
         label: 'Offline',
         icon: <WifiOff size={14} className="text-gray-400" />,
         className: 'bg-gray-100 text-gray-600 border border-gray-200'
       };
     }
+    if (onlineStatus === 'Online') {
+      return {
+        label: 'Online',
+        icon: <Wifi size={14} className="text-emerald-500" />,
+        className: 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+      };
+    }
+    return {
+      label: 'Offline',
+      icon: <WifiOff size={14} className="text-gray-400" />,
+      className: 'bg-gray-100 text-gray-600 border border-gray-200'
+    };
   };
 
   // ─── GET BREAK LABEL ──────────────────────────────────────────────────────
-  const getBreakLabel = (breakType) => {
-    switch (breakType) {
-      case 'breakfast': return '🍳 Breakfast';
-      case 'lunch': return '🍽️ Lunch';
-      case 'tea': return '☕ Tea Time';
-      default: return '—';
-    }
+  const getBreakLabel = (breakType, onlineStatus) => {
+    if (breakType === 'breakfast' || onlineStatus === 'Breakfast') return '🍳 Breakfast';
+    if (breakType === 'lunch' || onlineStatus === 'Lunch') return '🍽️ Lunch';
+    if (breakType === 'tea' || onlineStatus === 'Tea Time' || onlineStatus === 'Tea') return '☕ Tea Time';
+    return '—';
   };
 
   // ─── EXPORT CSV ──────────────────────────────────────────────────────────
@@ -307,7 +335,8 @@ const Attendance = () => {
                       const empStatus = record?.status || "Not Marked";
                       const onlineStatus = record?.onlineStatus || "Offline";
                       const breakType = record?.breakType || null;
-                      const statusBadge = getOnlineStatusBadge(onlineStatus);
+                      const statusBadge = getOnlineStatusBadge(onlineStatus, breakType);
+                      const breakLabel = getBreakLabel(breakType, onlineStatus);
                       
                       return (
                         <tr key={emp._id} className="hover:bg-gray-50/50 transition-colors">
@@ -328,7 +357,7 @@ const Attendance = () => {
                             </span>
                           </td>
                           <td className="px-6 py-4 text-center text-sm text-gray-600">
-                            {breakType ? getBreakLabel(breakType) : "—"}
+                            {breakLabel}
                           </td>
                         </tr>
                       );

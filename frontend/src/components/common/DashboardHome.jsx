@@ -3,9 +3,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useEmployeeProfile } from "../../hooks/useEmployeeProfile";
-import { 
-  User, Briefcase, Award, Clock, Coffee, Utensils, 
-  Moon, Wifi, WifiOff 
+import {
+  User, Briefcase, Award, Clock, Coffee, Utensils,
+  Moon, Wifi, WifiOff, CalendarX
 } from "lucide-react";
 import DashboardStats from "./DashboardStats";
 import RecentActivity from "./RecentActivity";
@@ -27,6 +27,7 @@ const DashboardHome = () => {
 
   const [currentTime, setCurrentTime] = useState(new Date());
   const [breakStatus, setBreakStatus] = useState(null);
+  const [isOnLeaveToday, setIsOnLeaveToday] = useState(false);
 
   // ─── TICKING CLOCK ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -48,10 +49,26 @@ const DashboardHome = () => {
   // ─── EFFECT: FETCH BREAK STATUS ON MOUNT ──────────────────────────────
   useEffect(() => {
     if (user?.role === 'Employee') {
+      // Leave check: අද approved leave ඇද්ද?
+      API.get('/leaves/my-leaves').then((res) => {
+        const leaves = Array.isArray(res.data) ? res.data : [];
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayEnd = new Date();
+        todayEnd.setHours(23, 59, 59, 999);
+        const onLeave = leaves.some(
+          (l) =>
+            l.status === 'Approved' &&
+            new Date(l.startDate) <= todayEnd &&
+            new Date(l.endDate) >= today
+        );
+        setIsOnLeaveToday(onLeave);
+      }).catch(() => {});
+
       const timerId = setTimeout(() => {
         fetchBreakStatus();
       }, 0);
-      
+
       const interval = setInterval(() => {
         fetchBreakStatus();
       }, 30000);
@@ -71,7 +88,7 @@ const DashboardHome = () => {
 
       window.addEventListener("socket-authenticated", handleSocketAuth);
       window.addEventListener("socket-disconnected", handleSocketDisconnect);
-      
+
       return () => {
         clearTimeout(timerId);
         clearInterval(interval);
@@ -104,6 +121,11 @@ const DashboardHome = () => {
 
   // ─── GET ONLINE STATUS DISPLAY ──────────────────────────────────────────
   const getOnlineStatusDisplay = () => {
+    // ── Leave override 1: /leaves/my-leaves API check ────────────────────
+    if (isOnLeaveToday) return 'On Leave';
+    // ── Leave override 2: employee.status DB field ─────────────────────
+    // Backend ෙකෙ getEmployeeById ෙකෙ DB status "On Leave" ලෙස set කරනවා
+    if (employee?.status === 'On Leave') return 'On Leave';
     if (breakStatus?.isOnBreak && breakStatus?.currentBreak) {
       return breakStatus.currentBreak.label;
     }
@@ -115,6 +137,7 @@ const DashboardHome = () => {
 
   const getStatusColor = (status) => {
     if (status === 'Online') return 'text-emerald-600';
+    if (status === 'On Leave') return 'text-amber-600';
     if (status === 'Breakfast') return 'text-amber-600';
     if (status === 'Lunch') return 'text-orange-600';
     if (status === 'Tea Time') return 'text-blue-600';
@@ -124,6 +147,7 @@ const DashboardHome = () => {
   const getStatusIcon = (status) => {
     if (status === 'Online') return <Wifi size={16} className="text-emerald-500" />;
     if (status === 'Offline') return <WifiOff size={16} className="text-gray-400" />;
+    if (status === 'On Leave') return <CalendarX size={16} className="text-amber-500" />;
     if (status === 'Breakfast') return <Coffee size={16} className="text-amber-500" />;
     if (status === 'Lunch') return <Utensils size={16} className="text-orange-500" />;
     if (status === 'Tea Time') return <Moon size={16} className="text-blue-500" />;
@@ -135,7 +159,7 @@ const DashboardHome = () => {
     const onlineStatus = getOnlineStatusDisplay();
     const statusColor = getStatusColor(onlineStatus);
     const statusIcon = getStatusIcon(onlineStatus);
-    
+
     const isOnBreak = breakStatus?.isOnBreak || false;
     const currentBreak = breakStatus?.currentBreak || null;
     const remainingSeconds = currentBreak?.remainingSeconds || 0;
@@ -202,7 +226,11 @@ const DashboardHome = () => {
           </div>
 
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-50 flex items-center gap-4 hover:shadow-md transition-shadow">
-            <div className={`p-3 rounded-xl ${onlineStatus === 'Online' ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-600'}`}>
+            <div className={`p-3 rounded-xl ${
+              onlineStatus === 'Online' ? 'bg-emerald-50 text-emerald-600'
+            : onlineStatus === 'On Leave' ? 'bg-amber-50 text-amber-600'
+            : 'bg-orange-50 text-orange-600'
+          }`}>
               <Clock size={24} />
             </div>
             <div>
@@ -230,7 +258,7 @@ const DashboardHome = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Break Timer Component */}
           <BreakTimer />
-          
+
           {/* Working Hours */}
           <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-6 border border-indigo-100">
             <h4 className="font-semibold text-gray-700 mb-3">Working Hours</h4>
@@ -250,10 +278,10 @@ const DashboardHome = () => {
                 </span>
               </div>
               <div className="mt-3 h-2 bg-gray-200 rounded-full overflow-hidden">
-                <div 
+                <div
                   className="h-full bg-indigo-600 rounded-full transition-all duration-1000"
-                  style={{ 
-                    width: `${Math.min(100, ((currentTime.getHours() * 60 + currentTime.getMinutes() - 510) / (1050 - 510)) * 100)}%` 
+                  style={{
+                    width: `${Math.min(100, ((currentTime.getHours() * 60 + currentTime.getMinutes() - 510) / (1050 - 510)) * 100)}%`
                   }}
                 />
               </div>
@@ -326,7 +354,7 @@ const DashboardHome = () => {
   return (
     <div className="space-y-6">
       <DashboardStats />
-      
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
         <div className="lg:col-span-2">
           <AdminAttendanceTable />

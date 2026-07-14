@@ -3,6 +3,7 @@ import Attendance from '../models/Attendance.js';
 import Leave from "../models/Leave.js";
 import Performance from "../models/Performance.js";
 import { createNotificationForUser } from "./notificationController.js";
+import Employee from "../models/Employee.js";
 import {
   generatePayslipPDF,
   generateAttendancePDF,
@@ -190,9 +191,36 @@ export const downloadPerformancePdf = async (req, res) => {
       .sort({ createdAt: -1 })
       .lean();
 
+    // Fetch employee profiles matching the user ids in the records
+    const userIds = records.map((r) => r.employee?._id).filter(Boolean);
+    const employees = await Employee.find({ userId: { $in: userIds } }).lean();
+
+    // Map by userId for quick access
+    const employeeMap = {};
+    employees.forEach((emp) => {
+      if (emp.userId) {
+        employeeMap[emp.userId.toString()] = emp;
+      }
+    });
+
+    // Substitute the employee object with the Employee profile if found
+    const recordsWithEmployees = records.map((record) => {
+      if (record.employee && record.employee._id) {
+        const empProfile = employeeMap[record.employee._id.toString()];
+        if (empProfile) {
+          return {
+            ...record,
+            employee: empProfile,
+          };
+        }
+      }
+      return record;
+    });
+
+
     const pdfBuffer = await generatePerformancePDF({
       subtitle: "All performance records",
-      records,
+      records: recordsWithEmployees,
     });
 
     await notifyPdfGenerated(req.user._id, {

@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import Employee from "../models/Employee.js";
+import generateEmployeeId from "./generateEmployeeId.js";
 
 const normalizeEmail = (email) => String(email || "").toLowerCase().trim();
 
@@ -28,18 +29,7 @@ export const findEmployeeByEmail = async (email) => {
 };
 
 const generateUniqueEmployeeId = async () => {
-  const count = await Employee.countDocuments();
-
-  for (let offset = 1; offset <= 20; offset += 1) {
-    const candidate = `emp-${String(count + offset).padStart(3, "0")}`;
-    const taken = await Employee.exists({ employeeId: candidate });
-
-    if (!taken) {
-      return candidate;
-    }
-  }
-
-  return `emp-${Date.now()}`;
+  return generateEmployeeId();
 };
 
 /**
