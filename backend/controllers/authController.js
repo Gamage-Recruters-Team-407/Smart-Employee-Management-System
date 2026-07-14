@@ -36,6 +36,25 @@ const createTransporter = () => {
   });
 };
 
+const validatePassword = (password) => {
+  if (password.length < 6) {
+    return "Password must be at least 6 characters.";
+  }
+  
+  const weakPasswords = ["123456", "12345678", "qwerty", "password"];
+  if (weakPasswords.includes(password.toLowerCase())) {
+    return "Password is too weak. Please choose a stronger password.";
+  }
+
+  const hasLetter = /[a-zA-Z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+  if (!hasLetter || !hasNumber) {
+    return "Password must contain at least one letter and one number.";
+  }
+
+  return null;
+};
+
 // ─── SEND RESET CODE EMAIL ──────────────────────────────────────────────────
 const sendResetCodeEmail = async (email, code) => {
   console.log("=================================");
@@ -184,6 +203,13 @@ export const registerUser = async (req, res) => {
   if (!name || !email || !password) {
     return res.status(400).json({
       message: "Name, email and password are required.",
+    });
+  }
+
+  const passwordError = validatePassword(password);
+  if (passwordError) {
+    return res.status(400).json({
+      message: passwordError,
     });
   }
 
@@ -428,6 +454,13 @@ export const resetPasswordWithCode = async (req, res) => {
     });
   }
 
+  const passwordError = validatePassword(password);
+  if (passwordError) {
+    return res.status(400).json({
+      message: passwordError,
+    });
+  }
+
   try {
     const normalizedEmail = String(email).toLowerCase().trim();
     
@@ -509,6 +542,13 @@ export const resetPasswordByToken = async (req, res) => {
   if (!password) {
     return res.status(400).json({
       message: "Password is required.",
+    });
+  }
+
+  const passwordError = validatePassword(password);
+  if (passwordError) {
+    return res.status(400).json({
+      message: passwordError,
     });
   }
 

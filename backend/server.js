@@ -139,10 +139,4 @@ const startServer = async () => {
   }
 };
 
-if (!process.env.VERCEL && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
-  startServer();
-} else {
-  connectDB();
-}
-
-export default app;
+startServer();

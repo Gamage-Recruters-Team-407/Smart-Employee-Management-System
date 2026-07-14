@@ -4,12 +4,23 @@
     {
       "src": "app.js",
       "use": "@vercel/node",
-      "config": { "fluid": true }
+      "config": {
+        "fluid": true
+      }
     }
   ],
   "rewrites": [
-    { "source": "/socket.io/(.*)", "destination": "/app.js" },
-    { "source": "/api/(.*)", "destination": "/app.js" },
-    { "source": "/(.*)", "destination": "/app.js" }
+    {
+      "source": "/socket.io/(.*)",
+      "destination": "/app.js"
+    },
+    {
+      "source": "/api/(.*)",
+      "destination": "/app.js"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/app.js"
+    }
   ]
 }
