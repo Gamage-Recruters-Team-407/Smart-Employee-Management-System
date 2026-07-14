@@ -20,12 +20,38 @@ const sendResetCodeEmail = async (email, code) => {
   return true;
 };
 
+const validatePassword = (password) => {
+  if (password.length < 6) {
+    return "Password must be at least 6 characters.";
+  }
+  
+  const weakPasswords = ["123456", "12345678", "qwerty", "password"];
+  if (weakPasswords.includes(password.toLowerCase())) {
+    return "Password is too weak. Please choose a stronger password.";
+  }
+
+  const hasLetter = /[a-zA-Z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+  if (!hasLetter || !hasNumber) {
+    return "Password must contain at least one letter and one number.";
+  }
+
+  return null;
+};
+
 export const registerUser = async (req, res) => {
   const { name, email, password, role } = req.body;
 
   if (!name || !email || !password) {
     return res.status(400).json({
       message: "Name, email and password are required.",
+    });
+  }
+
+  const passwordError = validatePassword(password);
+  if (passwordError) {
+    return res.status(400).json({
+      message: passwordError,
     });
   }
 
@@ -257,6 +283,13 @@ export const resetPasswordWithCode = async (req, res) => {
     });
   }
 
+  const passwordError = validatePassword(password);
+  if (passwordError) {
+    return res.status(400).json({
+      message: passwordError,
+    });
+  }
+
   try {
     const hashedCode = crypto
       .createHash("sha256")
@@ -334,6 +367,13 @@ export const resetPasswordByToken = async (req, res) => {
   if (!password) {
     return res.status(400).json({
       message: "Password is required.",
+    });
+  }
+
+  const passwordError = validatePassword(password);
+  if (passwordError) {
+    return res.status(400).json({
+      message: passwordError,
     });
   }
 

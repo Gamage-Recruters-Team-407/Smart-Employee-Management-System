@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Eye, EyeOff, Loader2, AlertCircle, User, Mail, Lock } from "lucide-react";
+import { Eye, EyeOff, Loader2, AlertCircle, User, Mail, Lock, Check } from "lucide-react";
 
 const AuthForm = ({
   mode,
@@ -35,10 +35,27 @@ const AuthForm = ({
       errs.email = "Enter a valid email address.";
     }
 
-    if (!formData.password) {
-      errs.password = "Password is required.";
-    } else if (formData.password.length < 6) {
-      errs.password = "Password must be at least 6 characters.";
+    if (isSignUp) {
+      if (!formData.password) {
+        errs.password = "Password is required.";
+      } else if (formData.password.length < 6) {
+        errs.password = "Password must be at least 6 characters.";
+      } else {
+        const weakPasswords = ["123456", "12345678", "qwerty", "password"];
+        if (weakPasswords.includes(formData.password.toLowerCase())) {
+          errs.password = "Password is too weak. Please choose a stronger password.";
+        } else {
+          const hasLetter = /[a-zA-Z]/.test(formData.password);
+          const hasNumber = /[0-9]/.test(formData.password);
+          if (!hasLetter || !hasNumber) {
+            errs.password = "Password must contain at least one letter and one number.";
+          }
+        }
+      }
+    } else {
+      if (!formData.password) {
+        errs.password = "Password is required.";
+      }
     }
 
     if (isSignUp && formData.password !== formData.confirmPassword) {
@@ -158,6 +175,49 @@ const AuthForm = ({
           </button>
         </div>
         {fieldErrors.password && <p className="mt-1 text-xs text-red-600">{fieldErrors.password}</p>}
+        {isSignUp && (
+          <div className="mt-2.5 p-3 bg-gray-50 border border-gray-200 rounded-xl space-y-2">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Password Requirements</p>
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2">
+                <Check
+                  size={12}
+                  className={formData.password.length >= 6 ? "text-green-500 stroke-[3]" : "text-gray-300"}
+                />
+                <span className={`text-xs transition-colors duration-150 ${formData.password.length >= 6 ? "text-green-700 font-medium" : "text-gray-500"}`}>
+                  At least 6 characters
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Check
+                  size={12}
+                  className={/[a-zA-Z]/.test(formData.password) ? "text-green-500 stroke-[3]" : "text-gray-300"}
+                />
+                <span className={`text-xs transition-colors duration-150 ${/[a-zA-Z]/.test(formData.password) ? "text-green-700 font-medium" : "text-gray-500"}`}>
+                  At least one letter (a-z, A-Z)
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Check
+                  size={12}
+                  className={/[0-9]/.test(formData.password) ? "text-green-500 stroke-[3]" : "text-gray-300"}
+                />
+                <span className={`text-xs transition-colors duration-150 ${/[0-9]/.test(formData.password) ? "text-green-700 font-medium" : "text-gray-500"}`}>
+                  At least one number (0-9)
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Check
+                  size={12}
+                  className={formData.password && !["123456", "12345678", "qwerty", "password"].includes(formData.password.toLowerCase()) ? "text-green-500 stroke-[3]" : "text-gray-300"}
+                />
+                <span className={`text-xs transition-colors duration-150 ${formData.password && !["123456", "12345678", "qwerty", "password"].includes(formData.password.toLowerCase()) ? "text-green-700 font-medium" : "text-gray-500"}`}>
+                  Not a commonly used weak password
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Confirm Password (Sign Up ) */}
