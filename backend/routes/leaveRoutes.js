@@ -48,7 +48,7 @@ router.post("/apply", protect, upload.single("medicalDocument"), applyLeave);
 router.get("/my-leaves", protect, getMyLeaves);
 router.get("/balance", protect, getLeaveBalance);
 router.put("/cancel/:id", protect, cancelLeave);
-router.get("/all", protect, authorize("HR", "Admin"), getAllLeaves);
+router.get("/all", protect, authorize("HR", "Admin", "Manager"), getAllLeaves);
 router.put("/status/:id", protect, authorize("HR", "Admin", "Manager"), updateLeaveStatus);
 router.put("/revert/:id", protect, authorize("HR", "Admin"), revertLeaveStatus);
 

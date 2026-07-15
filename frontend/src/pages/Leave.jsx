@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 
 const Leave = () => {
   const { user } = useAuth();
-  const isAdminOrHR = user?.role === 'Admin' || user?.role === 'HR';
+  const isAdminOrHR = user?.role === 'Admin' || user?.role === 'HR' || user?.role === 'Manager';
 
   const [activeTab, setActiveTab] = useState('my'); // 'my' | 'manage'
 
