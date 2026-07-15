@@ -54,7 +54,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/auth/google/callback" element={<GoogleAuthCallback />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
-        
+
         {/* 🔑 Password Reset Routes - Both OTP and Token flows */}
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/reset-password/:token" element={<ResetPassword />} />
