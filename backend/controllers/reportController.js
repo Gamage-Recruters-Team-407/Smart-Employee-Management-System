@@ -67,7 +67,7 @@ export const downloadPayslipPdf = async (req, res) => {
     const pdfBuffer = await generatePayslipPDF({
       employee: payroll.employee || {},
       payroll: {
-        month: payroll.month,
+        month: payroll.year ? `${payroll.month} ${payroll.year}` : payroll.month,
         basicSalary: payroll.basicSalary,
         allowances: payroll.allowances,
         deductions: payroll.deductions,
@@ -77,12 +77,13 @@ export const downloadPayslipPdf = async (req, res) => {
       },
     });
 
-    const filename = `payslip-${payroll.month || "report"}-${payroll._id}.pdf`;
+    const filename = `payslip-${payroll.month || "report"}-${payroll.year || ""}-${payroll._id}.pdf`;
 
     try {
       const employee = payroll.employee;
       if (employee?.email) {
-        const { month, year } = parseMonthYear(payroll.month);
+        const month = payroll.month;
+        const year = payroll.year;
         const baseUrl =
           process.env.APP_URL || `${req.protocol}://${req.get("host")}`;
         const downloadLink = `${baseUrl}/api/notifications/reports/payslip/${payroll._id}`;

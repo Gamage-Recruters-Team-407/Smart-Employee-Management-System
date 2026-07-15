@@ -51,7 +51,7 @@ async function seedPayrollData() {
       if (employees.length === 0) {
         console.log("No employees found. Creating 10 mock employees...");
         const newEmployees = sriLankanNames.map((name, idx) => ({
-          employeeId: `EMP${String(idx + 1).padStart(3, '0')}`,
+          employeeId: `emp-${String(idx + 1).padStart(3, '0')}`,
           firstName: name.firstName,
           lastName: name.lastName,
           email: `${name.firstName.toLowerCase()}.${name.lastName.toLowerCase()}@example.com`,
@@ -77,7 +77,7 @@ async function seedPayrollData() {
         const d = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
         const monthName = d.toLocaleString('default', { month: 'long' });
         const year = d.getFullYear();
-        monthsToGenerate.push(`${monthName} ${year}`);
+        monthsToGenerate.push({ month: monthName, year });
       }
 
       const payrollsToInsert = [];
@@ -85,7 +85,7 @@ async function seedPayrollData() {
       for (const emp of employees) {
         const baseSalary = emp.salary || Math.floor(Math.random() * (180000 - 60000) + 60000);
         
-        for (const monthStr of monthsToGenerate) {
+        for (const m of monthsToGenerate) {
           const allowances = Math.floor(Math.random() * 20000) + 5000;
           const deductions = Math.floor(baseSalary * 0.08); // 8% EPF
           const tax = Math.floor(baseSalary * 0.02); // 2% Tax
@@ -100,7 +100,8 @@ async function seedPayrollData() {
             tax,
             loans,
             netSalary,
-            month: monthStr
+            month: m.month,
+            year: m.year
           });
         }
       }
