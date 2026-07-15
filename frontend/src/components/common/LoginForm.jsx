@@ -2,6 +2,43 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Eye, EyeOff, Loader2, AlertCircle, User, Mail, Lock, Check } from "lucide-react";
 
+const validatePasswordStrength = (password) => {
+  if (!password) {
+    return "Password is required.";
+  }
+  if (password.length < 6) {
+    return "Password must be at least 6 characters.";
+  }
+
+  // Reject purely numeric passwords (like "123456")
+  if (/^\d+$/.test(password)) {
+    return "Password cannot be all numbers. Please include letters or special characters.";
+  }
+
+  // Reject repeating single characters (like "111111")
+  const repeatingRegex = /^(.)\1+$/;
+  if (repeatingRegex.test(password)) {
+    return "Password cannot consist of repeating characters.";
+  }
+
+  // If shorter than 8 characters, require a mix of letters and numbers/special characters
+  if (password.length < 8) {
+    const hasLetter = /[a-zA-Z]/.test(password);
+    const hasNumberOrSpecial = /[^a-zA-Z]/.test(password);
+    if (!hasLetter || !hasNumberOrSpecial) {
+      return "Passwords shorter than 8 characters must contain a mix of letters and numbers/special characters.";
+    }
+  }
+
+  // Blacklist specific very common weak passwords of length 6 or 7
+  const weakBlacklist = ["123456", "qwerty", "abcdef", "1234567"];
+  if (weakBlacklist.includes(password.toLowerCase())) {
+    return "This password is too weak and commonly used. Please choose a stronger password.";
+  }
+
+  return "";
+};
+
 const AuthForm = ({
   mode,
   onSubmit,
@@ -36,21 +73,9 @@ const AuthForm = ({
     }
 
     if (isSignUp) {
-      if (!formData.password) {
-        errs.password = "Password is required.";
-      } else if (formData.password.length < 6) {
-        errs.password = "Password must be at least 6 characters.";
-      } else {
-        const weakPasswords = ["123456", "12345678", "qwerty", "password"];
-        if (weakPasswords.includes(formData.password.toLowerCase())) {
-          errs.password = "Password is too weak. Please choose a stronger password.";
-        } else {
-          const hasLetter = /[a-zA-Z]/.test(formData.password);
-          const hasNumber = /[0-9]/.test(formData.password);
-          if (!hasLetter || !hasNumber) {
-            errs.password = "Password must contain at least one letter and one number.";
-          }
-        }
+      const passwordError = validatePasswordStrength(formData.password);
+      if (passwordError) {
+        errs.password = passwordError;
       }
     } else {
       if (!formData.password) {
@@ -92,6 +117,12 @@ const AuthForm = ({
       onGoogleSignUp();
     }
   };
+
+  const password = formData.password || "";
+  const isLengthValid = password.length >= 6;
+  const isNotAllNumbers = password.length === 0 || /[^0-9]/.test(password);
+  const isNotRepeating = password.length === 0 || !/^(.)\1+$/.test(password);
+  const isMixValid = password.length === 0 || password.length >= 8 || (/[a-zA-Z]/.test(password) && /[^a-zA-Z]/.test(password));
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-4">
@@ -175,46 +206,40 @@ const AuthForm = ({
           </button>
         </div>
         {fieldErrors.password && <p className="mt-1 text-xs text-red-600">{fieldErrors.password}</p>}
-        {isSignUp && (
-          <div className="mt-2.5 p-3 bg-gray-50 border border-gray-200 rounded-xl space-y-2">
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Password Requirements</p>
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-2">
-                <Check
-                  size={12}
-                  className={formData.password.length >= 6 ? "text-green-500 stroke-[3]" : "text-gray-300"}
-                />
-                <span className={`text-xs transition-colors duration-150 ${formData.password.length >= 6 ? "text-green-700 font-medium" : "text-gray-500"}`}>
-                  At least 6 characters
+        {isSignUp && password.length > 0 && (
+          <div className="mt-2.5 p-3.5 bg-gray-50/80 rounded-xl border border-gray-100 space-y-1.5 animate-fadeIn">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Password Requirements</p>
+            <div className="flex items-center gap-2 text-xs font-medium">
+              <span className={isLengthValid ? "text-green-600 flex items-center gap-1.5" : "text-gray-400 flex items-center gap-1.5"}>
+                <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[10px] border ${isLengthValid ? "border-green-200 bg-green-50 text-green-600" : "border-gray-200 bg-white"}`}>
+                  ✓
                 </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Check
-                  size={12}
-                  className={/[a-zA-Z]/.test(formData.password) ? "text-green-500 stroke-[3]" : "text-gray-300"}
-                />
-                <span className={`text-xs transition-colors duration-150 ${/[a-zA-Z]/.test(formData.password) ? "text-green-700 font-medium" : "text-gray-500"}`}>
-                  At least one letter (a-z, A-Z)
+                At least 6 characters
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-xs font-medium">
+              <span className={isNotAllNumbers ? "text-green-600 flex items-center gap-1.5" : "text-gray-400 flex items-center gap-1.5"}>
+                <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[10px] border ${isNotAllNumbers ? "border-green-200 bg-green-50 text-green-600" : "border-gray-200 bg-white"}`}>
+                  ✓
                 </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Check
-                  size={12}
-                  className={/[0-9]/.test(formData.password) ? "text-green-500 stroke-[3]" : "text-gray-300"}
-                />
-                <span className={`text-xs transition-colors duration-150 ${/[0-9]/.test(formData.password) ? "text-green-700 font-medium" : "text-gray-500"}`}>
-                  At least one number (0-9)
+                Cannot be all numbers
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-xs font-medium">
+              <span className={isNotRepeating ? "text-green-600 flex items-center gap-1.5" : "text-gray-400 flex items-center gap-1.5"}>
+                <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[10px] border ${isNotRepeating ? "border-green-200 bg-green-50 text-green-600" : "border-gray-200 bg-white"}`}>
+                  ✓
                 </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Check
-                  size={12}
-                  className={formData.password && !["123456", "12345678", "qwerty", "password"].includes(formData.password.toLowerCase()) ? "text-green-500 stroke-[3]" : "text-gray-300"}
-                />
-                <span className={`text-xs transition-colors duration-150 ${formData.password && !["123456", "12345678", "qwerty", "password"].includes(formData.password.toLowerCase()) ? "text-green-700 font-medium" : "text-gray-500"}`}>
-                  Not a commonly used weak password
+                Cannot consist of repeating characters
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-xs font-medium">
+              <span className={isMixValid ? "text-green-600 flex items-center gap-1.5" : "text-gray-400 flex items-center gap-1.5"}>
+                <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[10px] border ${isMixValid ? "border-green-200 bg-green-50 text-green-600" : "border-gray-200 bg-white"}`}>
+                  ✓
                 </span>
-              </div>
+                Letters & numbers mix (if under 8 characters)
+              </span>
             </div>
           </div>
         )}

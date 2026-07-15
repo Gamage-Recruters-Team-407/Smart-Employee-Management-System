@@ -20,6 +20,7 @@ import Tasks from "./pages/Tasks";
 import ManagerRoute from "./components/ManagerRoute";
 import Notifications from "./pages/Notifications";
 import Issues from "./pages/Issues";
+import AuthForm from "./pages/Login";
 
 // ────────────────────────────────────────────────────────────────────────────
 // 🔐 PROTECTED ROUTE GUARD
@@ -51,10 +52,10 @@ function App() {
     <BadgeProvider>
       <Routes>
         {/* 🔓 Public Routes */}
-        <Route path="/login" element={<Login />} />
+        <Route path="/login" element={<AuthForm />} />
         <Route path="/auth/google/callback" element={<GoogleAuthCallback />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
-        
+
         {/* 🔑 Password Reset Routes - Both OTP and Token flows */}
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/reset-password/:token" element={<ResetPassword />} />
