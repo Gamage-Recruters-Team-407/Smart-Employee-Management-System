@@ -20,7 +20,6 @@ import Tasks from "./pages/Tasks";
 import ManagerRoute from "./components/ManagerRoute";
 import Notifications from "./pages/Notifications";
 import Issues from "./pages/Issues";
-import AuthForm from "./pages/Login";
 
 // ────────────────────────────────────────────────────────────────────────────
 // 🔐 PROTECTED ROUTE GUARD
@@ -52,7 +51,7 @@ function App() {
     <BadgeProvider>
       <Routes>
         {/* 🔓 Public Routes */}
-        <Route path="/login" element={<AuthForm />} />
+        <Route path="/login" element={<Login />} />
         <Route path="/auth/google/callback" element={<GoogleAuthCallback />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
 
