@@ -253,6 +253,20 @@ export const updateLeaveStatus =
         });
       }
 
+      const reviewerEmployeeDoc = await Employee.findOne({
+        email: req.user.email,
+      });
+
+      if (
+        reviewerEmployeeDoc &&
+        leave.employee.toString() === reviewerEmployeeDoc._id.toString()
+      ) {
+        return res.status(403).json({
+          message:
+            "You cannot approve or reject your own leave request",
+        });
+      }
+
       leave.status = status;
 
       leave.reviewNote =
