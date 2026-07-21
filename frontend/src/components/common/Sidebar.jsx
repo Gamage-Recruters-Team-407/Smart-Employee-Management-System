@@ -65,22 +65,22 @@ const Sidebar = ({ isOpen, onClose, toggle }) => {
 
   return (
     <>
-      {/* Mobile / Tablet / 1024px Overlay */}
+      {/* Mobile / Tablet Overlay */}
       {isOpen && (
         <div
           onClick={handleClose}
-          className="fixed inset-0 bg-black/40 z-40 xl:hidden"
+          className="fixed inset-0 bg-black/40 z-40 lg:hidden"
         />
       )}
 
       <aside
-        className={`fixed xl:static inset-y-0 left-0 z-50 h-screen bg-white border-r overflow-hidden transform transition-transform duration-300 ease-in-out flex-shrink-0 w-64 ${
-          isOpen ? "translate-x-0" : "-translate-x-full xl:translate-x-0"
+        className={`fixed lg:static inset-y-0 left-0 z-50 h-screen bg-white border-r overflow-hidden transform transition-transform duration-300 ease-in-out flex-shrink-0 w-64 ${
+          isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
       >
         <div className="p-6">
           {/* Mobile / Tablet Close Button */}
-          <div className="xl:hidden flex justify-end mb-4">
+          <div className="lg:hidden flex justify-end mb-4">
             <button
               type="button"
               onClick={handleClose}
@@ -117,7 +117,7 @@ const Sidebar = ({ isOpen, onClose, toggle }) => {
                   onClick={() => {
                     if (
                       typeof window !== "undefined" &&
-                      window.innerWidth < 1280
+                      window.innerWidth < 1024
                     ) {
                       handleClose();
                     }
