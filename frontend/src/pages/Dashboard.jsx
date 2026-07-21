@@ -11,9 +11,9 @@ import { io } from "socket.io-client";
 
 const Dashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(() => {
-  if (typeof window === "undefined") return false;
-  return window.innerWidth >= 1280;
-});
+    if (typeof window === "undefined") return false;
+    return window.innerWidth >= 1024;
+  });
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { employee } = useEmployeeProfile({
@@ -52,15 +52,15 @@ const Dashboard = () => {
   const isAdminOrHR = user?.role === "Admin" || user?.role === "HR";
 
   useEffect(() => {
-  const handleResize = () => {
-    setSidebarOpen(window.innerWidth >= 1280);
-  };
+    const handleResize = () => {
+      setSidebarOpen(window.innerWidth >= 1024);
+    };
 
-  handleResize();
-  window.addEventListener("resize", handleResize);
+    handleResize();
+    window.addEventListener("resize", handleResize);
 
-  return () => window.removeEventListener("resize", handleResize);
-}, []);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   // ─── STORAGE ─────────────────────────────────
   let storedUser = {};
@@ -468,7 +468,7 @@ const Dashboard = () => {
           <div className="flex items-center gap-2.5 min-w-0">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="xl:hidden p-1 hover:bg-gray-100 rounded-lg"
+              className="lg:hidden p-1 hover:bg-gray-100 rounded-lg"
             >
               {sidebarOpen ? <X size={18} /> : <Menu size={18} />}
             </button>
@@ -501,7 +501,7 @@ const Dashboard = () => {
 
                 {/* ─── ATTENDANCE MARK BUTTON - Only for Employees ────────────── */}
                 {isEmployee && (
-                  <div className="hidden xl:block">
+                  <div className="hidden lg:block">
                     {renderAttendanceSection()}
                   </div>
                 )}
@@ -528,7 +528,7 @@ const Dashboard = () => {
 
         {/* ─── MOBILE ATTENDANCE SECTION - Only for Employees ────────────────── */}
         {isEmployee && (
-          <div className="xl:hidden px-4 py-2 bg-gray-50 border-b border-gray-200">
+          <div className="lg:hidden px-4 py-2 bg-gray-50 border-b border-gray-200">
             {renderAttendanceSection()}
           </div>
         )}
