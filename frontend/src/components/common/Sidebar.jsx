@@ -12,6 +12,7 @@ import {
   Bell,
   CheckSquare,
   X,
+  Menu,
 } from "lucide-react";
 
 const Sidebar = ({ isOpen, onClose, toggle }) => {
@@ -21,41 +22,19 @@ const Sidebar = ({ isOpen, onClose, toggle }) => {
   const { unreadNotifications, activeTasks } = useBadges();
 
   const handleClose = () => {
-    if (onClose) {
-      onClose();
-    } else if (toggle) {
-      toggle();
-    }
+    if (onClose) onClose();
+    else if (toggle) toggle();
   };
 
   const taskNavItems =
     user?.role === "Admin" || canManageTasks
-      ? [
-          {
-            icon: CheckSquare,
-            label: "Task Management",
-            path: "/tasks/manage",
-          },
-        ]
-      : [
-          {
-            icon: CheckSquare,
-            label: "My Tasks",
-            path: "/tasks",
-          },
-        ];
+      ? [{ icon: CheckSquare, label: "Task Management", path: "/tasks/manage" }]
+      : [{ icon: CheckSquare, label: "My Tasks", path: "/tasks" }];
 
   const navItems = [
     { icon: Home, label: "Dashboard", path: "/" },
-
-    ...(user?.role !== "Employee"
-      ? [{ icon: Users, label: "Employees", path: "/employees" }]
-      : []),
-
-    ...(user?.role !== "Employee"
-      ? [{ icon: Clock, label: "Attendance", path: "/attendance" }]
-      : []),
-
+    ...(user?.role !== "Employee" ? [{ icon: Users, label: "Employees", path: "/employees" }] : []),
+    ...(user?.role !== "Employee" ? [{ icon: Clock, label: "Attendance", path: "/attendance" }] : []),
     { icon: Calendar, label: "Leaves", path: "/leaves" },
     { icon: DollarSign, label: "Payroll", path: "/payroll" },
     { icon: Award, label: "Performance", path: "/performance" },
@@ -65,96 +44,71 @@ const Sidebar = ({ isOpen, onClose, toggle }) => {
 
   return (
     <>
-      {/* Mobile / Tablet Overlay */}
+      {/* Mobile Menu Button - Fixed in Header */}
+      {/* (Dashboard.jsx එකේ තියෙන button එක හරියට තියෙන්න ඕනේ) */}
+
+      {/* Mobile Overlay */}
       {isOpen && (
         <div
           onClick={handleClose}
-          className="fixed inset-0 bg-black/40 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
         />
       )}
 
+      {/* Sidebar */}
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-50 h-screen bg-white border-r overflow-hidden transform transition-transform duration-300 ease-in-out flex-shrink-0 w-64 ${
-          isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-        }`}
+        className={`fixed lg:static inset-y-0 left-0 z-50 h-screen w-64 bg-white border-r shadow-xl 
+                    transform transition-transform duration-300 ease-in-out flex-shrink-0
+                    ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}
       >
-        <div className="p-6">
-          {/* Mobile / Tablet Close Button */}
-          <div className="lg:hidden flex justify-end mb-4">
+        <div className="p-6 h-full flex flex-col">
+          {/* Mobile Close Button */}
+          <div className="lg:hidden flex justify-end mb-6">
             <button
-              type="button"
               onClick={handleClose}
-              className="p-2 rounded-lg hover:bg-gray-100 text-gray-600"
-              aria-label="Close menu"
+              className="p-2 hover:bg-gray-100 rounded-xl text-gray-600"
             >
-              <X size={20} />
+              <X size={24} />
             </button>
           </div>
 
           {/* Logo */}
           <div className="flex items-center gap-3 mb-10">
-            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center flex-shrink-0">
-              <span className="text-white font-bold text-2xl">S</span>
+            <div className="w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center flex-shrink-0">
+              <span className="text-white font-bold text-3xl">S</span>
             </div>
-
-            <span className="block font-bold text-2xl whitespace-nowrap">
-              SEMS
-            </span>
+            <span className="font-bold text-2xl text-gray-800">SEMS</span>
           </div>
 
           {/* Navigation */}
-          <nav className="space-y-1">
+          <nav className="space-y-1 flex-1">
             {navItems.map((item) => {
               const Icon = item.icon;
-              const active =
-                location.pathname === item.path ||
-                (item.path !== "/" && location.pathname.startsWith(item.path));
+              const isActive = location.pathname === item.path || 
+                              (item.path !== "/" && location.pathname.startsWith(item.path));
 
               return (
                 <Link
                   key={item.path}
                   to={item.path}
                   onClick={() => {
-                    if (
-                      typeof window !== "undefined" &&
-                      window.innerWidth < 1024
-                    ) {
-                      handleClose();
-                    }
+                    if (window.innerWidth < 1024) handleClose();
                   }}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition relative ${
-                    active
-                      ? "bg-indigo-50 text-indigo-600"
+                  className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group
+                    ${isActive 
+                      ? "bg-indigo-50 text-indigo-600 font-medium" 
                       : "text-gray-700 hover:bg-gray-50"
-                  }`}
+                    }`}
                 >
-                  <div className="relative flex-shrink-0">
-                    <Icon size={20} />
+                  <Icon size={22} className="flex-shrink-0" />
+                  <span className="truncate">{item.label}</span>
 
-                    {item.label === "Notifications" &&
-                      unreadNotifications > 0 && (
-                        <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                          <span className="relative inline-flex items-center justify-center rounded-full bg-red-500 text-white text-[9px] font-bold px-1 min-w-[14px] h-[14px]">
-                            {unreadNotifications}
-                          </span>
-                        </span>
-                      )}
-                  </div>
-
-                  <div className="flex items-center justify-between w-full min-w-0">
-                    <span className="truncate">{item.label}</span>
-
-                    <div className="flex gap-2 items-center flex-shrink-0">
-                      {(item.label === "My Tasks" ||
-                        item.label === "Task Management") &&
-                        activeTasks > 0 && (
-                          <span className="inline-flex items-center justify-center min-w-[20px] h-[20px] px-1.5 rounded-full bg-red-500 text-white text-[11px] font-bold leading-none">
-                            {activeTasks}
-                          </span>
-                        )}
-                    </div>
-                  </div>
+                  {/* Badges */}
+                  {item.label === "Notifications" && unreadNotifications > 0 && (
+                    <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                      {unreadNotifications}
+                    </span>
+                  )}
                 </Link>
               );
             })}
