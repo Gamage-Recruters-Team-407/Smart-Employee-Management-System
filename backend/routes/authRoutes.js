@@ -14,14 +14,22 @@ import {
 
 const router = express.Router();
 
+// Public routes
 router.post("/register", registerUser);
 router.post("/login", loginUser);
-router.post("/logout", protect, logoutUser);
-router.get("/me", protect, getCurrentUser);
 router.post("/forgot-password", forgotPassword);
+
+// Password reset routes (JWT based)
+router.route("/reset-password/:token")
+  .get(verifyResetToken)      // GET: Verify token
+  .put(resetPasswordByToken); // PUT: Reset password
+
+// Password reset routes (Code based - for backward compatibility)
 router.post("/verify-reset-code", verifyResetCode);
 router.post("/reset-password-with-code", resetPasswordWithCode);
-router.get("/reset-password/:token/verify", verifyResetToken);
-router.put("/reset-password/:token", resetPasswordByToken);
+
+// Protected routes
+router.post("/logout", protect, logoutUser);
+router.get("/me", protect, getCurrentUser);
 
 export default router;

@@ -31,15 +31,15 @@ const userSchema = new mongoose.Schema(
       default: "Employee",
     },
 
-    // Password reset support
+    // Password reset support - FIXED: removed select: false
     resetPasswordToken: {
       type: String,
-      select: false,
+  
     },
 
     resetPasswordExpire: {
       type: Date,
-      select: false,
+     
     },
 
     // Optional Google login support
