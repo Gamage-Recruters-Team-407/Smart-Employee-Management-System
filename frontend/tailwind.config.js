@@ -3,16 +3,17 @@ export default {
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
-    "./src/**/**/*.{js,ts,jsx,tsx}",   // අමතරව
+    "./src/**/**/*.{js,ts,jsx,tsx}",
   ],
   safelist: [
-    // Critical responsive classes for sidebar
     'lg:hidden',
     'lg:static',
     'lg:translate-x-0',
     '-translate-x-full',
     'translate-x-0',
+    'fixed',
     'lg:block',
+    'hidden',
   ],
   theme: {
     extend: {},
