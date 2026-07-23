@@ -1,22 +1,69 @@
-import mongoose from "mongoose";
+// backend/models/Payroll.js
 
-const payrollSchema = new mongoose.Schema(
-  {
-    employee: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Employee",
-    },
-    basicSalary: Number,
-    allowances: Number,
-    deductions: Number,
-    tax: Number,
-    loans: Number,
-    netSalary: Number,
-    month: String,
+import mongoose from 'mongoose';
+
+const payrollSchema = new mongoose.Schema({
+  employee: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Employee',
+    required: true
   },
-  {
-    timestamps: true,
+  month: {
+    type: String,
+    required: true,
+    enum: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+  },
+  year: {
+    type: Number,
+    required: true
+  },
+  basicSalary: {
+    type: Number,
+    default: 0
+  },
+  allowances: {
+    type: Number,
+    default: 0
+  },
+  deductions: {
+    type: Number,
+    default: 0
+  },
+  // ── NEW: loan deductions (frontend already reads p.loans and totalLoans) ──
+  loans: {
+    type: Number,
+    default: 0
+  },
+  bonus: {
+    type: Number,
+    default: 0
+  },
+  tax: {
+    type: Number,
+    default: 0
+  },
+  netSalary: {
+    type: Number,
+    default: 0
+  },
+  status: {
+    type: String,
+    enum: ['Pending', 'Approved', 'Paid', 'Cancelled'],
+    default: 'Pending'
+  },
+  paymentDate: {
+    type: Date,
+    default: null
+  },
+  notes: {
+    type: String,
+    default: ''
   }
-);
+}, {
+  timestamps: true
+});
 
-export default mongoose.model("Payroll", payrollSchema);
+// Compound index to prevent duplicates
+payrollSchema.index({ employee: 1, month: 1, year: 1 }, { unique: true });
+
+export default mongoose.model('Payroll', payrollSchema);

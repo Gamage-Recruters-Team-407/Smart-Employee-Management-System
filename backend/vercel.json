@@ -1,0 +1,26 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "app.js",
+      "use": "@vercel/node",
+      "config": {
+        "fluid": true
+      }
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/socket.io/(.*)",
+      "destination": "/app.js"
+    },
+    {
+      "source": "/api/(.*)",
+      "destination": "/app.js"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/app.js"
+    }
+  ]
+}
