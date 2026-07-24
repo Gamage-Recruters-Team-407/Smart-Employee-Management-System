@@ -41,6 +41,8 @@ export const initWebSocket = (server) => {
       origin: "*",
       methods: ["GET", "POST"]
     },
+    pingTimeout: 60000,
+    pingInterval: 25000,
     // On Vercel, only websocket transport is supported (no long-polling)
     ...(isVercel && { transports: ["websocket"] }),
   });
