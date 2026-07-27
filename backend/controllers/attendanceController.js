@@ -693,7 +693,7 @@ export const getBreakStatus = async (req, res) => {
         availableBreaks,
         currentBreak,
         isOnBreak: !!(attendance?.breakType && attendance?.onlineStatus !== 'Online'),
-        onlineStatus: attendance?.onlineStatus || 'Offline'
+        onlineStatus: attendance?.onlineStatus || 'Online'
       }
     });
   } catch (error) {

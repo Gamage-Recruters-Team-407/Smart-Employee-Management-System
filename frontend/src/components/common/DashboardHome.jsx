@@ -14,7 +14,7 @@ import AdminAttendanceTable from "../../components/admin/AdminAttendanceTable";
 import API from "../../services/api";
 
 const displayValue = (loading, value) => {
-  if (loading) return "Loading...";
+  if (loading && !value) return "Loading...";
   if (value === undefined || value === null || value === "") return "—";
   return value;
 };
@@ -132,7 +132,7 @@ const DashboardHome = () => {
     if (breakStatus?.onlineStatus) {
       return breakStatus.onlineStatus;
     }
-    return "Offline";
+    return "Online";
   };
 
   const getStatusColor = (status) => {
@@ -248,7 +248,7 @@ const DashboardHome = () => {
             <div>
               <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider">Joining Date</p>
               <p className="text-sm font-bold text-gray-800 mt-1">
-                {loading ? "Loading..." : employee?.joiningDate ? new Date(employee.joiningDate).toLocaleDateString() : "—"}
+                {loading && !employee?.joiningDate ? "Loading..." : employee?.joiningDate ? new Date(employee.joiningDate).toLocaleDateString() : "—"}
               </p>
             </div>
           </div>
