@@ -419,6 +419,11 @@ export const updateEmployee = async (req, res) => {
       delete updateData.email;
     }
 
+    // 🔒 SECURITY GUARDRAIL: Strip role field unless requester is Admin.
+    if (req.user?.role !== "Admin" && "role" in updateData) {
+      delete updateData.role;
+    }
+
     // Process and cast other valid numeric fields safely
     if (updateData.salary !== undefined && updateData.salary !== "") {
       updateData.salary = Number(updateData.salary);
