@@ -46,6 +46,9 @@ export const applyLeave = async (req, res) => {
 
     const { leaveType, startDate, endDate, reason } = req.body;
 
+    // isHalfDay arrives as a string ("true"/"false") since it's sent via FormData
+    const isHalfDay = req.body.isHalfDay === "true" || req.body.isHalfDay === true;
+
     // 1. Required field validation
     if (!leaveType || !startDate || !endDate || !reason) {
       return res.status(400).json({
@@ -62,8 +65,16 @@ export const applyLeave = async (req, res) => {
       });
     }
 
-    const totalDays =
-      Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+    // 2. Half day must be a single day
+    if (isHalfDay && start.toDateString() !== end.toDateString()) {
+      return res.status(400).json({
+        message: "Half day leave must have the same start and end date",
+      });
+    }
+
+    const totalDays = isHalfDay
+      ? 0.5
+      : Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
 
     if (totalDays <= 0) {
       return res.status(400).json({
@@ -71,7 +82,7 @@ export const applyLeave = async (req, res) => {
       });
     }
 
-    // 2. Past date validation
+    // 3. Past date validation
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     if (start < today) {
@@ -80,7 +91,7 @@ export const applyLeave = async (req, res) => {
       });
     }
 
-    // 3. Overlapping leave check (Pending or Approved leaves block new overlapping requests)
+    // 4. Overlapping leave check (Pending or Approved leaves block new overlapping requests)
     const overlapping = await Leave.findOne({
       employee: employeeDoc._id,
       status: { $in: ["Pending", "Approved"] },
@@ -95,7 +106,7 @@ export const applyLeave = async (req, res) => {
       });
     }
 
-    // 4. Leave balance check
+    // 5. Leave balance check
     const leaveAllowance = {
       Annual: 14,
       Sick: 7,
@@ -144,6 +155,7 @@ export const applyLeave = async (req, res) => {
       startDate,
       endDate,
       totalDays,
+      isHalfDay,
       reason,
       medicalDocument,
     });

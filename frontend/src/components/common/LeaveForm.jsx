@@ -7,13 +7,36 @@ const LeaveForm = ({ onClose, onSuccess }) => {
     startDate: "",
     endDate: "",
     reason: "",
+    isHalfDay: false,
   });
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+
+    if (name === "startDate") {
+      setFormData((prev) => ({
+        ...prev,
+        startDate: value,
+        // keep endDate in sync when half day is selected
+        endDate: prev.isHalfDay ? value : prev.endDate,
+      }));
+      return;
+    }
+
+    setFormData({ ...formData, [name]: value });
+  };
+
+  const handleHalfDayToggle = (e) => {
+    const checked = e.target.checked;
+    setFormData((prev) => ({
+      ...prev,
+      isHalfDay: checked,
+      // half day leave is always a single day
+      endDate: checked ? prev.startDate : prev.endDate,
+    }));
   };
 
   const handleSubmit = async (e) => {
@@ -28,6 +51,7 @@ const LeaveForm = ({ onClose, onSuccess }) => {
       data.append("startDate", formData.startDate);
       data.append("endDate", formData.endDate);
       data.append("reason", formData.reason);
+      data.append("isHalfDay", formData.isHalfDay);
       if (file) data.append("medicalDocument", file);
 
       await axios.post("http://localhost:5000/api/leaves/apply", data, {
@@ -68,6 +92,21 @@ const LeaveForm = ({ onClose, onSuccess }) => {
               <option>Unpaid</option>
             </select>
           </div>
+
+          <div className="mb-3 flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="isHalfDay"
+              name="isHalfDay"
+              checked={formData.isHalfDay}
+              onChange={handleHalfDayToggle}
+              className="h-4 w-4"
+            />
+            <label htmlFor="isHalfDay" className="text-sm font-medium">
+              Half Day Leave
+            </label>
+          </div>
+
           <div className="mb-3">
             <label className="block text-sm font-medium mb-1">Start Date</label>
             <input
@@ -84,9 +123,10 @@ const LeaveForm = ({ onClose, onSuccess }) => {
             <input
               type="date"
               name="endDate"
-              value={formData.endDate}
+              value={formData.isHalfDay ? formData.startDate : formData.endDate}
               onChange={handleChange}
-              className="w-full border rounded px-3 py-2"
+              disabled={formData.isHalfDay}
+              className="w-full border rounded px-3 py-2 disabled:bg-gray-100"
               required
             />
           </div>
