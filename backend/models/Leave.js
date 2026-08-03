@@ -37,6 +37,11 @@ const leaveSchema = new mongoose.Schema(
       required: true,
     },
 
+    isHalfDay: {
+      type: Boolean,
+      default: false,
+    },
+
     reason: {
       type: String,
       required: true,
