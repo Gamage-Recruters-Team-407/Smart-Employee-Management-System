@@ -1,7 +1,8 @@
 // pages/dashboard/DashboardHome.jsx
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
+import { useSocket } from "../../context/SocketContext";
 import { useEmployeeProfile } from "../../hooks/useEmployeeProfile";
 import {
   User, Briefcase, Award, Clock, Coffee, Utensils,
@@ -21,12 +22,12 @@ const displayValue = (loading, value) => {
 
 const DashboardHome = () => {
   const { user } = useAuth();
+  const { breakStatus, fetchBreakStatus } = useSocket();
   const { employee, loading, error, displayName } = useEmployeeProfile({
     enabled: user?.role === "Employee",
   });
 
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [breakStatus, setBreakStatus] = useState(null);
   const [isOnLeaveToday, setIsOnLeaveToday] = useState(false);
 
   // ─── TICKING CLOCK ──────────────────────────────────────────────────────────
@@ -35,18 +36,7 @@ const DashboardHome = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // ─── FETCH BREAK STATUS ──────────────────────────────────────────────────
-  const fetchBreakStatus = useCallback(async () => {
-    try {
-      const response = await API.get('/attendance/break/status');
-      const data = response.data?.data || response.data || {};
-      setBreakStatus(data);
-    } catch (err) {
-      console.error('Failed to fetch break status:', err);
-    }
-  }, []);
-
-  // ─── EFFECT: FETCH BREAK STATUS ON MOUNT ──────────────────────────────
+  // ─── EFFECT: FETCH LEAVE STATUS & REFRESH BREAK STATUS ON MOUNT ──────────────
   useEffect(() => {
     if (user?.role === 'Employee') {
       // Leave check: අද approved leave ඇද්ද?
@@ -65,36 +55,7 @@ const DashboardHome = () => {
         setIsOnLeaveToday(onLeave);
       }).catch(() => {});
 
-      const timerId = setTimeout(() => {
-        fetchBreakStatus();
-      }, 0);
-
-      const interval = setInterval(() => {
-        fetchBreakStatus();
-      }, 30000);
-
-      const handleSocketAuth = (e) => {
-        console.log("🔔 Socket authenticated, refreshing break status...", e.detail);
-        if (e.detail?.onlineStatus) {
-          setBreakStatus(prev => prev ? { ...prev, onlineStatus: e.detail.onlineStatus } : { onlineStatus: e.detail.onlineStatus });
-        }
-        fetchBreakStatus();
-      };
-
-      const handleSocketDisconnect = () => {
-        console.log("🔔 Socket disconnected, setting status to Offline...");
-        setBreakStatus(prev => prev ? { ...prev, onlineStatus: "Offline" } : { onlineStatus: "Offline" });
-      };
-
-      window.addEventListener("socket-authenticated", handleSocketAuth);
-      window.addEventListener("socket-disconnected", handleSocketDisconnect);
-
-      return () => {
-        clearTimeout(timerId);
-        clearInterval(interval);
-        window.removeEventListener("socket-authenticated", handleSocketAuth);
-        window.removeEventListener("socket-disconnected", handleSocketDisconnect);
-      };
+      fetchBreakStatus();
     }
   }, [user, fetchBreakStatus]);
 
