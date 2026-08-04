@@ -58,7 +58,7 @@ export const SocketProvider = ({ children }) => {
     // Helper to send authentication payload over socket
     const authenticate = (sock) => {
       const targetSock = sock || socketRef.current;
-      if (targetSock && targetSock.connected && targetEmployeeId) {
+      if (targetSock && targetSock.connected && (targetEmployeeId || targetUserId)) {
         console.log("🔑 Authenticating employee via persistent socket...", { employeeId: targetEmployeeId, userId: targetUserId });
         targetSock.emit("authenticate", {
           employeeId: targetEmployeeId,
