@@ -1,86 +1,32 @@
 // frontend/src/hooks/useAttendanceSocket.js
 import { useEffect, useRef } from "react";
-import { io } from "socket.io-client";
-import { getSocketConfig } from "../utils/socketConfig";
+import { useSocket } from "../context/SocketContext";
 
 const useAttendanceSocket = (user, onAuthenticated) => {
-  const socketRef = useRef(null);
+  const { socket } = useSocket();
+  const socketRef = useRef(socket);
   const onAuthenticatedRef = useRef(onAuthenticated);
 
-  // Keep callback ref updated
+  useEffect(() => {
+    socketRef.current = socket;
+  }, [socket]);
+
   useEffect(() => {
     onAuthenticatedRef.current = onAuthenticated;
   }, [onAuthenticated]);
 
   useEffect(() => {
-    // Only connect if the user exists
-    if (!user) return;
-
-    // Use shared socket configuration
-    const { url, options } = getSocketConfig();
-
-    // Connect to the WebSocket
-    const socket = io(url, {
-      ...options,
-      reconnectionAttempts: 5,
-    });
-
-    socketRef.current = socket;
-
-    // Expose on window so BreakNotification can emit break-started / break-ended
-    window.socket = socket;
-
-    console.log("🔌 Attempting to connect to WebSocket...");
-
-    socket.on("connect", () => {
-      console.log("✅ Connected to server. Authenticating employee...");
-      // Send the authenticate event — backend sets onlineStatus to "Online"
-      socket.emit("authenticate", { employeeId: user.employeeId, userId: user.id || user._id });
-    });
-
-    socket.on("authenticated", (data) => {
-      console.log("🟢 Employee authenticated via socket:", data);
+    const handleAuthenticated = (e) => {
       if (onAuthenticatedRef.current) {
-        onAuthenticatedRef.current(data);
-      }
-      window.dispatchEvent(new CustomEvent("socket-authenticated", { detail: data }));
-    });
-
-    socket.on("attendance-update", (data) => {
-      console.log("📡 Attendance update received:", data);
-    });
-
-    socket.on("badge-update", () => {
-      console.log("🔔 Badge update received via socket");
-      window.dispatchEvent(new CustomEvent("socket-badge-update"));
-    });
-
-    socket.on("error", (err) => {
-      console.error("❌ Socket error:", err.message);
-    });
-
-    socket.on("disconnect", (reason) => {
-      console.log("🔴 Socket disconnected:", reason);
-      window.dispatchEvent(new CustomEvent("socket-disconnected", { detail: { reason } }));
-    });
-
-    socket.on("reconnect", (attemptNumber) => {
-      console.log(`🔄 Reconnected after ${attemptNumber} attempts`);
-      // Re-authenticate after reconnection
-      socket.emit("authenticate", { employeeId: user.employeeId, userId: user.id || user._id });
-    });
-
-    // Cleanup: runs when the component unmounts (logout) or tab closes
-    // This triggers the backend disconnect handler → sets status to "Offline"
-    return () => {
-      console.log("🔌 Disconnecting socket (component unmount / logout)...");
-      socket.disconnect();
-      socketRef.current = null;
-      if (window.socket === socket) {
-        window.socket = null;
+        onAuthenticatedRef.current(e.detail);
       }
     };
-  }, [user?.id, user?._id, user?.employeeId]);
+
+    window.addEventListener("socket-authenticated", handleAuthenticated);
+    return () => {
+      window.removeEventListener("socket-authenticated", handleAuthenticated);
+    };
+  }, []);
 
   return socketRef;
 };

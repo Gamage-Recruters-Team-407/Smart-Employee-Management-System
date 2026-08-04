@@ -13,6 +13,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { addEmployee, updateEmployee, uploadProfilePhoto } from "../services/employeeService";
+import { useAuth } from "../context/AuthContext";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const DEPARTMENTS = [
@@ -37,6 +38,7 @@ const INITIAL_FORM = {
   joiningDate: "",
   address: "",
   status: "Active",
+  role: "Employee",
 };
 
 // ─── Field components ─────────────────────────────────────────────────────────
@@ -54,9 +56,8 @@ const InputField = ({ label, icon: Icon, error, ...props }) => (
       )}
       <input
         {...props}
-        className={`w-full ${Icon ? "pl-9" : "pl-3"} pr-3 py-2.5 text-sm rounded-lg border ${
-          error ? "border-red-400 bg-red-50" : "border-gray-200 bg-gray-50"
-        } focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition`}
+        className={`w-full ${Icon ? "pl-9" : "pl-3"} pr-3 py-2.5 text-sm rounded-lg border ${error ? "border-red-400 bg-red-50" : "border-gray-200 bg-gray-50"
+          } focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition`}
       />
     </div>
     {error && <p className="text-xs text-red-500 mt-0.5">{error}</p>}
@@ -77,9 +78,8 @@ const SelectField = ({ label, icon: Icon, children, error, ...props }) => (
       )}
       <select
         {...props}
-        className={`w-full ${Icon ? "pl-9" : "pl-3"} pr-3 py-2.5 text-sm rounded-lg border ${
-          error ? "border-red-400 bg-red-50" : "border-gray-200 bg-gray-50"
-        } focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition appearance-none`}
+        className={`w-full ${Icon ? "pl-9" : "pl-3"} pr-3 py-2.5 text-sm rounded-lg border ${error ? "border-red-400 bg-red-50" : "border-gray-200 bg-gray-50"
+          } focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition appearance-none`}
       >
         {children}
       </select>
@@ -211,6 +211,7 @@ const buildFormFromEmployee = (employee) => ({
   joiningDate: formatDateForInput(employee?.joiningDate),
   address: employee?.address || "",
   status: employee?.status || "Active",
+  role: employee?.role || "Employee",
 });
 
 // ─── Modal ────────────────────────────────────────────────────────────────────
@@ -225,6 +226,7 @@ const buildFormFromEmployee = (employee) => ({
  *   onSuccess fn(newEmployee)  — called after successful creation/update
  */
 const AddEmployeeModal = ({ isOpen, onClose, onSuccess, employee = null }) => {
+  const { user: currentUser } = useAuth();
   const [form, setForm] = useState(() =>
     employee?._id ? buildFormFromEmployee(employee) : INITIAL_FORM
   );
@@ -252,8 +254,8 @@ const AddEmployeeModal = ({ isOpen, onClose, onSuccess, employee = null }) => {
       setPhotoPreview(
         employee?.profilePhoto
           ? (employee.profilePhoto.startsWith("http")
-              ? employee.profilePhoto
-              : `http://localhost:5000/${employee.profilePhoto}`)
+            ? employee.profilePhoto
+            : `http://localhost:5000/${employee.profilePhoto}`)
           : null
       );
     }
@@ -328,7 +330,7 @@ const AddEmployeeModal = ({ isOpen, onClose, onSuccess, employee = null }) => {
     } catch (err) {
       setApiError(
         err.response?.data?.message ||
-          `Failed to ${isEditing ? "update" : "create"} employee. Please try again.`
+        `Failed to ${isEditing ? "update" : "create"} employee. Please try again.`
       );
     } finally {
       setLoading(false);
@@ -420,11 +422,11 @@ const AddEmployeeModal = ({ isOpen, onClose, onSuccess, employee = null }) => {
                 {/* Drag-and-drop + click avatar preview */}
                 <div
                   onClick={() => photoInputRef.current?.click()}
-                  onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add("ring-2","ring-indigo-400","ring-offset-2"); }}
-                  onDragLeave={(e) => { e.currentTarget.classList.remove("ring-2","ring-indigo-400","ring-offset-2"); }}
+                  onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add("ring-2", "ring-indigo-400", "ring-offset-2"); }}
+                  onDragLeave={(e) => { e.currentTarget.classList.remove("ring-2", "ring-indigo-400", "ring-offset-2"); }}
                   onDrop={(e) => {
                     e.preventDefault();
-                    e.currentTarget.classList.remove("ring-2","ring-indigo-400","ring-offset-2");
+                    e.currentTarget.classList.remove("ring-2", "ring-indigo-400", "ring-offset-2");
                     const file = e.dataTransfer.files[0];
                     if (!file) return;
                     if (!file.type.startsWith("image/")) { setPhotoError("Only image files (JPG, PNG) are accepted."); return; }
@@ -557,6 +559,18 @@ const AddEmployeeModal = ({ isOpen, onClose, onSuccess, employee = null }) => {
                 >
                   {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
                 </SelectField>
+
+                {currentUser?.role === "Admin" && (
+                  <SelectField
+                    label="Role" name="role"
+                    value={form.role} onChange={handleChange} onBlur={handleBlur}
+                  >
+                    <option value="Employee">Employee</option>
+                    <option value="Manager">Manager</option>
+                    <option value="HR">HR</option>
+                    <option value="Admin">Admin</option>
+                  </SelectField>
+                )}
               </div>
             </div>
 
@@ -574,9 +588,8 @@ const AddEmployeeModal = ({ isOpen, onClose, onSuccess, employee = null }) => {
                     value={form.address}
                     onChange={handleChange}
                     onBlur={handleBlur}
-                    className={`w-full pl-9 pr-3 py-2.5 text-sm rounded-lg border ${
-                      errors.address ? "border-red-400 bg-red-50" : "border-gray-200 bg-gray-50"
-                    } focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition resize-none`}
+                    className={`w-full pl-9 pr-3 py-2.5 text-sm rounded-lg border ${errors.address ? "border-red-400 bg-red-50" : "border-gray-200 bg-gray-50"
+                      } focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition resize-none`}
                   />
                 </div>
                 {errors.address && (

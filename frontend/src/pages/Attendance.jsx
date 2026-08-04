@@ -90,41 +90,37 @@ const Attendance = () => {
 
   useEffect(() => {
     if (!isAdminOrHR) return;
-    let socket = null;
-    try {
-      const { url, options } = getSocketConfig();
-      socket = io(url, options);
-      socket.on("connect", () => {
-        socket.emit("join-admin");
-      });
-      socket.on("attendance-update", (data) => {
-        setAttendanceData(prev =>
-          prev.map(record => {
-            const isMatch =
-              (data.employeeId && record.employeeId === data.employeeId) ||
-              (data.employeeId && record._id === data.employeeId) ||
-              (data.employeeObjId && (record._id === data.employeeObjId || record.employeeId === data.employeeObjId)) ||
-              (data.employeeId && String(record.employeeId).toLowerCase() === String(data.employeeId).toLowerCase());
 
-            if (isMatch) {
-              return {
-                ...record,
-                onlineStatus: data.onlineStatus !== undefined ? data.onlineStatus : record.onlineStatus,
-                breakType: data.breakType !== undefined ? data.breakType : record.breakType,
-                status: data.status !== undefined ? data.status : record.status,
-                checkInTime: data.checkInTime !== undefined ? data.checkInTime : record.checkInTime,
-                checkOutTime: data.checkOutTime !== undefined ? data.checkOutTime : record.checkOutTime
-              };
-            }
-            return record;
-          })
-        );
-      });
-    } catch (error) {
-      console.warn("Socket.IO error:", error);
-    }
+    const handleAttendanceUpdate = (e) => {
+      const data = e.detail;
+      if (!data) return;
+      setAttendanceData(prev =>
+        prev.map(record => {
+          const isMatch =
+            (data.employeeId && record.employeeId === data.employeeId) ||
+            (data.employeeId && record._id === data.employeeId) ||
+            (data.employeeObjId && (record._id === data.employeeObjId || record.employeeId === data.employeeObjId)) ||
+            (data.employeeId && String(record.employeeId).toLowerCase() === String(data.employeeId).toLowerCase());
+
+          if (isMatch) {
+            return {
+              ...record,
+              onlineStatus: data.onlineStatus !== undefined ? data.onlineStatus : record.onlineStatus,
+              breakType: data.breakType !== undefined ? data.breakType : record.breakType,
+              status: data.status !== undefined ? data.status : record.status,
+              checkInTime: data.checkInTime !== undefined ? data.checkInTime : record.checkInTime,
+              checkOutTime: data.checkOutTime !== undefined ? data.checkOutTime : record.checkOutTime
+            };
+          }
+          return record;
+        })
+      );
+    };
+
+    window.addEventListener("socket-attendance-update", handleAttendanceUpdate);
+
     return () => {
-      if (socket) socket.disconnect();
+      window.removeEventListener("socket-attendance-update", handleAttendanceUpdate);
     };
   }, [isAdminOrHR]);
 

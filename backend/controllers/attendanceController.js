@@ -150,7 +150,7 @@ const getCurrentTimeString = () => {
 export const getTodayAttendance = async (req, res) => {
   try {
     const employeeId = await getEmployeeIdForRequest(req);
-    const today = new Date().toISOString().split('T')[0];
+    const today = getZonedDateString();
 
     let attendance = await Attendance.findOne({
       employee: employeeId,
@@ -220,7 +220,7 @@ export const checkIn = async (req, res) => {
   try {
     const { date, checkInTime, location } = req.body;
     const employeeId = await getEmployeeIdForRequest(req);
-    const today = date || new Date().toISOString().split('T')[0];
+    const today = date || getZonedDateString();
 
     let attendance = await Attendance.findOne({
       employee: employeeId,
@@ -252,6 +252,16 @@ export const checkIn = async (req, res) => {
 
     await attendance.save();
     await attendance.populate('employee', 'firstName lastName employeeId');
+
+    notifyAdminAttendanceUpdate({
+      employeeId: attendance.employee?.employeeId,
+      employeeObjId: attendance.employee?._id,
+      onlineStatus: attendance.onlineStatus,
+      breakType: attendance.breakType || null,
+      status: attendance.status,
+      checkInTime: attendance.checkInTime || null,
+      checkOutTime: attendance.checkOutTime || null
+    });
 
     res.status(200).json({
       success: true,
@@ -693,7 +703,7 @@ export const getBreakStatus = async (req, res) => {
         availableBreaks,
         currentBreak,
         isOnBreak: !!(attendance?.breakType && attendance?.onlineStatus !== 'Online'),
-        onlineStatus: attendance?.onlineStatus || 'Offline'
+        onlineStatus: attendance?.onlineStatus || 'Online'
       }
     });
   } catch (error) {
@@ -832,7 +842,7 @@ export const updateStatus = async (req, res) => {
 export const getAdminSummary = async (req, res) => {
   try {
     const { date } = req.query;
-    const targetDate = date || new Date().toISOString().split('T')[0];
+    const targetDate = date || getZonedDateString();
 
     const employees = await Employee.find({})
       .select('_id firstName lastName employeeId department designation role');
@@ -842,9 +852,11 @@ export const getAdminSummary = async (req, res) => {
     });
 
     const result = employees.map(emp => {
-      const record = attendanceRecords.find(
-        att => att.employee.toString() === emp._id.toString()
-      );
+      const record = attendanceRecords.find(att => {
+        if (!att || !att.employee) return false;
+        const attEmpId = att.employee._id ? att.employee._id.toString() : att.employee.toString();
+        return attEmpId === emp._id.toString();
+      });
 
       return {
         _id: record?._id || `att_${emp._id}`,

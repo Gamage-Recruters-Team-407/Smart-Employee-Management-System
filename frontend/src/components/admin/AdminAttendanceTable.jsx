@@ -4,10 +4,18 @@ import API from "../../services/api";
 import { io } from "socket.io-client";
 import { getSocketConfig } from "../../utils/socketConfig";
 
+const getLocalDateString = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 const AdminAttendanceTable = () => {
   const [attendanceRecords, setAttendanceRecords] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
+  const [selectedDate, setSelectedDate] = useState(getLocalDateString());
   const [filter, setFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [wsConnected, setWsConnected] = useState(false);
@@ -21,64 +29,43 @@ const AdminAttendanceTable = () => {
 
   // ─── WEBSOCKET SETUP ──────────────────────────────────────────────────────
   useEffect(() => {
-    let socket = null;
+    setWsConnected(true);
 
-    try {
-      const { url, options } = getSocketConfig();
-      socket = io(url, options);
+    const handleAttendanceUpdate = (e) => {
+      const data = e.detail;
+      if (!data) return;
+      try {
+        console.log("Received attendance-update in AdminAttendanceTable:", data);
+        setAttendanceRecords(prev =>
+          prev.map(record => {
+            const isMatch =
+              (data.employeeId && record.employeeId === data.employeeId) ||
+              (data.employeeId && record._id === data.employeeId) ||
+              (data.employeeObjId && (record._id === data.employeeObjId || record._id === `att_${data.employeeObjId}` || record.employeeId === data.employeeObjId)) ||
+              (data.employeeId && String(record.employeeId).toLowerCase() === String(data.employeeId).toLowerCase());
 
-      socket.on("connect", () => {
-        console.log("Socket.IO connected for admin attendance");
-        setWsConnected(true);
-        socket.emit("join-admin");
-      });
+            if (isMatch) {
+              return {
+                ...record,
+                onlineStatus: data.onlineStatus !== undefined ? data.onlineStatus : record.onlineStatus,
+                breakType: data.breakType !== undefined ? data.breakType : record.breakType,
+                status: data.status !== undefined ? data.status : record.status,
+                checkInTime: data.checkInTime !== undefined ? data.checkInTime : record.checkInTime,
+                checkOutTime: data.checkOutTime !== undefined ? data.checkOutTime : record.checkOutTime
+              };
+            }
+            return record;
+          })
+        );
+      } catch (err) {
+        console.error("Socket message error:", err);
+      }
+    };
 
-      socket.on("attendance-update", (data) => {
-        try {
-          console.log("Received attendance-update:", data);
-          setAttendanceRecords(prev =>
-            prev.map(record => {
-              const isMatch =
-                (data.employeeId && record.employeeId === data.employeeId) ||
-                (data.employeeId && record._id === data.employeeId) ||
-                (data.employeeObjId && (record._id === data.employeeObjId || record.employeeId === data.employeeObjId)) ||
-                (data.employeeId && String(record.employeeId).toLowerCase() === String(data.employeeId).toLowerCase());
-
-              if (isMatch) {
-                return {
-                  ...record,
-                  onlineStatus: data.onlineStatus !== undefined ? data.onlineStatus : record.onlineStatus,
-                  breakType: data.breakType !== undefined ? data.breakType : record.breakType,
-                  status: data.status !== undefined ? data.status : record.status,
-                  checkInTime: data.checkInTime !== undefined ? data.checkInTime : record.checkInTime,
-                  checkOutTime: data.checkOutTime !== undefined ? data.checkOutTime : record.checkOutTime
-                };
-              }
-              return record;
-            })
-          );
-        } catch (e) {
-          console.error("Socket message error:", e);
-        }
-      });
-
-      socket.on("disconnect", () => {
-        console.log("Socket.IO disconnected");
-        setWsConnected(false);
-      });
-
-      socket.on("connect_error", (error) => {
-        console.warn("Socket.IO error:", error);
-        setWsConnected(false);
-      });
-    } catch (error) {
-      console.warn('Socket.IO connection failed:', error);
-    }
+    window.addEventListener("socket-attendance-update", handleAttendanceUpdate);
 
     return () => {
-      if (socket) {
-        socket.disconnect();
-      }
+      window.removeEventListener("socket-attendance-update", handleAttendanceUpdate);
     };
   }, []);
 

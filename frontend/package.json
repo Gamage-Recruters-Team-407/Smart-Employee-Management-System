@@ -23,7 +23,8 @@
     "react-router-dom": "^7.15.1",
     "socket.io-client": "^4.8.3",
     "styled-jsx": "^5.1.7",
-    "three": "^0.184.0"
+    "three": "^0.184.0",
+    "worker-timers": "^8.0.34"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

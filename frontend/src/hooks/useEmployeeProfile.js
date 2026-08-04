@@ -7,13 +7,12 @@ import {
   notifyEmployeeProfileUpdated,
 } from "../utils/employeeProfileEvents";
 
-const syncStoredUserName = (employee) => {
+const syncStoredEmployee = (employee) => {
   if (!employee?.email) return;
   const displayName = [employee.firstName, employee.lastName]
     .filter(Boolean)
     .join(" ")
     .trim();
-  if (!displayName) return;
 
   for (const storage of [localStorage, sessionStorage]) {
     const raw = storage.getItem("user");
@@ -21,8 +20,16 @@ const syncStoredUserName = (employee) => {
     try {
       const parsed = JSON.parse(raw);
       if (parsed.email?.toLowerCase() === employee.email.toLowerCase()) {
-        if (parsed.name !== displayName) {
+        let updated = false;
+        if (displayName && parsed.name !== displayName) {
           parsed.name = displayName;
+          updated = true;
+        }
+        // Save the complete employee object inside user
+        parsed.employee = employee;
+        updated = true;
+
+        if (updated) {
           storage.setItem("user", JSON.stringify(parsed));
         }
       }
@@ -38,7 +45,23 @@ const syncStoredUserName = (employee) => {
 export function useEmployeeProfile({ enabled = true } = {}) {
   const { user } = useAuth();
   const location = useLocation();
-  const [employee, setEmployee] = useState(null);
+  
+  const [employee, setEmployee] = useState(() => {
+    for (const storage of [localStorage, sessionStorage]) {
+      const rawUser = storage.getItem("user");
+      if (rawUser) {
+        try {
+          const parsed = JSON.parse(rawUser);
+          if (parsed?.employee) {
+            return parsed.employee;
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+    return null;
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -54,7 +77,7 @@ export function useEmployeeProfile({ enabled = true } = {}) {
       const { data } = await API.get("/employees/me");
       setEmployee(data);
       console.log("Employee profile fetched:", data);
-      syncStoredUserName(data);
+      syncStoredEmployee(data);
       notifyEmployeeProfileUpdated(data);
     } catch (err) {
       setEmployee(null);
@@ -83,7 +106,7 @@ export function useEmployeeProfile({ enabled = true } = {}) {
         updated.email.toLowerCase() === user.email.toLowerCase()
       ) {
         setEmployee(updated);
-        syncStoredUserName(updated);
+        syncStoredEmployee(updated);
         return;
       }
       fetchProfile();

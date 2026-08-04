@@ -17,6 +17,7 @@ const Leave = () => {
     endDate: '',
     reason: '',
     attachment: null,
+    isHalfDay: false,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -50,7 +51,28 @@ const Leave = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+
+    if (name === 'startDate') {
+      setFormData(prev => ({
+        ...prev,
+        startDate: value,
+        // keep endDate synced to startDate while half day is selected
+        endDate: prev.isHalfDay ? value : prev.endDate,
+      }));
+      return;
+    }
+
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleHalfDayToggle = (e) => {
+    const checked = e.target.checked;
+    setFormData(prev => ({
+      ...prev,
+      isHalfDay: checked,
+      // half day leave is always a single day
+      endDate: checked ? prev.startDate : prev.endDate,
+    }));
   };
 
   const handleFileChange = (e) => {
@@ -68,6 +90,7 @@ const Leave = () => {
       data.append('startDate', formData.startDate);
       data.append('endDate', formData.endDate);
       data.append('reason', formData.reason);
+      data.append('isHalfDay', formData.isHalfDay);
       if (formData.attachment) data.append('medicalDocument', formData.attachment);
 
       await API.post('/leaves/apply', data, {
@@ -128,7 +151,7 @@ const Leave = () => {
   const closeModal = () => {
     setIsModalOpen(false);
     setError('');
-    setFormData({ leaveType: '', startDate: '', endDate: '', reason: '', attachment: null });
+    setFormData({ leaveType: '', startDate: '', endDate: '', reason: '', attachment: null, isHalfDay: false });
   };
 
   const getStatusColor = (status) => {
@@ -215,7 +238,7 @@ const Leave = () => {
                             {start} → {end}
                           </p>
                           <p className="text-xs text-gray-400 mb-3">
-                            {leave.totalDays} {leave.totalDays === 1 ? 'day' : 'days'}
+                            {leave.isHalfDay ? 'Half day' : `${leave.totalDays} ${leave.totalDays === 1 ? 'day' : 'days'}`}
                           </p>
                           {leave.reason && (
                             <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed">
@@ -250,7 +273,7 @@ const Leave = () => {
                   ) : (
                     leaves.map((leave) => (
                       <tr key={leave._id} className="border-b hover:bg-gray-50">
-                        <td className="px-6 py-4">{leave.leaveType}</td>
+                        <td className="px-6 py-4">{leave.leaveType}{leave.isHalfDay && ' (Half Day)'}</td>
                         <td className="px-6 py-4">{new Date(leave.startDate).toLocaleDateString()}</td>
                         <td className="px-6 py-4">{new Date(leave.endDate).toLocaleDateString()}</td>
                         <td className="px-6 py-4 text-center">{leave.totalDays}</td>
@@ -308,7 +331,7 @@ const Leave = () => {
                     return (
                       <tr key={leave._id} className="border-b hover:bg-gray-50">
                         <td className="px-6 py-4 font-medium">{empName}</td>
-                        <td className="px-6 py-4">{leave.leaveType}</td>
+                        <td className="px-6 py-4">{leave.leaveType}{leave.isHalfDay && ' (Half Day)'}</td>
                         <td className="px-6 py-4">{new Date(leave.startDate).toLocaleDateString()}</td>
                         <td className="px-6 py-4">{new Date(leave.endDate).toLocaleDateString()}</td>
                         <td className="px-6 py-4 text-center">{leave.totalDays}</td>
@@ -379,17 +402,50 @@ const Leave = () => {
                       <option value="Unpaid">Unpaid Leave</option>
                     </select>
                   </div>
+
+                  <div className="flex items-end pb-3">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        name="isHalfDay"
+                        checked={formData.isHalfDay}
+                        onChange={handleHalfDayToggle}
+                        className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <span className="text-sm font-medium text-gray-700">Half Day Leave</span>
+                    </label>
+                  </div>
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Start Date <span className="text-red-500">*</span></label>
                     <input type="date" name="startDate" value={formData.startDate} onChange={handleChange} required className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">End Date <span className="text-red-500">*</span></label>
-                    <input type="date" name="endDate" value={formData.endDate} onChange={handleChange} required className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                    <input
+                      type="date"
+                      name="endDate"
+                      value={formData.isHalfDay ? formData.startDate : formData.endDate}
+                      onChange={handleChange}
+                      disabled={formData.isHalfDay}
+                      required
+                      className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100"
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Number of Days</label>
-                    <input type="text" value={formData.startDate && formData.endDate ? Math.ceil((new Date(formData.endDate) - new Date(formData.startDate)) / (1000 * 60 * 60 * 24)) + 1 : ''} disabled className="w-full border border-gray-300 rounded-xl px-4 py-3 bg-gray-50" />
+                    <input
+                      type="text"
+                      value={
+                        formData.isHalfDay
+                          ? (formData.startDate ? '0.5' : '')
+                          : (formData.startDate && formData.endDate
+                              ? Math.ceil((new Date(formData.endDate) - new Date(formData.startDate)) / (1000 * 60 * 60 * 24)) + 1
+                              : '')
+                      }
+                      disabled
+                      className="w-full border border-gray-300 rounded-xl px-4 py-3 bg-gray-50"
+                    />
                   </div>
                 </div>
                 <div>

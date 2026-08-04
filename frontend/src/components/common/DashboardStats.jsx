@@ -29,29 +29,16 @@ const DashboardStats = () => {
     // Poll every 60 seconds as backup
     const interval = setInterval(() => fetchStats(false), 60000);
 
-    let socket = null;
-    try {
-      const { url, options } = getSocketConfig();
-      socket = io(url, options);
+    const handleAttendanceUpdate = () => {
+      console.log("Stats update received via global socket: refetching stats...");
+      fetchStats(true);
+    };
 
-      socket.on("connect", () => {
-        console.log("DashboardStats socket connected");
-        socket.emit("join-admin");
-      });
-
-      socket.on("attendance-update", (data) => {
-        console.log("Stats socket update received: refetching stats...");
-        fetchStats(true);
-      });
-    } catch (e) {
-      console.warn("Socket.IO connection failed in DashboardStats:", e);
-    }
+    window.addEventListener("socket-attendance-update", handleAttendanceUpdate);
 
     return () => {
       clearInterval(interval);
-      if (socket) {
-        socket.disconnect();
-      }
+      window.removeEventListener("socket-attendance-update", handleAttendanceUpdate);
     };
   }, [fetchStats]);
 
