@@ -45,19 +45,34 @@ export const applyLeave = async (req, res) => {
     }
 
     const { leaveType, startDate, endDate, reason } = req.body;
+    const leaveCategory = req.body.leaveCategory || "Full Day";
+    const halfDaySession = req.body.halfDaySession || null;
+    const startTime = req.body.startTime || null;
+    const endTime = req.body.endTime || null;
 
     // isHalfDay arrives as a string ("true"/"false") since it's sent via FormData
-    const isHalfDay = req.body.isHalfDay === "true" || req.body.isHalfDay === true;
+    let isHalfDay = req.body.isHalfDay === "true" || req.body.isHalfDay === true;
+    if (leaveCategory === "Half Day") {
+      isHalfDay = true;
+    }
 
     // 1. Required field validation
-    if (!leaveType || !startDate || !endDate || !reason) {
+    if (!leaveType || !startDate || !reason) {
       return res.status(400).json({
-        message: "Leave type, start date, end date, and reason are required",
+        message: "Leave type, start date, and reason are required",
+      });
+    }
+
+    // For Full Day leaves, endDate is required. For others, it's defaulted to startDate.
+    const actualEndDate = leaveCategory === "Full Day" ? endDate : startDate;
+    if (leaveCategory === "Full Day" && !endDate) {
+      return res.status(400).json({
+        message: "End date is required for full day leaves",
       });
     }
 
     const start = new Date(startDate);
-    const end = new Date(endDate);
+    const end = new Date(actualEndDate);
 
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
       return res.status(400).json({
@@ -65,21 +80,40 @@ export const applyLeave = async (req, res) => {
       });
     }
 
-    // 2. Half day must be a single day
-    if (isHalfDay && start.toDateString() !== end.toDateString()) {
-      return res.status(400).json({
-        message: "Half day leave must have the same start and end date",
-      });
-    }
+    // Validation & calculation details based on category
+    let totalDays = 0;
+    let totalHours = null;
 
-    const totalDays = isHalfDay
-      ? 0.5
-      : Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
-
-    if (totalDays <= 0) {
-      return res.status(400).json({
-        message: "End date must be after start date",
-      });
+    if (leaveCategory === "Half Day") {
+      totalDays = 0.5;
+      if (!halfDaySession) {
+        return res.status(400).json({
+          message: "Session selection (Morning/Evening) is required for half day leaves",
+        });
+      }
+    } else if (leaveCategory === "Short Leave") {
+      totalDays = 0;
+      if (!startTime || !endTime) {
+        return res.status(400).json({
+          message: "Start time and end time are required for short leaves",
+        });
+      }
+      const [startH, startM] = startTime.split(':').map(Number);
+      const [endH, endM] = endTime.split(':').map(Number);
+      const diffMinutes = (endH * 60 + endM) - (startH * 60 + startM);
+      if (diffMinutes <= 0) {
+        return res.status(400).json({
+          message: "End time must be after start time",
+        });
+      }
+      totalHours = parseFloat((diffMinutes / 60).toFixed(2));
+    } else {
+      totalDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+      if (totalDays <= 0) {
+        return res.status(400).json({
+          message: "End date must be after start date",
+        });
+      }
     }
 
     // 3. Past date validation
@@ -91,18 +125,35 @@ export const applyLeave = async (req, res) => {
       });
     }
 
-    // 4. Overlapping leave check (Pending or Approved leaves block new overlapping requests)
-    const overlapping = await Leave.findOne({
+    // 4. Overlapping leave check
+    const overlappingLeaves = await Leave.find({
       employee: employeeDoc._id,
       status: { $in: ["Pending", "Approved"] },
       startDate: { $lte: end },
       endDate: { $gte: start },
     });
 
-    if (overlapping) {
+    const hasOverlapping = overlappingLeaves.some(other => {
+      // Full/Half Day overlapping check
+      if (leaveCategory !== "Short Leave" || other.leaveCategory !== "Short Leave") {
+        return true;
+      }
+      // If both are Short Leaves, check if their times overlap
+      const parseTime = (t) => {
+        const [h, m] = t.split(':').map(Number);
+        return h * 60 + m;
+      };
+      const curStart = parseTime(startTime);
+      const curEnd = parseTime(endTime);
+      const otherStart = parseTime(other.startTime);
+      const otherEnd = parseTime(other.endTime);
+
+      return (curStart < otherEnd && curEnd > otherStart);
+    });
+
+    if (hasOverlapping) {
       return res.status(400).json({
-        message:
-          "You already have a leave request that overlaps with these dates",
+        message: "You already have a leave request that overlaps with this time/date range",
       });
     }
 
@@ -153,9 +204,14 @@ export const applyLeave = async (req, res) => {
       employee: employeeDoc._id,
       leaveType,
       startDate,
-      endDate,
+      endDate: actualEndDate,
       totalDays,
       isHalfDay,
+      leaveCategory,
+      halfDaySession,
+      startTime,
+      endTime,
+      totalHours,
       reason,
       medicalDocument,
     });
@@ -370,10 +426,11 @@ export const cancelLeave =
         });
       }
 
-      if (
-        leave.employee.toString() !==
-        req.user._id.toString()
-      ) {
+      const isPrivileged = ["Admin", "HR", "Manager"].includes(req.user?.role);
+      const employeeDoc = await resolveEmployeeForAuthUser(req.user, { createIfMissing: true });
+      const isOwnLeave = employeeDoc && leave.employee.toString() === employeeDoc._id.toString();
+
+      if (!isPrivileged && !isOwnLeave) {
         return res.status(403).json({
           message: "Not authorized",
         });

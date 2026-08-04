@@ -18,6 +18,11 @@ const Leave = () => {
     reason: '',
     attachment: null,
     isHalfDay: false,
+    leaveCategory: 'Full Day',
+    halfDaySession: 'Morning',
+    startTime: '',
+    endTime: '',
+    totalHours: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -49,6 +54,15 @@ const Leave = () => {
     }
   };
 
+  const calculateHours = (startTime, endTime) => {
+    if (!startTime || !endTime) return '';
+    const [startH, startM] = startTime.split(':').map(Number);
+    const [endH, endM] = endTime.split(':').map(Number);
+    const diffMinutes = (endH * 60 + endM) - (startH * 60 + startM);
+    if (diffMinutes <= 0) return '';
+    return parseFloat((diffMinutes / 60).toFixed(2)).toString();
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
 
@@ -56,23 +70,21 @@ const Leave = () => {
       setFormData(prev => ({
         ...prev,
         startDate: value,
-        // keep endDate synced to startDate while half day is selected
-        endDate: prev.isHalfDay ? value : prev.endDate,
+        endDate: (prev.leaveCategory === 'Half Day' || prev.leaveCategory === 'Short Leave') ? value : prev.endDate,
       }));
       return;
     }
 
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
+    if (name === 'startTime' || name === 'endTime') {
+      setFormData(prev => {
+        const nextState = { ...prev, [name]: value };
+        nextState.totalHours = calculateHours(nextState.startTime, nextState.endTime);
+        return nextState;
+      });
+      return;
+    }
 
-  const handleHalfDayToggle = (e) => {
-    const checked = e.target.checked;
-    setFormData(prev => ({
-      ...prev,
-      isHalfDay: checked,
-      // half day leave is always a single day
-      endDate: checked ? prev.startDate : prev.endDate,
-    }));
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleFileChange = (e) => {
@@ -84,13 +96,35 @@ const Leave = () => {
     setIsSubmitting(true);
     setError('');
 
+    if (formData.leaveCategory === 'Short Leave') {
+      if (!formData.startTime || !formData.endTime) {
+        setError('Start time and end time are required for short leaves.');
+        setIsSubmitting(false);
+        return;
+      }
+      if (!formData.totalHours || parseFloat(formData.totalHours) <= 0) {
+        setError('End time must be after start time.');
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
     try {
       const data = new FormData();
       data.append('leaveType', formData.leaveType);
       data.append('startDate', formData.startDate);
-      data.append('endDate', formData.endDate);
+      data.append('endDate', formData.leaveCategory === 'Full Day' ? formData.endDate : formData.startDate);
       data.append('reason', formData.reason);
-      data.append('isHalfDay', formData.isHalfDay);
+      data.append('isHalfDay', formData.leaveCategory === 'Half Day');
+      data.append('leaveCategory', formData.leaveCategory);
+      if (formData.leaveCategory === 'Half Day') {
+        data.append('halfDaySession', formData.halfDaySession);
+      }
+      if (formData.leaveCategory === 'Short Leave') {
+        data.append('startTime', formData.startTime);
+        data.append('endTime', formData.endTime);
+        data.append('totalHours', formData.totalHours);
+      }
       if (formData.attachment) data.append('medicalDocument', formData.attachment);
 
       await API.post('/leaves/apply', data, {
@@ -151,7 +185,19 @@ const Leave = () => {
   const closeModal = () => {
     setIsModalOpen(false);
     setError('');
-    setFormData({ leaveType: '', startDate: '', endDate: '', reason: '', attachment: null, isHalfDay: false });
+    setFormData({
+      leaveType: '',
+      startDate: '',
+      endDate: '',
+      reason: '',
+      attachment: null,
+      isHalfDay: false,
+      leaveCategory: 'Full Day',
+      halfDaySession: 'Morning',
+      startTime: '',
+      endTime: '',
+      totalHours: '',
+    });
   };
 
   const getStatusColor = (status) => {
@@ -227,6 +273,8 @@ const Leave = () => {
                             <div>
                               <span className="text-xs font-semibold text-indigo-600 uppercase tracking-wider bg-indigo-50 px-2 py-0.5 rounded-md">
                                 {leave.leaveType}
+                                {leave.leaveCategory === 'Half Day' && ' (Half)'}
+                                {leave.leaveCategory === 'Short Leave' && ' (Short)'}
                               </span>
                             </div>
                             <span className={`text-xs font-semibold px-2.5 py-1 rounded-full flex items-center gap-1.5 ${style.pill}`}>
@@ -238,7 +286,11 @@ const Leave = () => {
                             {start} → {end}
                           </p>
                           <p className="text-xs text-gray-400 mb-3">
-                            {leave.isHalfDay ? 'Half day' : `${leave.totalDays} ${leave.totalDays === 1 ? 'day' : 'days'}`}
+                            {leave.leaveCategory === 'Short Leave'
+                              ? `${leave.totalHours || 0} hrs`
+                              : leave.leaveCategory === 'Half Day'
+                                ? `Half Day (${leave.halfDaySession || 'Morning'})`
+                                : `${leave.totalDays} ${leave.totalDays === 1 ? 'day' : 'days'}`}
                           </p>
                           {leave.reason && (
                             <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed">
@@ -261,7 +313,7 @@ const Leave = () => {
                     <th className="px-6 py-4 text-left">Leave Type</th>
                     <th className="px-6 py-4 text-left">Start Date</th>
                     <th className="px-6 py-4 text-left">End Date</th>
-                    <th className="px-6 py-4 text-center">Days</th>
+                    <th className="px-6 py-4 text-center">Duration</th>
                     <th className="px-6 py-4 text-left">Reason</th>
                     <th className="px-6 py-4 text-center">Status</th>
                     <th className="px-6 py-4 text-center">Action</th>
@@ -273,10 +325,20 @@ const Leave = () => {
                   ) : (
                     leaves.map((leave) => (
                       <tr key={leave._id} className="border-b hover:bg-gray-50">
-                        <td className="px-6 py-4">{leave.leaveType}{leave.isHalfDay && ' (Half Day)'}</td>
+                        <td className="px-6 py-4 font-medium">
+                          {leave.leaveType}
+                          {leave.leaveCategory === 'Half Day' && ` (Half - ${leave.halfDaySession || 'Morning'})`}
+                          {leave.leaveCategory === 'Short Leave' && ' (Short Leave)'}
+                        </td>
                         <td className="px-6 py-4">{new Date(leave.startDate).toLocaleDateString()}</td>
                         <td className="px-6 py-4">{new Date(leave.endDate).toLocaleDateString()}</td>
-                        <td className="px-6 py-4 text-center">{leave.totalDays}</td>
+                        <td className="px-6 py-4 text-center font-medium">
+                          {leave.leaveCategory === 'Short Leave'
+                            ? `${leave.totalHours || 0} hrs`
+                            : leave.leaveCategory === 'Half Day'
+                              ? '0.5 day'
+                              : `${leave.totalDays} ${leave.totalDays === 1 ? 'day' : 'days'}`}
+                        </td>
                         <td className="px-6 py-4">{leave.reason}</td>
                         <td className="px-6 py-4 text-center">
                           <span className={`px-2 py-1 rounded text-sm font-medium ${getStatusColor(leave.status)}`}>
@@ -314,7 +376,7 @@ const Leave = () => {
                   <th className="px-6 py-4 text-left">Leave Type</th>
                   <th className="px-6 py-4 text-left">Start Date</th>
                   <th className="px-6 py-4 text-left">End Date</th>
-                  <th className="px-6 py-4 text-center">Days</th>
+                  <th className="px-6 py-4 text-center">Duration</th>
                   <th className="px-6 py-4 text-left">Reason</th>
                   <th className="px-6 py-4 text-center">Status</th>
                   <th className="px-6 py-4 text-center">Action</th>
@@ -331,10 +393,20 @@ const Leave = () => {
                     return (
                       <tr key={leave._id} className="border-b hover:bg-gray-50">
                         <td className="px-6 py-4 font-medium">{empName}</td>
-                        <td className="px-6 py-4">{leave.leaveType}{leave.isHalfDay && ' (Half Day)'}</td>
+                        <td className="px-6 py-4">
+                          {leave.leaveType}
+                          {leave.leaveCategory === 'Half Day' && ` (Half - ${leave.halfDaySession || 'Morning'})`}
+                          {leave.leaveCategory === 'Short Leave' && ' (Short Leave)'}
+                        </td>
                         <td className="px-6 py-4">{new Date(leave.startDate).toLocaleDateString()}</td>
                         <td className="px-6 py-4">{new Date(leave.endDate).toLocaleDateString()}</td>
-                        <td className="px-6 py-4 text-center">{leave.totalDays}</td>
+                        <td className="px-6 py-4 text-center font-medium">
+                          {leave.leaveCategory === 'Short Leave'
+                            ? `${leave.totalHours || 0} hrs`
+                            : leave.leaveCategory === 'Half Day'
+                              ? '0.5 day'
+                              : `${leave.totalDays} ${leave.totalDays === 1 ? 'day' : 'days'}`}
+                        </td>
                         <td className="px-6 py-4">{leave.reason}</td>
                         <td className="px-6 py-4 text-center">
                           <span className={`px-2 py-1 rounded text-sm font-medium ${getStatusColor(leave.status)}`}>
@@ -387,10 +459,36 @@ const Leave = () => {
                 <h2 className="text-2xl font-semibold">Apply New Leave</h2>
                 <button onClick={closeModal} className="text-gray-500 hover:text-gray-700 text-3xl leading-none">×</button>
               </div>
+
+              {/* Dynamic Categories Tabs */}
+              <div className="flex gap-2 mb-6 bg-gray-100 rounded-xl p-1.5 w-full">
+                {['Full Day', 'Half Day', 'Short Leave'].map((cat) => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => {
+                      setFormData(prev => ({
+                        ...prev,
+                        leaveCategory: cat,
+                        isHalfDay: cat === 'Half Day',
+                        endDate: (cat === 'Half Day' || cat === 'Short Leave') ? prev.startDate : prev.endDate,
+                      }));
+                    }}
+                    className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition duration-200 ${
+                      formData.leaveCategory === cat
+                        ? 'bg-white text-indigo-600 shadow'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+
               {error && <p className="text-red-500 mb-4">{error}</p>}
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
+                  <div className={formData.leaveCategory === 'Half Day' ? '' : 'md:col-span-2'}>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Leave Type <span className="text-red-500">*</span></label>
                     <select name="leaveType" value={formData.leaveType} onChange={handleChange} required className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500">
                       <option value="">Select Leave Type</option>
@@ -403,50 +501,92 @@ const Leave = () => {
                     </select>
                   </div>
 
-                  <div className="flex items-end pb-3">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        name="isHalfDay"
-                        checked={formData.isHalfDay}
-                        onChange={handleHalfDayToggle}
-                        className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                      />
-                      <span className="text-sm font-medium text-gray-700">Half Day Leave</span>
-                    </label>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Start Date <span className="text-red-500">*</span></label>
-                    <input type="date" name="startDate" value={formData.startDate} onChange={handleChange} required className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">End Date <span className="text-red-500">*</span></label>
-                    <input
-                      type="date"
-                      name="endDate"
-                      value={formData.isHalfDay ? formData.startDate : formData.endDate}
-                      onChange={handleChange}
-                      disabled={formData.isHalfDay}
-                      required
-                      className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Number of Days</label>
-                    <input
-                      type="text"
-                      value={
-                        formData.isHalfDay
-                          ? (formData.startDate ? '0.5' : '')
-                          : (formData.startDate && formData.endDate
+                  {formData.leaveCategory === 'Full Day' && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Start Date <span className="text-red-500">*</span></label>
+                        <input type="date" name="startDate" value={formData.startDate} onChange={handleChange} required className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">End Date <span className="text-red-500">*</span></label>
+                        <input
+                          type="date"
+                          name="endDate"
+                          value={formData.endDate}
+                          onChange={handleChange}
+                          required
+                          className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Number of Days</label>
+                        <input
+                          type="text"
+                          value={
+                            formData.startDate && formData.endDate
                               ? Math.ceil((new Date(formData.endDate) - new Date(formData.startDate)) / (1000 * 60 * 60 * 24)) + 1
-                              : '')
-                      }
-                      disabled
-                      className="w-full border border-gray-300 rounded-xl px-4 py-3 bg-gray-50"
-                    />
-                  </div>
+                              : ''
+                          }
+                          disabled
+                          className="w-full border border-gray-300 rounded-xl px-4 py-3 bg-gray-50 text-gray-500 font-medium"
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {formData.leaveCategory === 'Half Day' && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Date <span className="text-red-500">*</span></label>
+                        <input type="date" name="startDate" value={formData.startDate} onChange={handleChange} required className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Session <span className="text-red-500">*</span></label>
+                        <div className="flex gap-2">
+                          {['Morning', 'Evening'].map((session) => (
+                            <button
+                              key={session}
+                              type="button"
+                              onClick={() => setFormData(prev => ({ ...prev, halfDaySession: session }))}
+                              className={`flex-1 py-3 border rounded-xl text-sm font-semibold transition ${
+                                formData.halfDaySession === session
+                                  ? 'border-indigo-600 bg-indigo-50 text-indigo-700 shadow-sm'
+                                  : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                              }`}
+                            >
+                              {session === 'Morning' ? 'Morning Half' : 'Evening Half'}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {formData.leaveCategory === 'Short Leave' && (
+                    <>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Date <span className="text-red-500">*</span></label>
+                        <input type="date" name="startDate" value={formData.startDate} onChange={handleChange} required className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Start Time <span className="text-red-500">*</span></label>
+                        <input type="time" name="startTime" value={formData.startTime} onChange={handleChange} required className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">End Time <span className="text-red-500">*</span></label>
+                        <input type="time" name="endTime" value={formData.endTime} onChange={handleChange} required className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Number of Hours</label>
+                        <input
+                          type="text"
+                          value={formData.totalHours ? `${formData.totalHours} hrs` : ''}
+                          disabled
+                          className="w-full border border-gray-300 rounded-xl px-4 py-3 bg-gray-50 text-gray-500 font-medium"
+                        />
+                      </div>
+                    </>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Reason <span className="text-red-500">*</span></label>
