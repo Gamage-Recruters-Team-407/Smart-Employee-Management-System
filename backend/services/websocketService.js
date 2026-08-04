@@ -68,15 +68,29 @@ export const initWebSocket = (server) => {
           socket.join(`user-${userId.toString()}`);
           console.log(`User socket joined: user-${userId.toString()}`);
         }
-        if (!employeeId) return;
+        if (!employeeId && !userId) return;
 
-        // Optimize query by only selecting the '_id' field
-        const employee = await Employee.findOne({ employeeId }).select("_id");
+        let employee = null;
+        if (employeeId) {
+          employee = await Employee.findOne({ employeeId }).select("_id employeeId");
+        }
+        if (!employee && userId) {
+          employee = await Employee.findOne({ userId }).select("_id employeeId");
+        }
+        if (!employee && employeeId) {
+          try {
+            employee = await Employee.findById(employeeId).select("_id employeeId");
+          } catch (e) {
+            /* ignore invalid ObjectId format */
+          }
+        }
 
         if (!employee) {
           socket.emit("error", { message: "Employee not found" });
           return;
         }
+
+        const resolvedEmpId = employee.employeeId || employeeId;
 
         const now = new Date();
         const today = getZonedDateString(now);
@@ -101,9 +115,6 @@ export const initWebSocket = (server) => {
           });
         } else {
           attendance.activityStatus = true;
-          // Reconnecting clears checkout/logout times since they are active again
-          attendance.checkOutTime = null;
-          attendance.logoutTime = null;
 
           // Automatically check in if they haven't checked in yet today
           if (!attendance.checkInTime) {
@@ -120,10 +131,10 @@ export const initWebSocket = (server) => {
         await attendance.save();
 
         currentAttendanceId = attendance._id;
-        currentEmployeeId = employeeId;
-        socket.join(`employee-${employeeId}`);
+        currentEmployeeId = resolvedEmpId;
+        socket.join(`employee-${resolvedEmpId}`);
 
-        console.log(`Employee ${employeeId} authenticated & attendance marked. Status: ${attendance.status}, Online status: ${attendance.onlineStatus}`);
+        console.log(`Employee ${resolvedEmpId} authenticated & attendance marked. Status: ${attendance.status}, Online status: ${attendance.onlineStatus}`);
 
         // Notify frontend that they are authenticated
         socket.emit("authenticated", {
@@ -136,7 +147,8 @@ export const initWebSocket = (server) => {
 
         // Broadcast to admin room so the dashboard shows the employee as Online/On-Break instantly
         io.to("admin").emit("attendance-update", {
-          employeeId,
+          employeeId: resolvedEmpId,
+          employeeObjId: employee._id,
           onlineStatus: attendance.onlineStatus,
           status: attendance.status,
           checkInTime: attendance.checkInTime || null,
@@ -193,17 +205,15 @@ export const initWebSocket = (server) => {
           const now = new Date();
           const timeString = formatTime(now);
 
-          // Mark checkout time and logout time on disconnect
+          // Update activity status and online status on disconnect
           const updated = await Attendance.findByIdAndUpdate(currentAttendanceId, {
             $set: {
               activityStatus: false,
-              onlineStatus: "Offline",
-              checkOutTime: timeString,
-              logoutTime: now
+              onlineStatus: "Offline"
             }
           }, { returnDocument: 'after' });
 
-          console.log(`Employee ${currentEmployeeId} disconnected. Offline. Leave time marked: ${timeString}`);
+          console.log(`Employee ${currentEmployeeId} socket disconnected. Marked Offline.`);
 
           // Broadcast to admin room
           io.to("admin").emit("attendance-update", {

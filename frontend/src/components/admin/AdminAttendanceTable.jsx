@@ -4,10 +4,18 @@ import API from "../../services/api";
 import { io } from "socket.io-client";
 import { getSocketConfig } from "../../utils/socketConfig";
 
+const getLocalDateString = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 const AdminAttendanceTable = () => {
   const [attendanceRecords, setAttendanceRecords] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
+  const [selectedDate, setSelectedDate] = useState(getLocalDateString());
   const [filter, setFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [wsConnected, setWsConnected] = useState(false);
@@ -33,7 +41,7 @@ const AdminAttendanceTable = () => {
             const isMatch =
               (data.employeeId && record.employeeId === data.employeeId) ||
               (data.employeeId && record._id === data.employeeId) ||
-              (data.employeeObjId && (record._id === data.employeeObjId || record.employeeId === data.employeeObjId)) ||
+              (data.employeeObjId && (record._id === data.employeeObjId || record._id === `att_${data.employeeObjId}` || record.employeeId === data.employeeObjId)) ||
               (data.employeeId && String(record.employeeId).toLowerCase() === String(data.employeeId).toLowerCase());
 
             if (isMatch) {

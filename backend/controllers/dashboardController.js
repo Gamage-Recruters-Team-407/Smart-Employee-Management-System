@@ -6,9 +6,16 @@ import SimpleCache from "../utils/cache.js";
 
 const statsCache = new SimpleCache(15000); // 15 seconds TTL
 
+const TIMEZONE = process.env.APP_TIMEZONE || process.env.BREAK_TIMEZONE || "Asia/Colombo";
+
 export const getDashboardStats = async (req, res) => {
   try {
-    const today = new Date().toISOString().split("T")[0];
+    const today = new Intl.DateTimeFormat("en-CA", {
+      timeZone: TIMEZONE,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    }).format(new Date());
 
     const cachedData = statsCache.get("dashboard_stats");
     if (cachedData) {
