@@ -8,7 +8,7 @@ import API from "../services/api";
 
 const SocketContext = createContext(null);
 
-const HEALTH_CHECK_INTERVAL_MS = 30_000;
+const HEALTH_CHECK_INTERVAL_MS = 10_000;
 
 export const SocketProvider = ({ children }) => {
   const { user } = useAuth();
