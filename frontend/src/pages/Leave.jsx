@@ -16,6 +16,7 @@ const Leave = () => {
   const itemsPerPage = 5;
   const [manageCurrentPage, setManageCurrentPage] = useState(1);
   const manageItemsPerPage = 6;
+  const [manageFilterDate, setManageFilterDate] = useState("");
   const [formData, setFormData] = useState({
     leaveType: '',
     startDate: '',
@@ -220,10 +221,25 @@ const Leave = () => {
   const currentLeaves = leaves.slice(indexOfFirstLeave, indexOfLastLeave);
   const totalPages = Math.ceil(leaves.length / itemsPerPage);
 
+  const filteredManageLeaves = allLeaves.filter(leave => {
+    if (!manageFilterDate) return true;
+    
+    const target = new Date(manageFilterDate);
+    target.setHours(0, 0, 0, 0);
+    
+    const start = new Date(leave.startDate);
+    start.setHours(0, 0, 0, 0);
+    
+    const end = new Date(leave.endDate);
+    end.setHours(0, 0, 0, 0);
+    
+    return target >= start && target <= end;
+  });
+
   const indexOfLastManageLeave = manageCurrentPage * manageItemsPerPage;
   const indexOfFirstManageLeave = indexOfLastManageLeave - manageItemsPerPage;
-  const currentManageLeaves = allLeaves.slice(indexOfFirstManageLeave, indexOfLastManageLeave);
-  const totalManagePages = Math.ceil(allLeaves.length / manageItemsPerPage);
+  const currentManageLeaves = filteredManageLeaves.slice(indexOfFirstManageLeave, indexOfLastManageLeave);
+  const totalManagePages = Math.ceil(filteredManageLeaves.length / manageItemsPerPage);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -239,18 +255,7 @@ const Leave = () => {
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Leave Management</h1>
-        <button
-          type="button"
-          onClick={handleRefresh}
-          disabled={isRefreshing}
-          className="border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-xl flex items-center gap-2 text-sm font-semibold transition disabled:opacity-50"
-        >
-          <RotateCw className={`w-4 h-4 text-gray-500 ${isRefreshing ? 'animate-spin' : ''}`} />
-          {isRefreshing ? 'Refreshing...' : 'Refresh'}
-        </button>
-      </div>
+      <h1 className="text-3xl font-bold mb-8">Leave Management</h1>
 
       {/* ── Tabs (Admin/HR only) ─────────────────────────────────────────── */}
       {isAdminOrHR && (
@@ -457,7 +462,58 @@ const Leave = () => {
 
       {/* ── MANAGE LEAVE REQUESTS TAB (Admin/HR only) ───────────────────────── */}
       {isAdminOrHR && activeTab === 'manage' && (
-        <div className='bg-white rounded-2xl shadow overflow-hidden'>
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white rounded-2xl shadow p-6 gap-4">
+            <div>
+              <h2 className="text-xl font-bold text-gray-800">Leave Requests</h2>
+              <p className="text-gray-500 text-sm mt-1">Review and manage leave requests</p>
+            </div>
+            
+            <div className="flex items-center gap-4 w-full sm:w-auto flex-wrap">
+              <input
+                type="date"
+                value={manageFilterDate}
+                onChange={(e) => {
+                  setManageFilterDate(e.target.value);
+                  setManageCurrentPage(1);
+                }}
+                className="px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-sm"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setManageFilterDate(new Date().toISOString().split('T')[0]);
+                  setManageCurrentPage(1);
+                }}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold shadow-sm transition"
+              >
+                Today
+              </button>
+              {manageFilterDate && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setManageFilterDate("");
+                    setManageCurrentPage(1);
+                  }}
+                  className="px-4 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-xl text-sm font-semibold transition"
+                >
+                  Show All
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="p-2 border border-gray-200 rounded-xl hover:bg-gray-50 bg-white transition flex items-center justify-center disabled:opacity-50"
+                title="Refresh data"
+              >
+                <RotateCw className={`w-4 h-4 text-gray-500 ${isRefreshing ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
+          </div>
+
+          <div className='bg-white rounded-2xl shadow overflow-hidden'>
           <div className='overflow-x-auto'>
             <table className='w-full'>
               <thead className='bg-gray-50 border-b'>
@@ -477,7 +533,7 @@ const Leave = () => {
               </thead>
               <tbody>
                 {currentManageLeaves.length === 0 ? (
-                  <tr><td colSpan="11" className="text-center py-8 text-gray-500">No leave requests found.</td></tr>
+                  <tr><td colSpan="11" className="text-center py-8 text-gray-500">{manageFilterDate ? "No leave requests found for this date." : "No leave requests found."}</td></tr>
                 ) : (
                   currentManageLeaves.map((leave) => {
                     const empName = leave.employee
@@ -564,8 +620,8 @@ const Leave = () => {
             <div className="flex justify-between items-center px-6 py-4 bg-gray-50 border-t border-gray-100">
               <div className="text-sm text-gray-500">
                 Showing <span className="font-semibold">{indexOfFirstManageLeave + 1}</span>–
-                <span className="font-semibold">{Math.min(indexOfLastManageLeave, allLeaves.length)}</span> of{" "}
-                <span className="font-semibold">{allLeaves.length}</span>
+                <span className="font-semibold">{Math.min(indexOfLastManageLeave, filteredManageLeaves.length)}</span> of{" "}
+                <span className="font-semibold">{filteredManageLeaves.length}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <button
@@ -599,7 +655,8 @@ const Leave = () => {
             </div>
           )}
         </div>
-      )}
+      </div>
+    )}
 
       {/* ── APPLY NEW LEAVE MODAL ─────────────────────────────────────────── */}
       {isModalOpen && (
