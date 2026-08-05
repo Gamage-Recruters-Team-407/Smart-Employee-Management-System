@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import API from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { ChevronLeft, ChevronRight, RotateCw } from 'lucide-react';
 
 const Leave = () => {
   const { user } = useAuth();
@@ -11,6 +12,11 @@ const Leave = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [leaves, setLeaves] = useState([]);
   const [allLeaves, setAllLeaves] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+  const [manageCurrentPage, setManageCurrentPage] = useState(1);
+  const manageItemsPerPage = 6;
+  const [manageFilterDate, setManageFilterDate] = useState("");
   const [formData, setFormData] = useState({
     leaveType: '',
     startDate: '',
@@ -30,6 +36,7 @@ const Leave = () => {
   // ── Approve/Reject/Revert confirmation popup state ────────────────────────
   const [confirmAction, setConfirmAction] = useState(null); // { id, status, employeeName }
   const [actionLoading, setActionLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     fetchLeaves();
@@ -209,6 +216,43 @@ const Leave = () => {
     }
   };
 
+  const indexOfLastLeave = currentPage * itemsPerPage;
+  const indexOfFirstLeave = indexOfLastLeave - itemsPerPage;
+  const currentLeaves = leaves.slice(indexOfFirstLeave, indexOfLastLeave);
+  const totalPages = Math.ceil(leaves.length / itemsPerPage);
+
+  const filteredManageLeaves = allLeaves.filter(leave => {
+    if (!manageFilterDate) return true;
+    
+    const target = new Date(manageFilterDate);
+    target.setHours(0, 0, 0, 0);
+    
+    const start = new Date(leave.startDate);
+    start.setHours(0, 0, 0, 0);
+    
+    const end = new Date(leave.endDate);
+    end.setHours(0, 0, 0, 0);
+    
+    return target >= start && target <= end;
+  });
+
+  const indexOfLastManageLeave = manageCurrentPage * manageItemsPerPage;
+  const indexOfFirstManageLeave = indexOfLastManageLeave - manageItemsPerPage;
+  const currentManageLeaves = filteredManageLeaves.slice(indexOfFirstManageLeave, indexOfLastManageLeave);
+  const totalManagePages = Math.ceil(filteredManageLeaves.length / manageItemsPerPage);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await fetchLeaves();
+      if (isAdminOrHR) await fetchAllLeaves();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   return (
     <div className="p-8 max-w-7xl mx-auto">
       <h1 className="text-3xl font-bold mb-8">Leave Management</h1>
@@ -273,7 +317,7 @@ const Leave = () => {
                             <div>
                               <span className="text-xs font-semibold text-indigo-600 uppercase tracking-wider bg-indigo-50 px-2 py-0.5 rounded-md">
                                 {leave.leaveType}
-                                {leave.leaveCategory === 'Half Day' && ' (Half)'}
+                                {leave.leaveCategory === 'Half Day' && ' (Half Day)'}
                                 {leave.leaveCategory === 'Short Leave' && ' (Short)'}
                               </span>
                             </div>
@@ -313,33 +357,43 @@ const Leave = () => {
                     <th className="px-6 py-4 text-left">Leave Type</th>
                     <th className="px-6 py-4 text-left">Start Date</th>
                     <th className="px-6 py-4 text-left">End Date</th>
+                    <th className="px-6 py-4 text-center">Days</th>
                     <th className="px-6 py-4 text-center">Duration</th>
-                    <th className="px-6 py-4 text-left">Reason</th>
+                    <th className="px-6 py-4 text-left min-w-[240px]">Reason</th>
                     <th className="px-6 py-4 text-center">Status</th>
                     <th className="px-6 py-4 text-center">Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {leaves.length === 0 ? (
-                    <tr><td colSpan="7" className="text-center py-8 text-gray-500">No leave requests found.</td></tr>
+                  {currentLeaves.length === 0 ? (
+                    <tr><td colSpan="8" className="text-center py-8 text-gray-500">No leave requests found.</td></tr>
                   ) : (
-                    leaves.map((leave) => (
+                    currentLeaves.map((leave) => (
                       <tr key={leave._id} className="border-b hover:bg-gray-50">
                         <td className="px-6 py-4 font-medium">
                           {leave.leaveType}
-                          {leave.leaveCategory === 'Half Day' && ` (Half - ${leave.halfDaySession || 'Morning'})`}
+                          {leave.leaveCategory === 'Half Day' && ' (Half Day)'}
                           {leave.leaveCategory === 'Short Leave' && ' (Short Leave)'}
                         </td>
                         <td className="px-6 py-4">{new Date(leave.startDate).toLocaleDateString()}</td>
-                        <td className="px-6 py-4">{new Date(leave.endDate).toLocaleDateString()}</td>
-                        <td className="px-6 py-4 text-center font-medium">
-                          {leave.leaveCategory === 'Short Leave'
-                            ? `${leave.totalHours || 0} hrs`
-                            : leave.leaveCategory === 'Half Day'
-                              ? '0.5 day'
-                              : `${leave.totalDays} ${leave.totalDays === 1 ? 'day' : 'days'}`}
+                        <td className="px-6 py-4">
+                          {leave.leaveCategory === 'Half Day' || leave.leaveCategory === 'Short Leave'
+                            ? '—'
+                            : new Date(leave.endDate).toLocaleDateString()}
                         </td>
-                        <td className="px-6 py-4">{leave.reason}</td>
+                        <td className="px-6 py-4 text-center font-medium">
+                          {leave.leaveCategory === 'Half Day' || leave.leaveCategory === 'Short Leave'
+                            ? '—'
+                            : leave.totalDays}
+                        </td>
+                        <td className="px-6 py-4 text-center font-medium">
+                          {leave.leaveCategory === 'Half Day'
+                            ? (leave.halfDaySession || 'Morning')
+                            : leave.leaveCategory === 'Short Leave'
+                              ? `${leave.startTime || ''} - ${leave.endTime || ''}`
+                              : 'Full Day'}
+                        </td>
+                        <td className="px-6 py-4 max-w-xs break-words min-w-[240px]">{leave.reason}</td>
                         <td className="px-6 py-4 text-center">
                           <span className={`px-2 py-1 rounded text-sm font-medium ${getStatusColor(leave.status)}`}>
                             {leave.status}
@@ -347,12 +401,14 @@ const Leave = () => {
                         </td>
                         <td className="px-6 py-4 text-center">
                           {leave.status === 'Pending' && (
-                            <button
-                              onClick={() => handleCancel(leave._id)}
-                              className="text-red-600 hover:underline text-sm"
-                            >
-                              Cancel
-                            </button>
+                            <div className="flex flex-col items-center">
+                              <button
+                                onClick={() => handleCancel(leave._id)}
+                                className="text-red-600 hover:underline text-sm"
+                              >
+                                Cancel
+                              </button>
+                            </div>
                           )}
                         </td>
                       </tr>
@@ -361,13 +417,103 @@ const Leave = () => {
                 </tbody>
               </table>
             </div>
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex justify-between items-center px-6 py-4 bg-gray-50 border-t border-gray-100">
+                <div className="text-sm text-gray-500">
+                  Showing <span className="font-semibold">{indexOfFirstLeave + 1}</span>–
+                  <span className="font-semibold">{Math.min(indexOfLastLeave, leaves.length)}</span> of{" "}
+                  <span className="font-semibold">{leaves.length}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    className="p-2 border border-gray-200 rounded-lg text-gray-400 hover:bg-gray-100 disabled:opacity-50 disabled:hover:bg-transparent"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((pg) => (
+                    <button
+                      key={pg}
+                      onClick={() => setCurrentPage(pg)}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition ${
+                        currentPage === pg
+                          ? 'bg-indigo-600 text-white'
+                          : 'text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      {pg}
+                    </button>
+                  ))}
+                  <button
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    className="p-2 border border-gray-200 rounded-lg text-gray-400 hover:bg-gray-100 disabled:opacity-50 disabled:hover:bg-transparent"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </>
       )}
 
       {/* ── MANAGE LEAVE REQUESTS TAB (Admin/HR only) ───────────────────────── */}
       {isAdminOrHR && activeTab === 'manage' && (
-        <div className='bg-white rounded-2xl shadow overflow-hidden'>
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white rounded-2xl shadow p-6 gap-4">
+            <div>
+              <h2 className="text-xl font-bold text-gray-800">Leave Requests</h2>
+              <p className="text-gray-500 text-sm mt-1">Review and manage leave requests</p>
+            </div>
+            
+            <div className="flex items-center gap-4 w-full sm:w-auto flex-wrap">
+              <input
+                type="date"
+                value={manageFilterDate}
+                onChange={(e) => {
+                  setManageFilterDate(e.target.value);
+                  setManageCurrentPage(1);
+                }}
+                className="px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-sm"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setManageFilterDate(new Date().toISOString().split('T')[0]);
+                  setManageCurrentPage(1);
+                }}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold shadow-sm transition"
+              >
+                Today
+              </button>
+              {manageFilterDate && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setManageFilterDate("");
+                    setManageCurrentPage(1);
+                  }}
+                  className="px-4 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-xl text-sm font-semibold transition"
+                >
+                  Show All
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="p-2 border border-gray-200 rounded-xl hover:bg-gray-50 bg-white transition flex items-center justify-center disabled:opacity-50"
+                title="Refresh data"
+              >
+                <RotateCw className={`w-4 h-4 text-gray-500 ${isRefreshing ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
+          </div>
+
+          <div className='bg-white rounded-2xl shadow overflow-hidden'>
           <div className='overflow-x-auto'>
             <table className='w-full'>
               <thead className='bg-gray-50 border-b'>
@@ -376,17 +522,20 @@ const Leave = () => {
                   <th className="px-6 py-4 text-left">Leave Type</th>
                   <th className="px-6 py-4 text-left">Start Date</th>
                   <th className="px-6 py-4 text-left">End Date</th>
+                  <th className="px-6 py-4 text-center">Days</th>
                   <th className="px-6 py-4 text-center">Duration</th>
-                  <th className="px-6 py-4 text-left">Reason</th>
+                  <th className="px-6 py-4 text-left min-w-[240px]">Reason</th>
+                  <th className="px-6 py-4 text-center">Applied Date</th>
+                  <th className="px-6 py-4 text-center">Applied Time</th>
                   <th className="px-6 py-4 text-center">Status</th>
                   <th className="px-6 py-4 text-center">Action</th>
                 </tr>
               </thead>
               <tbody>
-                {allLeaves.length === 0 ? (
-                  <tr><td colSpan="8" className="text-center py-8 text-gray-500">No leave requests found.</td></tr>
+                {currentManageLeaves.length === 0 ? (
+                  <tr><td colSpan="11" className="text-center py-8 text-gray-500">{manageFilterDate ? "No leave requests found for this date." : "No leave requests found."}</td></tr>
                 ) : (
-                  allLeaves.map((leave) => {
+                  currentManageLeaves.map((leave) => {
                     const empName = leave.employee
                       ? `${leave.employee.firstName || ''} ${leave.employee.lastName || ''}`.trim()
                       : '—';
@@ -395,19 +544,36 @@ const Leave = () => {
                         <td className="px-6 py-4 font-medium">{empName}</td>
                         <td className="px-6 py-4">
                           {leave.leaveType}
-                          {leave.leaveCategory === 'Half Day' && ` (Half - ${leave.halfDaySession || 'Morning'})`}
+                          {leave.leaveCategory === 'Half Day' && ' (Half Day)'}
                           {leave.leaveCategory === 'Short Leave' && ' (Short Leave)'}
                         </td>
                         <td className="px-6 py-4">{new Date(leave.startDate).toLocaleDateString()}</td>
-                        <td className="px-6 py-4">{new Date(leave.endDate).toLocaleDateString()}</td>
-                        <td className="px-6 py-4 text-center font-medium">
-                          {leave.leaveCategory === 'Short Leave'
-                            ? `${leave.totalHours || 0} hrs`
-                            : leave.leaveCategory === 'Half Day'
-                              ? '0.5 day'
-                              : `${leave.totalDays} ${leave.totalDays === 1 ? 'day' : 'days'}`}
+                        <td className="px-6 py-4">
+                          {leave.leaveCategory === 'Half Day' || leave.leaveCategory === 'Short Leave'
+                            ? '—'
+                            : new Date(leave.endDate).toLocaleDateString()}
                         </td>
-                        <td className="px-6 py-4">{leave.reason}</td>
+                        <td className="px-6 py-4 text-center font-medium">
+                          {leave.leaveCategory === 'Half Day' || leave.leaveCategory === 'Short Leave'
+                            ? '—'
+                            : leave.totalDays}
+                        </td>
+                        <td className="px-6 py-4 text-center font-medium">
+                          {leave.leaveCategory === 'Half Day'
+                            ? (leave.halfDaySession || 'Morning')
+                            : leave.leaveCategory === 'Short Leave'
+                              ? `${leave.startTime || ''} - ${leave.endTime || ''}`
+                              : 'Full Day'}
+                        </td>
+                        <td className="px-6 py-4 max-w-xs break-words min-w-[240px]">{leave.reason}</td>
+                        <td className="px-6 py-4 text-center">
+                          {leave.createdAt ? new Date(leave.createdAt).toLocaleDateString() : '—'}
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          {leave.createdAt
+                            ? new Date(leave.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                            : '—'}
+                        </td>
                         <td className="px-6 py-4 text-center">
                           <span className={`px-2 py-1 rounded text-sm font-medium ${getStatusColor(leave.status)}`}>
                             {leave.status}
@@ -415,7 +581,7 @@ const Leave = () => {
                         </td>
                         <td className="px-6 py-4 text-center">
                           {leave.status === 'Pending' ? (
-                            <div className="flex items-center justify-center gap-3">
+                            <div className="flex flex-col items-center justify-center gap-1.5">
                               <button
                                 onClick={() => openConfirm(leave, 'Approved')}
                                 className="text-green-600 hover:underline text-sm font-medium"
@@ -430,12 +596,14 @@ const Leave = () => {
                               </button>
                             </div>
                           ) : ['Approved', 'Rejected'].includes(leave.status) ? (
-                            <button
-                              onClick={() => openConfirm(leave, 'Reverted')}
-                              className="text-amber-600 hover:underline text-sm font-medium"
-                            >
-                              Cancel
-                            </button>
+                            <div className="flex flex-col items-center justify-center">
+                              <button
+                                onClick={() => openConfirm(leave, 'Reverted')}
+                                className="text-amber-600 hover:underline text-sm font-medium"
+                              >
+                                Cancel
+                              </button>
+                            </div>
                           ) : (
                             <span className="text-gray-400 text-sm">—</span>
                           )}
@@ -447,8 +615,48 @@ const Leave = () => {
               </tbody>
             </table>
           </div>
+          {/* Pagination Controls */}
+          {totalManagePages > 1 && (
+            <div className="flex justify-between items-center px-6 py-4 bg-gray-50 border-t border-gray-100">
+              <div className="text-sm text-gray-500">
+                Showing <span className="font-semibold">{indexOfFirstManageLeave + 1}</span>–
+                <span className="font-semibold">{Math.min(indexOfLastManageLeave, filteredManageLeaves.length)}</span> of{" "}
+                <span className="font-semibold">{filteredManageLeaves.length}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  disabled={manageCurrentPage === 1}
+                  onClick={() => setManageCurrentPage(prev => Math.max(prev - 1, 1))}
+                  className="p-2 border border-gray-200 rounded-lg text-gray-400 hover:bg-gray-100 disabled:opacity-50 disabled:hover:bg-transparent"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                {Array.from({ length: totalManagePages }, (_, i) => i + 1).map((pg) => (
+                  <button
+                    key={pg}
+                    onClick={() => setManageCurrentPage(pg)}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition ${
+                      manageCurrentPage === pg
+                        ? 'bg-indigo-600 text-white'
+                        : 'text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    {pg}
+                  </button>
+                ))}
+                <button
+                  disabled={manageCurrentPage === totalManagePages}
+                  onClick={() => setManageCurrentPage(prev => Math.min(prev + 1, totalManagePages))}
+                  className="p-2 border border-gray-200 rounded-lg text-gray-400 hover:bg-gray-100 disabled:opacity-50 disabled:hover:bg-transparent"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
-      )}
+      </div>
+    )}
 
       {/* ── APPLY NEW LEAVE MODAL ─────────────────────────────────────────── */}
       {isModalOpen && (
