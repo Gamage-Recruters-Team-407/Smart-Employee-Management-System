@@ -130,6 +130,12 @@ export const initWebSocket = (server) => {
             attendance.status = totalMinutes > lateThreshold ? "Late" : "Present";
           }
 
+          // If they had previously checked out today (e.g. accidentally), clear checkOutTime on re-login
+          if (attendance.checkOutTime) {
+            console.log(`🔄 Employee ${resolvedEmpId} re-logged in. Clearing previous checkOutTime (${attendance.checkOutTime}).`);
+            attendance.checkOutTime = null;
+          }
+
           // Preserve break status if they are currently on break, otherwise set to Online
           const isOnBreak = attendance.breakType && attendance.onlineStatus !== "Online";
           if (!isOnBreak) {
