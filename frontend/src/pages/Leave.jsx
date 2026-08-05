@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import API from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, RotateCw } from 'lucide-react';
 
 const Leave = () => {
   const { user } = useAuth();
@@ -14,6 +14,8 @@ const Leave = () => {
   const [allLeaves, setAllLeaves] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
+  const [manageCurrentPage, setManageCurrentPage] = useState(1);
+  const manageItemsPerPage = 6;
   const [formData, setFormData] = useState({
     leaveType: '',
     startDate: '',
@@ -33,6 +35,7 @@ const Leave = () => {
   // ── Approve/Reject/Revert confirmation popup state ────────────────────────
   const [confirmAction, setConfirmAction] = useState(null); // { id, status, employeeName }
   const [actionLoading, setActionLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     fetchLeaves();
@@ -217,9 +220,37 @@ const Leave = () => {
   const currentLeaves = leaves.slice(indexOfFirstLeave, indexOfLastLeave);
   const totalPages = Math.ceil(leaves.length / itemsPerPage);
 
+  const indexOfLastManageLeave = manageCurrentPage * manageItemsPerPage;
+  const indexOfFirstManageLeave = indexOfLastManageLeave - manageItemsPerPage;
+  const currentManageLeaves = allLeaves.slice(indexOfFirstManageLeave, indexOfLastManageLeave);
+  const totalManagePages = Math.ceil(allLeaves.length / manageItemsPerPage);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await fetchLeaves();
+      if (isAdminOrHR) await fetchAllLeaves();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   return (
     <div className="p-8 max-w-7xl mx-auto">
-      <h1 className="text-3xl font-bold mb-8">Leave Management</h1>
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold">Leave Management</h1>
+        <button
+          type="button"
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+          className="border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-xl flex items-center gap-2 text-sm font-semibold transition disabled:opacity-50"
+        >
+          <RotateCw className={`w-4 h-4 text-gray-500 ${isRefreshing ? 'animate-spin' : ''}`} />
+          {isRefreshing ? 'Refreshing...' : 'Refresh'}
+        </button>
+      </div>
 
       {/* ── Tabs (Admin/HR only) ─────────────────────────────────────────── */}
       {isAdminOrHR && (
@@ -435,17 +466,20 @@ const Leave = () => {
                   <th className="px-6 py-4 text-left">Leave Type</th>
                   <th className="px-6 py-4 text-left">Start Date</th>
                   <th className="px-6 py-4 text-left">End Date</th>
+                  <th className="px-6 py-4 text-center">Days</th>
                   <th className="px-6 py-4 text-center">Duration</th>
-                  <th className="px-6 py-4 text-left">Reason</th>
+                  <th className="px-6 py-4 text-left min-w-[240px]">Reason</th>
+                  <th className="px-6 py-4 text-center">Applied Date</th>
+                  <th className="px-6 py-4 text-center">Applied Time</th>
                   <th className="px-6 py-4 text-center">Status</th>
                   <th className="px-6 py-4 text-center">Action</th>
                 </tr>
               </thead>
               <tbody>
-                {allLeaves.length === 0 ? (
-                  <tr><td colSpan="8" className="text-center py-8 text-gray-500">No leave requests found.</td></tr>
+                {currentManageLeaves.length === 0 ? (
+                  <tr><td colSpan="11" className="text-center py-8 text-gray-500">No leave requests found.</td></tr>
                 ) : (
-                  allLeaves.map((leave) => {
+                  currentManageLeaves.map((leave) => {
                     const empName = leave.employee
                       ? `${leave.employee.firstName || ''} ${leave.employee.lastName || ''}`.trim()
                       : '—';
@@ -454,19 +488,36 @@ const Leave = () => {
                         <td className="px-6 py-4 font-medium">{empName}</td>
                         <td className="px-6 py-4">
                           {leave.leaveType}
-                          {leave.leaveCategory === 'Half Day' && ` (Half - ${leave.halfDaySession || 'Morning'})`}
+                          {leave.leaveCategory === 'Half Day' && ' (Half Day)'}
                           {leave.leaveCategory === 'Short Leave' && ' (Short Leave)'}
                         </td>
                         <td className="px-6 py-4">{new Date(leave.startDate).toLocaleDateString()}</td>
-                        <td className="px-6 py-4">{new Date(leave.endDate).toLocaleDateString()}</td>
-                        <td className="px-6 py-4 text-center font-medium">
-                          {leave.leaveCategory === 'Short Leave'
-                            ? `${leave.totalHours || 0} hrs`
-                            : leave.leaveCategory === 'Half Day'
-                              ? '0.5 day'
-                              : `${leave.totalDays} ${leave.totalDays === 1 ? 'day' : 'days'}`}
+                        <td className="px-6 py-4">
+                          {leave.leaveCategory === 'Half Day' || leave.leaveCategory === 'Short Leave'
+                            ? '—'
+                            : new Date(leave.endDate).toLocaleDateString()}
                         </td>
-                        <td className="px-6 py-4">{leave.reason}</td>
+                        <td className="px-6 py-4 text-center font-medium">
+                          {leave.leaveCategory === 'Half Day' || leave.leaveCategory === 'Short Leave'
+                            ? '—'
+                            : leave.totalDays}
+                        </td>
+                        <td className="px-6 py-4 text-center font-medium">
+                          {leave.leaveCategory === 'Half Day'
+                            ? (leave.halfDaySession || 'Morning')
+                            : leave.leaveCategory === 'Short Leave'
+                              ? `${leave.startTime || ''} - ${leave.endTime || ''}`
+                              : 'Full Day'}
+                        </td>
+                        <td className="px-6 py-4 max-w-xs break-words min-w-[240px]">{leave.reason}</td>
+                        <td className="px-6 py-4 text-center">
+                          {leave.createdAt ? new Date(leave.createdAt).toLocaleDateString() : '—'}
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          {leave.createdAt
+                            ? new Date(leave.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                            : '—'}
+                        </td>
                         <td className="px-6 py-4 text-center">
                           <span className={`px-2 py-1 rounded text-sm font-medium ${getStatusColor(leave.status)}`}>
                             {leave.status}
@@ -474,7 +525,7 @@ const Leave = () => {
                         </td>
                         <td className="px-6 py-4 text-center">
                           {leave.status === 'Pending' ? (
-                            <div className="flex items-center justify-center gap-3">
+                            <div className="flex flex-col items-center justify-center gap-1.5">
                               <button
                                 onClick={() => openConfirm(leave, 'Approved')}
                                 className="text-green-600 hover:underline text-sm font-medium"
@@ -489,12 +540,14 @@ const Leave = () => {
                               </button>
                             </div>
                           ) : ['Approved', 'Rejected'].includes(leave.status) ? (
-                            <button
-                              onClick={() => openConfirm(leave, 'Reverted')}
-                              className="text-amber-600 hover:underline text-sm font-medium"
-                            >
-                              Cancel
-                            </button>
+                            <div className="flex flex-col items-center justify-center">
+                              <button
+                                onClick={() => openConfirm(leave, 'Reverted')}
+                                className="text-amber-600 hover:underline text-sm font-medium"
+                              >
+                                Cancel
+                              </button>
+                            </div>
                           ) : (
                             <span className="text-gray-400 text-sm">—</span>
                           )}
@@ -506,6 +559,45 @@ const Leave = () => {
               </tbody>
             </table>
           </div>
+          {/* Pagination Controls */}
+          {totalManagePages > 1 && (
+            <div className="flex justify-between items-center px-6 py-4 bg-gray-50 border-t border-gray-100">
+              <div className="text-sm text-gray-500">
+                Showing <span className="font-semibold">{indexOfFirstManageLeave + 1}</span>–
+                <span className="font-semibold">{Math.min(indexOfLastManageLeave, allLeaves.length)}</span> of{" "}
+                <span className="font-semibold">{allLeaves.length}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  disabled={manageCurrentPage === 1}
+                  onClick={() => setManageCurrentPage(prev => Math.max(prev - 1, 1))}
+                  className="p-2 border border-gray-200 rounded-lg text-gray-400 hover:bg-gray-100 disabled:opacity-50 disabled:hover:bg-transparent"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                {Array.from({ length: totalManagePages }, (_, i) => i + 1).map((pg) => (
+                  <button
+                    key={pg}
+                    onClick={() => setManageCurrentPage(pg)}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition ${
+                      manageCurrentPage === pg
+                        ? 'bg-indigo-600 text-white'
+                        : 'text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    {pg}
+                  </button>
+                ))}
+                <button
+                  disabled={manageCurrentPage === totalManagePages}
+                  onClick={() => setManageCurrentPage(prev => Math.min(prev + 1, totalManagePages))}
+                  className="p-2 border border-gray-200 rounded-lg text-gray-400 hover:bg-gray-100 disabled:opacity-50 disabled:hover:bg-transparent"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
