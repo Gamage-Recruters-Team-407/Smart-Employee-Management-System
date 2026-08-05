@@ -32,6 +32,7 @@ const getZonedDateString = (date = new Date()) => {
 };
 
 let ioInstance = null;
+const pendingDisconnects = new Map();
 
 export const initWebSocket = (server) => {
   const isVercel = !!process.env.VERCEL;
@@ -91,6 +92,13 @@ export const initWebSocket = (server) => {
         }
 
         const resolvedEmpId = employee.employeeId || employeeId;
+
+        // Cancel any pending disconnect timer for this employee
+        if (pendingDisconnects.has(resolvedEmpId)) {
+          console.log(`⏱️ Cleared pending offline disconnect timer for employee ${resolvedEmpId}`);
+          clearTimeout(pendingDisconnects.get(resolvedEmpId));
+          pendingDisconnects.delete(resolvedEmpId);
+        }
 
         const now = new Date();
         const today = getZonedDateString(now);
@@ -196,34 +204,43 @@ export const initWebSocket = (server) => {
       }
     });
 
-    // Native disconnect event triggers instantly when the tab is closed or connection drops
+    // Native disconnect event triggers when the tab is closed or connection drops
     socket.on("disconnect", async () => {
-      console.log(`Client disconnected: ${socket.id}`);
+      console.log(`Client disconnected: ${socket.id} for employee: ${currentEmployeeId}`);
 
-      if (currentAttendanceId) {
-        try {
-          const now = new Date();
-          const timeString = formatTime(now);
+      const attId = currentAttendanceId;
+      const empId = currentEmployeeId;
 
-          // Update activity status and online status on disconnect
-          const updated = await Attendance.findByIdAndUpdate(currentAttendanceId, {
-            $set: {
-              activityStatus: false,
-              onlineStatus: "Offline"
-            }
-          }, { returnDocument: 'after' });
-
-          console.log(`Employee ${currentEmployeeId} socket disconnected. Marked Offline.`);
-
-          // Broadcast to admin room
-          io.to("admin").emit("attendance-update", {
-            employeeId: currentEmployeeId,
-            onlineStatus: "Offline",
-            checkOutTime: timeString
-          });
-        } catch (error) {
-          console.error("Error updating offline status:", error);
+      if (attId && empId) {
+        // Clear any previous pending disconnect for this employee
+        if (pendingDisconnects.has(empId)) {
+          clearTimeout(pendingDisconnects.get(empId));
         }
+
+        // Set a 60-second grace period before marking offline to handle tab switches and brief drops
+        const timer = setTimeout(async () => {
+          pendingDisconnects.delete(empId);
+          try {
+            const updated = await Attendance.findByIdAndUpdate(attId, {
+              $set: {
+                activityStatus: false,
+                onlineStatus: "Offline"
+              }
+            }, { returnDocument: 'after' });
+
+            console.log(`🛑 Employee ${empId} disconnect grace period expired. Marked Offline.`);
+
+            // Broadcast to admin room
+            io.to("admin").emit("attendance-update", {
+              employeeId: empId,
+              onlineStatus: "Offline"
+            });
+          } catch (error) {
+            console.error("Error updating offline status after grace period:", error);
+          }
+        }, 60000); // 60 seconds grace period
+
+        pendingDisconnects.set(empId, timer);
       }
     });
   });

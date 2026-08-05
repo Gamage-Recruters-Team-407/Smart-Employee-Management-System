@@ -6,7 +6,7 @@ import { useSocket } from "../../context/SocketContext";
 import { useEmployeeProfile } from "../../hooks/useEmployeeProfile";
 import {
   User, Briefcase, Award, Clock, Coffee, Utensils,
-  Moon, Wifi, WifiOff, CalendarX
+  Moon, Wifi, WifiOff, CalendarX, Loader2
 } from "lucide-react";
 import DashboardStats from "./DashboardStats";
 import RecentActivity from "./RecentActivity";
@@ -22,7 +22,7 @@ const displayValue = (loading, value) => {
 
 const DashboardHome = () => {
   const { user } = useAuth();
-  const { breakStatus, fetchBreakStatus } = useSocket();
+  const { breakStatus, fetchBreakStatus, statusLoading, onlineStatus } = useSocket();
   const { employee, loading, error, displayName } = useEmployeeProfile({
     enabled: user?.role === "Employee",
   });
@@ -82,6 +82,8 @@ const DashboardHome = () => {
 
   // ─── GET ONLINE STATUS DISPLAY ──────────────────────────────────────────
   const getOnlineStatusDisplay = () => {
+    // ── Loading: API call in progress ────────────────────────────────────
+    if (statusLoading) return 'Checking';
     // ── Leave override 1: /leaves/my-leaves API check ────────────────────
     if (isOnLeaveToday) return 'On Leave';
     // ── Leave override 2: employee.status DB field ─────────────────────
@@ -93,10 +95,12 @@ const DashboardHome = () => {
     if (breakStatus?.onlineStatus) {
       return breakStatus.onlineStatus;
     }
-    return "Online";
+    // Use the real-time socket status (defaults to "Offline" until check-in)
+    return onlineStatus || 'Offline';
   };
 
   const getStatusColor = (status) => {
+    if (status === 'Checking') return 'text-indigo-400';
     if (status === 'Online') return 'text-emerald-600';
     if (status === 'On Leave') return 'text-amber-600';
     if (status === 'Breakfast') return 'text-amber-600';
@@ -106,6 +110,7 @@ const DashboardHome = () => {
   };
 
   const getStatusIcon = (status) => {
+    if (status === 'Checking') return <Loader2 size={16} className="text-indigo-400 animate-spin" />;
     if (status === 'Online') return <Wifi size={16} className="text-emerald-500" />;
     if (status === 'Offline') return <WifiOff size={16} className="text-gray-400" />;
     if (status === 'On Leave') return <CalendarX size={16} className="text-amber-500" />;
