@@ -292,6 +292,7 @@ export const getEmployeeById = async (req, res) => {
     const activeLeave = await Leave.findOne({
       employee: employee._id,
       status: "Approved",
+      leaveCategory: { $ne: "Short Leave" },
       startDate: { $lte: todayEnd },
       endDate: { $gte: today },
     });
@@ -746,6 +747,7 @@ export const getMyProfile = async (req, res) => {
     const activeLeave = await Leave.findOne({
       employee: employee._id,
       status: "Approved",
+      leaveCategory: { $ne: "Short Leave" },
       startDate: { $lte: todayEnd },
       endDate: { $gte: today },
     });

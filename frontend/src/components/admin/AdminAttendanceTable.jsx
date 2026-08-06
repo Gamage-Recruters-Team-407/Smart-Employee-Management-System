@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { RefreshCw, Wifi, WifiOff, Coffee, Utensils, Moon, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { RefreshCw, Wifi, WifiOff, Coffee, Utensils, Moon, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Loader2 } from "lucide-react";
 import API from "../../services/api";
 import { io } from "socket.io-client";
 import { getSocketConfig } from "../../utils/socketConfig";
@@ -132,7 +132,14 @@ const AdminAttendanceTable = () => {
   const isOnAnyBreak = (r) => isOnBreakfast(r) || isOnLunch(r) || isOnTea(r);
 
   // ─── GET STATUS BADGE ─────────────────────────────────────────────────────
-  const getStatusBadge = (status, onlineStatus, breakType) => {
+  const getStatusBadge = (status, onlineStatus, breakType, isChecking = false) => {
+    if (isChecking) {
+      return {
+        label: 'Checking...',
+        className: 'bg-indigo-50 text-indigo-500 border border-indigo-200',
+        icon: <Loader2 size={12} className="text-indigo-400 animate-spin" />
+      };
+    }
     if (breakType || ['Breakfast', 'Lunch', 'Tea Time', 'Tea'].includes(onlineStatus)) {
       return {
         label: 'Offline',
@@ -383,7 +390,8 @@ const AdminAttendanceTable = () => {
                 const statusBadge = getStatusBadge(
                   record.status,
                   record.onlineStatus,
-                  record.breakType
+                  record.breakType,
+                  loading  // show Checking... while fetching
                 );
                 const attendanceStatusColor = getAttendanceStatusColor(record.status);
                 const breakLabel = getBreakLabel(record.breakType, record.onlineStatus);

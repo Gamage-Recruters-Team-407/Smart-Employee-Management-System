@@ -146,6 +146,20 @@ const getCurrentTimeString = () => {
   });
 };
 
+// ─── COMPUTE ONLINE STATUS FROM DB RECORD ────────────────────────────────
+// Logic: If checked in and NOT checked out → Online (or Break).
+// This is the single source of truth so that background tab sleep,
+// socket drops, and health-check pings never cause false "Offline" readings.
+const computeOnlineStatus = (record) => {
+  if (!record?.checkInTime) return 'Offline';
+  if (record?.checkOutTime) return 'Offline';
+  // On break?
+  if (record.breakType === 'breakfast' || record.onlineStatus === 'Breakfast') return 'Breakfast';
+  if (record.breakType === 'lunch'     || record.onlineStatus === 'Lunch')     return 'Lunch';
+  if (record.breakType === 'tea'       || record.onlineStatus === 'Tea Time'  || record.onlineStatus === 'Tea') return 'Tea Time';
+  return 'Online';
+};
+
 // ─── GET TODAY'S ATTENDANCE ──────────────────────────────────────────────
 export const getTodayAttendance = async (req, res) => {
   try {
@@ -173,6 +187,9 @@ export const getTodayAttendance = async (req, res) => {
         }
       });
     }
+
+    // Always compute onlineStatus from DB fields so socket drops don't matter
+    attendance.onlineStatus = computeOnlineStatus(attendance);
 
     res.status(200).json({
       success: true,
@@ -858,6 +875,10 @@ export const getAdminSummary = async (req, res) => {
         return attEmpId === emp._id.toString();
       });
 
+      // Compute onlineStatus purely from DB fields (checkIn / checkOut / breakType).
+      // This means socket disconnects and background tab sleep never cause false Offline.
+      const derivedOnlineStatus = computeOnlineStatus(record || {});
+
       return {
         _id: record?._id || `att_${emp._id}`,
         employeeId: emp.employeeId,
@@ -870,7 +891,7 @@ export const getAdminSummary = async (req, res) => {
         status: record?.status || 'Absent',
         checkInTime: record?.checkInTime || null,
         checkOutTime: record?.checkOutTime || null,
-        onlineStatus: record?.onlineStatus || 'Offline',
+        onlineStatus: derivedOnlineStatus,
         breakType: record?.breakType || null,
         isOnLeave: record?.isOnLeave || false,
         leaveType: record?.leaveType || null,

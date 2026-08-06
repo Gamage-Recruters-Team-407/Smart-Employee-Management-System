@@ -3,11 +3,12 @@ import { io } from "socket.io-client";
 import { useAuth } from "./AuthContext";
 import { getSocketConfig } from "../utils/socketConfig";
 import { setWorkerInterval, clearWorkerInterval } from "../utils/socketWorkerTimer";
+import { startTabKeepAlive, stopTabKeepAlive } from "../utils/tabKeepAlive";
 import API from "../services/api";
 
 const SocketContext = createContext(null);
 
-const HEALTH_CHECK_INTERVAL_MS = 30_000;
+const HEALTH_CHECK_INTERVAL_MS = 10_000;
 
 export const SocketProvider = ({ children }) => {
   const { user } = useAuth();
@@ -17,10 +18,12 @@ export const SocketProvider = ({ children }) => {
   const [wsConnected, setWsConnected] = useState(false);
   const [onlineStatus, setOnlineStatus] = useState("Offline");
   const [breakStatus, setBreakStatus] = useState(null);
+  const [statusLoading, setStatusLoading] = useState(false);
 
   // Helper to fetch current break status from API
   const fetchBreakStatus = useCallback(async () => {
     if (!user || user.role !== "Employee") return;
+    setStatusLoading(true);
     try {
       const response = await API.get("/attendance/break/status");
       const data = response.data?.data || response.data || {};
@@ -30,6 +33,8 @@ export const SocketProvider = ({ children }) => {
       }
     } catch (err) {
       console.error("Failed to fetch break status:", err);
+    } finally {
+      setStatusLoading(false);
     }
   }, [user]);
 
@@ -37,6 +42,7 @@ export const SocketProvider = ({ children }) => {
   useEffect(() => {
     // Only connect if user is logged in
     if (!user) {
+      stopTabKeepAlive();
       if (socketRef.current) {
         console.log("🔌 User logged out. Disconnecting global socket...");
         if (healthCheckIdRef.current !== null) {
@@ -51,6 +57,9 @@ export const SocketProvider = ({ children }) => {
       }
       return;
     }
+
+    // Start background tab keep-alive (Web Audio API)
+    startTabKeepAlive();
 
     const targetEmployeeId = user.employeeId || user.employee?.employeeId || null;
     const targetUserId = user.id || user._id || null;
@@ -188,6 +197,7 @@ export const SocketProvider = ({ children }) => {
         breakStatus,
         setBreakStatus,
         fetchBreakStatus,
+        statusLoading,
       }}
     >
       {children}

@@ -328,7 +328,16 @@ export const generateLeavePDF = async ({
 }) => {
   const tableRows = records.map((record) => ({
     employee: getEmployeeLabel(record.employee),
-    leaveType: record.leaveType || "—",
+    leaveType: (() => {
+      const type = record.leaveType || "—";
+      if (record.leaveCategory === "Half Day") {
+        return `${type} (Half - ${record.halfDaySession || "Morning"})`;
+      }
+      if (record.leaveCategory === "Short Leave") {
+        return `${type} (Short: ${record.startTime || ""} - ${record.endTime || ""})`;
+      }
+      return type;
+    })(),
     startDate: formatDate(record.startDate),
     endDate: formatDate(record.endDate),
     status: record.status || "—",

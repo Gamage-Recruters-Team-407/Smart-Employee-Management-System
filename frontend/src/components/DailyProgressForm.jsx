@@ -184,6 +184,30 @@ const DailyProgressForm = () => {
     setErrors((prev) => { const n = { ...prev }; delete n[field]; return n; });
   };
 
+  const handleDateChange = async (newDate) => {
+    setField("date", newDate);
+    setLoading(true);
+    try {
+      const res = await API.get(`/daily-reports/my?date=${newDate}`);
+      const data = res?.data ?? res;
+      setExisting(data);
+      setEditMode(false);
+    } catch (err) {
+      if (err?.response?.status === 404 || err?.status === 404) {
+        setExisting(null);
+        setEditMode(true);
+        // Reset the form fields, but keep the newDate and current position selection
+        setForm({
+          ...emptyForm(),
+          date: newDate,
+          teamPosition: form.teamPosition,
+        });
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // ── Task row helpers ───────────────────────────────────────────────────────
   const addTaskRow = () =>
     setForm((prev) => ({ ...prev, tasks: [...prev.tasks, emptyTask()] }));
@@ -340,8 +364,9 @@ const DailyProgressForm = () => {
           <input
             type="date"
             value={form.date}
-            disabled
-            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 bg-gray-50 text-gray-500 text-sm"
+            onChange={(e) => handleDateChange(e.target.value)}
+            max={todayStr()}
+            className={`${inputCls()} bg-white`}
           />
         </Field>
         <Field label="Full Name">
