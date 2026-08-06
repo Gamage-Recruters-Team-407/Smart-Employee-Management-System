@@ -16,7 +16,8 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
-  ChevronsRight
+  ChevronsRight,
+  Loader2
 } from "lucide-react";
 
 const Attendance = () => {
@@ -138,7 +139,14 @@ const Attendance = () => {
   };
 
   // ─── ONLINE STATUS BADGE ──────────────────────────────────────────────────
-  const getOnlineStatusBadge = (onlineStatus, breakType) => {
+  const getOnlineStatusBadge = (onlineStatus, breakType, isLoading = false) => {
+    if (isLoading) {
+      return {
+        label: 'Checking...',
+        icon: <Loader2 size={14} className="text-indigo-400 animate-spin" />,
+        className: 'bg-indigo-50 text-indigo-500 border border-indigo-200'
+      };
+    }
     if (breakType || ['Breakfast', 'Lunch', 'Tea Time', 'Tea'].includes(onlineStatus)) {
       return {
         label: 'Offline',
@@ -331,7 +339,7 @@ const Attendance = () => {
                       const empStatus = record?.status || "Not Marked";
                       const onlineStatus = record?.onlineStatus || "Offline";
                       const breakType = record?.breakType || null;
-                      const statusBadge = getOnlineStatusBadge(onlineStatus, breakType);
+                      const statusBadge = getOnlineStatusBadge(onlineStatus, breakType, adminLoading);
                       const breakLabel = getBreakLabel(breakType, onlineStatus);
                       
                       return (
