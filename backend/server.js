@@ -17,8 +17,6 @@ import reportRoutes from "./routes/reportRoutes.js";
 import payrollRoutes from "./routes/payrollRoutes.js";
 import leaveRoutes from "./routes/leaveRoutes.js";
 import performanceRoutes from "./routes/performanceRoutes.js";
-import { seedDefaultUser } from "./utils/seedDefaultUser.js";
-import { seedSamplePayroll } from "./utils/seedSamplePayroll.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
 import http from "http";
 import { initWebSocket } from "./services/websocketService.js";
@@ -107,8 +105,6 @@ const startServer = async () => {
 
   try {
     await connectDB();
-    await seedDefaultUser();
-    await seedSamplePayroll();
 
     const server = http.createServer(app);
     initWebSocket(server);
