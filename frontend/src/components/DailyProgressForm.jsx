@@ -210,12 +210,6 @@ const DailyProgressForm = () => {
     }
   };
 
-  const handleSelectDateForEdit = (targetDate) => {
-    setActiveTab("form");
-    setCollapsed(false);
-    handleDateChange(targetDate);
-  };
-
   // ── Task row helpers ───────────────────────────────────────────────────────
   const addTaskRow = () =>
     setForm((prev) => ({ ...prev, tasks: [...prev.tasks, emptyTask()] }));
@@ -729,7 +723,7 @@ const DailyProgressForm = () => {
           </div>
 
           {activeTab === "history" ? (
-            <MyDailyReportsHistory onSelectDateForEdit={handleSelectDateForEdit} />
+            <MyDailyReportsHistory />
           ) : loading ? (
             <p className="text-sm text-gray-400 py-4 text-center">Loading report…</p>
           ) : existing && !editMode ? (

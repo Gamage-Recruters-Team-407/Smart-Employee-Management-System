@@ -16,7 +16,7 @@ import {
   Filter,
 } from "lucide-react";
 
-const MyDailyReportsHistory = ({ onSelectDateForEdit }) => {
+const MyDailyReportsHistory = () => {
   const [reports, setReports] = useState([]);
   const [stats, setStats] = useState({
     totalReports: 0,
@@ -282,7 +282,7 @@ const MyDailyReportsHistory = ({ onSelectDateForEdit }) => {
                 </div>
 
                 {/* Tasks Summary */}
-                <div className="space-y-1.5 mb-4">
+                <div className="space-y-1.5">
                   <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
                     Tasks ({report.tasks?.length || 0})
                   </p>
@@ -312,39 +312,16 @@ const MyDailyReportsHistory = ({ onSelectDateForEdit }) => {
                     <p className="text-xs text-gray-400 italic">No task items detailed.</p>
                   )}
                 </div>
-
-                {/* Indicators */}
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {report.challengesIssues && (
-                    <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200">
-                      <AlertCircle size={12} /> Roadblock noted
-                    </span>
-                  )}
-                  {report.plannedTasksTomorrow && (
-                    <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200">
-                      <Briefcase size={12} /> Tomorrow planned
-                    </span>
-                  )}
-                </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex items-center gap-2 pt-2 border-t border-gray-50">
+              {/* Action Button */}
+              <div className="flex items-center gap-2 pt-4 border-t border-gray-50 mt-4">
                 <button
                   onClick={() => openModal(report)}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2 border border-indigo-100 hover:bg-indigo-50 text-indigo-600 text-xs font-semibold rounded-xl transition"
+                  className="w-full flex items-center justify-center gap-1.5 py-2 border border-indigo-100 hover:bg-indigo-50 text-indigo-600 text-xs font-semibold rounded-xl transition"
                 >
                   <FileText size={14} /> Full Details
                 </button>
-                {onSelectDateForEdit && (
-                  <button
-                    onClick={() => onSelectDateForEdit(report.date)}
-                    className="flex items-center justify-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl transition"
-                    title="Load & Edit Report for this date"
-                  >
-                    <Edit3 size={14} /> Edit Report
-                  </button>
-                )}
               </div>
             </div>
           ))}
@@ -460,19 +437,7 @@ const MyDailyReportsHistory = ({ onSelectDateForEdit }) => {
             </div>
 
             {/* Footer */}
-            <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
-              {onSelectDateForEdit ? (
-                <button
-                  onClick={() => {
-                    const dateToEdit = selectedReport.date;
-                    closeModal();
-                    onSelectDateForEdit(dateToEdit);
-                  }}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-xl transition flex items-center gap-1.5"
-                >
-                  <Edit3 size={14} /> Edit This Report
-                </button>
-              ) : <div />}
+            <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end items-center">
               <button
                 onClick={closeModal}
                 className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold text-xs rounded-xl transition"
