@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import API from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { ChevronLeft, ChevronRight, RotateCw } from 'lucide-react';
+import { ChevronLeft, ChevronRight, RotateCw, Trash2 } from 'lucide-react';
 
 const Leave = () => {
   const { user } = useAuth();
@@ -17,6 +17,7 @@ const Leave = () => {
   const [manageCurrentPage, setManageCurrentPage] = useState(1);
   const manageItemsPerPage = 6;
   const [manageFilterDate, setManageFilterDate] = useState("");
+  const [successMessage, setSuccessMessage] = useState('');
   const [formData, setFormData] = useState({
     leaveType: '',
     startDate: '',
@@ -138,7 +139,7 @@ const Leave = () => {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
-      alert('Leave application submitted successfully!');
+      setSuccessMessage('Leave application submitted successfully!');
       fetchLeaves();
       closeModal();
     } catch (err) {
@@ -148,14 +149,7 @@ const Leave = () => {
     }
   };
 
-  const handleCancel = async (id) => {
-    try {
-      await API.put(`/leaves/cancel/${id}`, {});
-      fetchLeaves();
-    } catch (err) {
-      console.error(err);
-    }
-  };
+
 
   // ── Approve / Reject / Revert ──────────────────────────────────────────────
   const openConfirm = (leave, status) => {
@@ -174,16 +168,21 @@ const Leave = () => {
     if (!confirmAction) return;
     setActionLoading(true);
     try {
-      if (confirmAction.status === 'Reverted') {
+      if (confirmAction.status === 'Deleted') {
+        await API.delete(`/leaves/${confirmAction.id}`);
+      } else if (confirmAction.status === 'Cancelled') {
+        await API.put(`/leaves/cancel/${confirmAction.id}`, {});
+      } else if (confirmAction.status === 'Reverted') {
         await API.put(`/leaves/revert/${confirmAction.id}`, {});
       } else {
         await API.put(`/leaves/status/${confirmAction.id}`, { status: confirmAction.status });
       }
       await fetchAllLeaves();
+      await fetchLeaves();
       closeConfirm();
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.message || 'Failed to update leave status.');
+      alert(err.response?.data?.message || 'Failed to perform action.');
     } finally {
       setActionLoading(false);
     }
@@ -403,7 +402,7 @@ const Leave = () => {
                           {leave.status === 'Pending' && (
                             <div className="flex flex-col items-center">
                               <button
-                                onClick={() => handleCancel(leave._id)}
+                                onClick={() => openConfirm(leave, 'Cancelled')}
                                 className="text-red-600 hover:underline text-sm"
                               >
                                 Cancel
@@ -594,18 +593,40 @@ const Leave = () => {
                               >
                                 Reject
                               </button>
+                              <button
+                                onClick={() => openConfirm(leave, 'Deleted')}
+                                className="mt-1 p-1 hover:bg-red-50 rounded text-red-500 hover:text-red-700 transition"
+                                title="Delete Leave Request"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
                             </div>
                           ) : ['Approved', 'Rejected'].includes(leave.status) ? (
-                            <div className="flex flex-col items-center justify-center">
+                            <div className="flex flex-col items-center justify-center gap-1.5">
                               <button
                                 onClick={() => openConfirm(leave, 'Reverted')}
                                 className="text-amber-600 hover:underline text-sm font-medium"
                               >
                                 Cancel
                               </button>
+                              <button
+                                onClick={() => openConfirm(leave, 'Deleted')}
+                                className="p-1 hover:bg-red-50 rounded text-red-500 hover:text-red-700 transition"
+                                title="Delete Leave Request"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
                             </div>
                           ) : (
-                            <span className="text-gray-400 text-sm">—</span>
+                            <div className="flex flex-col items-center justify-center">
+                              <button
+                                onClick={() => openConfirm(leave, 'Deleted')}
+                                className="p-1 hover:bg-red-50 rounded text-red-500 hover:text-red-700 transition"
+                                title="Delete Leave Request"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
                           )}
                         </td>
                       </tr>
@@ -826,6 +847,10 @@ const Leave = () => {
                 ? 'Approve Leave Request'
                 : confirmAction.status === 'Rejected'
                 ? 'Reject Leave Request'
+                : confirmAction.status === 'Deleted'
+                ? 'Delete Leave Request'
+                : confirmAction.status === 'Cancelled'
+                ? 'Cancel Leave Request'
                 : 'Revert Leave to Pending'}
             </h2>
             <p className="text-gray-600 mb-6">
@@ -835,9 +860,17 @@ const Leave = () => {
                   ? 'approve'
                   : confirmAction.status === 'Rejected'
                   ? 'reject'
+                  : confirmAction.status === 'Deleted'
+                  ? 'delete'
+                  : confirmAction.status === 'Cancelled'
+                  ? 'cancel'
                   : 'revert to pending'}
               </strong>{' '}
-              the leave request from <strong>{confirmAction.employeeName}</strong>?
+              {confirmAction.status === 'Cancelled' ? 'your' : 'the'} leave request
+              {confirmAction.status !== 'Cancelled' && (
+                <> from <strong>{confirmAction.employeeName}</strong></>
+              )}?
+              {confirmAction.status === 'Deleted' && ' This action cannot be undone.'}
             </p>
             <div className="flex gap-4">
               <button
@@ -853,7 +886,7 @@ const Leave = () => {
                 className={`flex-1 py-3 rounded-xl font-semibold text-white transition ${
                   confirmAction.status === 'Approved'
                     ? 'bg-green-600 hover:bg-green-700 disabled:bg-green-400'
-                    : confirmAction.status === 'Rejected'
+                    : confirmAction.status === 'Rejected' || confirmAction.status === 'Deleted' || confirmAction.status === 'Cancelled'
                     ? 'bg-red-600 hover:bg-red-700 disabled:bg-red-400'
                     : 'bg-amber-600 hover:bg-amber-700 disabled:bg-amber-400'
                 }`}
@@ -864,9 +897,33 @@ const Leave = () => {
                   ? 'Approve'
                   : confirmAction.status === 'Rejected'
                   ? 'Reject'
+                  : confirmAction.status === 'Deleted'
+                  ? 'Delete'
+                  : confirmAction.status === 'Cancelled'
+                  ? 'Cancel'
                   : 'Revert'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* ── SUCCESS MESSAGE MODAL ─────────────────────────────────────────── */}
+      {successMessage && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-8 text-center">
+            <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Success!</h3>
+            <p className="text-gray-600 mb-6">{successMessage}</p>
+            <button
+              onClick={() => setSuccessMessage('')}
+              className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold shadow-sm transition"
+            >
+              OK
+            </button>
           </div>
         </div>
       )}

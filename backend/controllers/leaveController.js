@@ -586,3 +586,27 @@ export const revertLeaveStatus = async (req, res) => {
     });
   }
 };
+
+export const deleteLeave = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const leave = await Leave.findById(id);
+
+    if (!leave) {
+      return res.status(404).json({
+        message: "Leave not found",
+      });
+    }
+
+    await Leave.findByIdAndDelete(id);
+
+    res.status(200).json({
+      message: "Leave deleted successfully",
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
