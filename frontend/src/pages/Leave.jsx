@@ -148,9 +148,6 @@ const Leave = () => {
       setIsSubmitting(false);
     }
   };
-
-
-
   // ── Approve / Reject / Revert ──────────────────────────────────────────────
   const openConfirm = (leave, status) => {
     setConfirmAction({
@@ -619,6 +616,7 @@ const Leave = () => {
                             </div>
                           ) : (
                             <div className="flex flex-col items-center justify-center">
+                             <div className="flex flex-col items-center justify-center">
                               <button
                                 onClick={() => openConfirm(leave, 'Deleted')}
                                 className="p-1 hover:bg-red-50 rounded text-red-500 hover:text-red-700 transition"
@@ -848,6 +846,7 @@ const Leave = () => {
                 : confirmAction.status === 'Rejected'
                 ? 'Reject Leave Request'
                 : confirmAction.status === 'Deleted'
+                 : confirmAction.status === 'Deleted'
                 ? 'Delete Leave Request'
                 : confirmAction.status === 'Cancelled'
                 ? 'Cancel Leave Request'
