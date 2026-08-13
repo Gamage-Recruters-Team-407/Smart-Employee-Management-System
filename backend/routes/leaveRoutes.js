@@ -13,6 +13,7 @@ import {
   cancelLeave,
   getLeaveBalance,
   revertLeaveStatus,
+  deleteLeave,
 } from "../controllers/leaveController.js";
 
 import { protect } from "../middleware/authMiddleware.js";
@@ -51,6 +52,7 @@ router.put("/cancel/:id", protect, cancelLeave);
 router.get("/all", protect, authorize("HR", "Admin", "Manager"), getAllLeaves);
 router.put("/status/:id", protect, authorize("HR", "Admin", "Manager"), updateLeaveStatus);
 router.put("/revert/:id", protect, authorize("HR", "Admin"), revertLeaveStatus);
+router.delete("/:id", protect, authorize("HR", "Admin", "Manager"), deleteLeave);
 
 // module.exports = router;
 export default router;

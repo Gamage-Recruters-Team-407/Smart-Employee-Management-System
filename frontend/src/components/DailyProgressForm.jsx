@@ -342,12 +342,25 @@ const DailyProgressForm = () => {
         <SummaryBlock label="Additional Notes" value={existing.additionalNotes} />
       )}
 
-      <button
-        onClick={() => { setEditMode(true); setSuccessMsg(""); }}
-        className="mt-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition"
-      >
-        Edit Report
-      </button>
+      <div className="flex gap-3 mt-2">
+        <button
+          onClick={() => { setEditMode(true); setSuccessMsg(""); }}
+          className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition"
+        >
+          Edit Report
+        </button>
+        <button
+          onClick={() => {
+            setExisting(null);
+            setEditMode(true);
+            setForm(emptyForm());
+            setSuccessMsg("");
+          }}
+          className="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-semibold rounded-xl transition shadow-sm"
+        >
+          Submit for Another Day
+        </button>
+      </div>
     </div>
   );
 

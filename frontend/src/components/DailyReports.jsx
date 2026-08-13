@@ -47,6 +47,28 @@ const DailyReports = () => {
   const [selectedReport, setSelectedReport] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  // States for submission status modal
+  const [allEmployees, setAllEmployees] = useState([]);
+  const [employeesLoading, setEmployeesLoading] = useState(false);
+  const [isSubModalOpen, setIsSubModalOpen] = useState(false);
+  const [subModalTab, setSubModalTab] = useState("submitted"); // "submitted" | "not_submitted"
+  const [subModalSearch, setSubModalSearch] = useState("");
+
+  const openSubmissionModal = async () => {
+    setIsSubModalOpen(true);
+    setEmployeesLoading(true);
+    try {
+      const res = await API.get("/employees?limit=1000");
+      const data = res?.data?.data || res?.data || [];
+      // Filter out terminated or inactive profiles to keep current workforce list
+      setAllEmployees(data.filter(emp => emp.status !== "Terminated" && emp.status !== "Inactive"));
+    } catch (err) {
+      console.error("Failed to load employees for submissions modal:", err);
+    } finally {
+      setEmployeesLoading(false);
+    }
+  };
+
   // ── Fetch Daily Reports for the selected Date ──────────────────────────────
   const fetchReports = useCallback(async (targetDate) => {
     setLoading(true);
@@ -131,6 +153,38 @@ const DailyReports = () => {
     setIsModalOpen(false);
   };
 
+  // Partition employees into submitted and not-submitted lists
+  const submittedEmployees = [];
+  const notSubmittedEmployees = [];
+
+  allEmployees.forEach((emp) => {
+    const empIdStr = emp._id?.toString();
+    const matchingReport = reports.find((r) => {
+      const rEmpId = r.employeeId?._id || r.employeeId;
+      const rEmpIdStr = typeof rEmpId === "object" ? rEmpId?._id || rEmpId : rEmpId;
+      return rEmpIdStr?.toString() === empIdStr;
+    });
+
+    if (matchingReport) {
+      submittedEmployees.push({ ...emp, report: matchingReport });
+    } else {
+      notSubmittedEmployees.push(emp);
+    }
+  });
+
+  const filterBySearch = (list) => {
+    if (!subModalSearch) return list;
+    const q = subModalSearch.toLowerCase();
+    return list.filter((emp) => {
+      const fullName = `${emp.firstName || ""} ${emp.lastName || ""}`.toLowerCase();
+      const empId = (emp.employeeId || "").toLowerCase();
+      return fullName.includes(q) || empId.includes(q);
+    });
+  };
+
+  const displaySubmitted = filterBySearch(submittedEmployees);
+  const displayNotSubmitted = filterBySearch(notSubmittedEmployees);
+
   return (
     <div className="space-y-6">
       {/* Header Panel */}
@@ -190,7 +244,10 @@ const DailyReports = () => {
 
       {/* Summary Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-4">
+        <div
+          onClick={openSubmissionModal}
+          className="bg-white border border-gray-100 rounded-2xl shadow-sm p-4 cursor-pointer hover:border-indigo-300 hover:shadow-md transition duration-200"
+        >
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">
             Total Submissions
           </p>
@@ -533,6 +590,157 @@ const DailyReports = () => {
                 className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm rounded-xl transition shadow-sm"
               >
                 Close Details
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Submission Status List Modal */}
+      {isSubModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+            
+            {/* Modal Header */}
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+              <div>
+                <h2 className="text-xl font-bold text-gray-800">Submission Summary</h2>
+                <p className="text-xs text-gray-400 mt-1">Date: {date}</p>
+              </div>
+              <button
+                onClick={() => setIsSubModalOpen(false)}
+                className="text-gray-400 hover:text-gray-700 text-2xl font-bold"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex border-b border-gray-100">
+              <button
+                onClick={() => setSubModalTab("submitted")}
+                className={`flex-1 py-3 text-sm font-semibold border-b-2 transition ${
+                  subModalTab === "submitted"
+                    ? "border-indigo-600 text-indigo-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                Submitted ({submittedEmployees.length})
+              </button>
+              <button
+                onClick={() => setSubModalTab("not_submitted")}
+                className={`flex-1 py-3 text-sm font-semibold border-b-2 transition ${
+                  subModalTab === "not_submitted"
+                    ? "border-indigo-600 text-indigo-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                Not Submitted ({notSubmittedEmployees.length})
+              </button>
+            </div>
+
+            {/* Search filter inside modal */}
+            <div className="p-4 border-b border-gray-50 bg-gray-50/50">
+              <input
+                type="text"
+                placeholder="Search by name or employee ID..."
+                value={subModalSearch}
+                onChange={(e) => setSubModalSearch(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm bg-white"
+              />
+            </div>
+
+            {/* List Body */}
+            <div className="overflow-y-auto max-h-[50vh] p-6">
+              {employeesLoading ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <RefreshCw size={24} className="text-indigo-600 animate-spin mb-2" />
+                  <p className="text-sm text-gray-500">Loading employees...</p>
+                </div>
+              ) : subModalTab === "submitted" ? (
+                displaySubmitted.length === 0 ? (
+                  <p className="text-center text-gray-500 text-sm py-8">No matching submissions.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm text-gray-700">
+                      <thead>
+                        <tr className="text-xs uppercase text-gray-400 font-semibold border-b border-gray-100">
+                          <th className="pb-3 pr-2">Employee ID</th>
+                          <th className="pb-3 px-2">Name</th>
+                          <th className="pb-3 px-2">Department</th>
+                          <th className="pb-3 px-2">Total Hours</th>
+                          <th className="pb-3 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {displaySubmitted.map((emp) => (
+                          <tr key={emp._id} className="hover:bg-gray-50/30 transition">
+                            <td className="py-3 pr-2 font-medium text-gray-900">{emp.employeeId || "—"}</td>
+                            <td className="py-3 px-2 font-semibold text-gray-800">{emp.firstName} {emp.lastName}</td>
+                            <td className="py-3 px-2 text-gray-500">{emp.department || "—"}</td>
+                            <td className="py-3 px-2 text-indigo-600 font-semibold">{emp.report.totalHours || "—"}</td>
+                            <td className="py-3 text-right">
+                              <button
+                                onClick={() => {
+                                  setIsSubModalOpen(false);
+                                  openDetailsModal(emp.report);
+                                }}
+                                className="text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold px-3 py-1.5 rounded-lg transition"
+                              >
+                                View Report
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )
+              ) : (
+                displayNotSubmitted.length === 0 ? (
+                  <p className="text-center text-gray-500 text-sm py-8">All active employees have submitted!</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm text-gray-700">
+                      <thead>
+                        <tr className="text-xs uppercase text-gray-400 font-semibold border-b border-gray-100">
+                          <th className="pb-3 pr-2">Employee ID</th>
+                          <th className="pb-3 px-2">Name</th>
+                          <th className="pb-3 px-2">Department</th>
+                          <th className="pb-3 text-right">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {displayNotSubmitted.map((emp) => (
+                          <tr key={emp._id} className="hover:bg-gray-50/30 transition">
+                            <td className="py-3 pr-2 font-medium text-gray-900">{emp.employeeId || "—"}</td>
+                            <td className="py-3 px-2 font-semibold text-gray-800">{emp.firstName} {emp.lastName}</td>
+                            <td className="py-3 px-2 text-gray-500">{emp.department || "—"}</td>
+                            <td className="py-3 text-right">
+                              <span className={`px-2.5 py-0.5 text-xs font-semibold rounded-full border ${
+                                emp.status === "On Leave"
+                                  ? "bg-amber-50 border-amber-200 text-amber-700"
+                                  : "bg-red-50 border-red-200 text-red-700"
+                              }`}>
+                                {emp.status === "On Leave" ? "On Leave" : "Pending"}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end">
+              <button
+                onClick={() => setIsSubModalOpen(false)}
+                className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm rounded-xl transition shadow-sm"
+              >
+                Close
               </button>
             </div>
           </div>
