@@ -8,27 +8,52 @@ const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo";
 
-const getFrontendUrl = () => {
-  const url = (process.env.FRONTEND_URL || "http://127.0.0.1:5173").replace(/\/$/, "");
-  return url.replace(/^http:\/\/localhost\b/, "http://127.0.0.1");
+const getFrontendUrl = (req) => {
+  if (process.env.FRONTEND_URL) {
+    const url = process.env.FRONTEND_URL.trim().replace(/\/$/, "");
+    return url.replace(/^http:\/\/localhost\b/, "http://127.0.0.1");
+  }
+  if (req) {
+    const origin = req.get("origin") || req.get("referer");
+    if (origin) {
+      try {
+        return new URL(origin).origin;
+      } catch {
+        /* ignore */
+      }
+    }
+    const proto = req.headers?.["x-forwarded-proto"] || req.protocol || "https";
+    const host = req.headers?.["x-forwarded-host"] || req.get("host");
+    if (host && !host.includes("localhost") && !host.includes("127.0.0.1")) {
+      if (host.includes("vercel.app")) {
+        const inferred = host.replace("-bn.vercel.app", "-fn.vercel.app");
+        return `${proto}://${inferred}`;
+      }
+      return `${proto}://${host}`;
+    }
+  }
+  return "http://127.0.0.1:5173";
 };
 
-const getCallbackUrl = (req) =>
-  (
-    process.env.GOOGLE_CALLBACK_URL ||
-    `${req.protocol}://${req.get("host")}/api/auth/google/callback`
-  ).trim();
+const getCallbackUrl = (req) => {
+  if (process.env.GOOGLE_CALLBACK_URL) {
+    return process.env.GOOGLE_CALLBACK_URL.trim();
+  }
+  const protocol = req?.headers?.["x-forwarded-proto"] || req?.protocol || "https";
+  const host = req?.headers?.["x-forwarded-host"] || req?.get("host");
+  return `${protocol}://${host}/api/auth/google/callback`;
+};
 
 const signToken = (id) =>
   jwt.sign({ id }, getJwtSecret(), {
     expiresIn: process.env.JWT_EXPIRES_IN || "7d",
   });
 
-const redirectToLogin = (res, errorCode) => {
-  res.redirect(`${getFrontendUrl()}/login?error=${encodeURIComponent(errorCode)}`);
+const redirectToLogin = (res, errorCode, req) => {
+  res.redirect(`${getFrontendUrl(req)}/login?error=${encodeURIComponent(errorCode)}`);
 };
 
-const redirectWithAuthSuccess = (res, user) => {
+const redirectWithAuthSuccess = (res, user, req) => {
   const token = signToken(user._id);
   const userPayload = encodeURIComponent(
     JSON.stringify({
@@ -40,7 +65,7 @@ const redirectWithAuthSuccess = (res, user) => {
   );
 
   res.redirect(
-    `${getFrontendUrl()}/auth/google/callback?token=${encodeURIComponent(token)}&user=${userPayload}`
+    `${getFrontendUrl(req)}/auth/google/callback?token=${encodeURIComponent(token)}&user=${userPayload}`
   );
 };
 
@@ -142,14 +167,14 @@ const findOrCreateGoogleUser = async (profile) => {
   return created;
 };
 
-const runDevGoogleMock = async (res) => {
+const runDevGoogleMock = async (res, req) => {
   const user = await findOrCreateGoogleUser({
     id: "dev-google-mock",
     email: "google.demo@sems.com",
     name: "Google Demo User",
     picture: "https://lh3.googleusercontent.com/a/ACg8ocL3g4n3f458t7g90f1h3j-k=s96-c"
   });
-  redirectWithAuthSuccess(res, user);
+  redirectWithAuthSuccess(res, user, req);
 };
 
 /** GET /api/auth/google/status */
@@ -162,13 +187,13 @@ export const redirectToGoogle = async (req, res) => {
   if (!isGoogleConfigured()) {
     if (useDevGoogleMock()) {
       try {
-        return await runDevGoogleMock(res);
+        return await runDevGoogleMock(res, req);
       } catch (err) {
         console.error("Dev Google mock sign-in failed:", err);
-        return redirectToLogin(res, "google_auth_failed");
+        return redirectToLogin(res, "google_auth_failed", req);
       }
     }
-    return res.redirect(`${getFrontendUrl()}/login`);
+    return res.redirect(`${getFrontendUrl(req)}/login?error=${encodeURIComponent("google_not_configured")}`);
   }
 
   const state = createOAuthState();
@@ -192,32 +217,32 @@ export const handleGoogleCallback = async (req, res) => {
   const { code, state, error } = req.query;
 
   if (error) {
-    return redirectToLogin(res, "google_denied");
+    return redirectToLogin(res, "google_denied", req);
   }
 
   if (!isGoogleConfigured()) {
     if (useDevGoogleMock()) {
       try {
-        return await runDevGoogleMock(res);
+        return await runDevGoogleMock(res, req);
       } catch (err) {
         console.error("Dev Google mock callback failed:", err);
-        return redirectToLogin(res, "google_auth_failed");
+        return redirectToLogin(res, "google_auth_failed", req);
       }
     }
-    return res.redirect(`${getFrontendUrl()}/login`);
+    return res.redirect(`${getFrontendUrl(req)}/login?error=${encodeURIComponent("google_not_configured")}`);
   }
 
   if (!code || !verifyOAuthState(state)) {
-    return redirectToLogin(res, "google_invalid_state");
+    return redirectToLogin(res, "google_invalid_state", req);
   }
 
   try {
     const redirectUri = getCallbackUrl(req);
     const profile = await exchangeCodeForProfile(code, redirectUri);
     const user = await findOrCreateGoogleUser(profile);
-    redirectWithAuthSuccess(res, user);
+    redirectWithAuthSuccess(res, user, req);
   } catch (err) {
     console.error("Google OAuth callback error:", err);
-    redirectToLogin(res, "google_auth_failed");
+    redirectToLogin(res, "google_auth_failed", req);
   }
 };

@@ -1,17 +1,33 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import AuthForm from "../components/common/LoginForm";
 import { getGoogleAuthStartUrl } from "../utils/googleAuth";
 
+const GOOGLE_ERROR_MESSAGES = {
+  google_denied: "Google sign-in was cancelled.",
+  google_invalid_state: "Google sign-in session expired. Please try again.",
+  google_auth_failed: "Google sign-in failed. Please check Vercel environment variables or Google Cloud credentials.",
+  google_not_configured: "Google sign-in is not configured on the server environment variables (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET missing).",
+};
+
 const Login = () => {
   // 'signin' or 'signup' state
   const [activeTab, setActiveTab] = useState("signin");
+  const [searchParams] = useSearchParams();
+  const [urlError, setUrlError] = useState(null);
 
   // AuthContext methods
   const { login, register, loading, error, isAuthenticated, clearError } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  useEffect(() => {
+    const errCode = searchParams.get("error");
+    if (errCode) {
+      setUrlError(GOOGLE_ERROR_MESSAGES[errCode] || decodeURIComponent(errCode));
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -139,8 +155,11 @@ const Login = () => {
             onSubmit={handleSubmit}
             onGoogleSignUp={handleGoogleSignUp}
             loading={loading}
-            error={error}
-            onClearError={clearError}
+            error={urlError || error}
+            onClearError={() => {
+              setUrlError(null);
+              clearError();
+            }}
           />
 
           {/* Bottom toggle link */}
