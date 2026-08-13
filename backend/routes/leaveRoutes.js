@@ -6,7 +6,7 @@ import fs from "fs";
 const router = express.Router();
 
 import {
-  applyLeave,
+    applyLeave,
   getMyLeaves,
   getAllLeaves,
   updateLeaveStatus,

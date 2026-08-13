@@ -494,6 +494,11 @@ export const deleteEmployee = async (req, res) => {
       return res.status(404).json({ success: false, message: "Employee not found." });
     }
 
+    // Delete associated User account if it exists
+    if (deletedEmployee.userId) {
+      await User.findByIdAndDelete(deletedEmployee.userId);
+    }
+
     logAudit({
       employeeId: deletedEmployee._id,
       action: "deleted",
@@ -522,7 +527,17 @@ export const bulkDeleteEmployees = async (req, res) => {
       return res.status(400).json({ success: false, message: `Invalid IDs format: ${invalidIds.join(", ")}` });
     }
 
+    // Find the employees first to get their userIds
+    const employeesToDelete = await Employee.find({ _id: { $in: ids } }, "userId");
+    const userIds = employeesToDelete.map((emp) => emp.userId).filter(Boolean);
+
     const result = await Employee.deleteMany({ _id: { $in: ids } });
+
+    // Delete associated User accounts if any exist
+    if (userIds.length > 0) {
+      await User.deleteMany({ _id: { $in: userIds } });
+    }
+
     return res.status(200).json({
       success: true,
       deletedCount: result.deletedCount,

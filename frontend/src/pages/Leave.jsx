@@ -148,7 +148,6 @@ const Leave = () => {
       setIsSubmitting(false);
     }
   };
-
   // ── Approve / Reject / Revert ──────────────────────────────────────────────
   const openConfirm = (leave, status) => {
     setConfirmAction({
@@ -616,6 +615,7 @@ const Leave = () => {
                               </button>
                             </div>
                           ) : (
+                            <div className="flex flex-col items-center justify-center">
                              <div className="flex flex-col items-center justify-center">
                               <button
                                 onClick={() => openConfirm(leave, 'Deleted')}
@@ -845,6 +845,7 @@ const Leave = () => {
                 ? 'Approve Leave Request'
                 : confirmAction.status === 'Rejected'
                 ? 'Reject Leave Request'
+                : confirmAction.status === 'Deleted'
                  : confirmAction.status === 'Deleted'
                 ? 'Delete Leave Request'
                 : confirmAction.status === 'Cancelled'
@@ -905,6 +906,7 @@ const Leave = () => {
           </div>
         </div>
       )}
+      {/* ── SUCCESS MESSAGE MODAL ─────────────────────────────────────────── */}
       {successMessage && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-8 text-center">
