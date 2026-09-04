@@ -610,4 +610,3 @@ export const deleteLeave = async (req, res) => {
     });
   }
 };
-};
