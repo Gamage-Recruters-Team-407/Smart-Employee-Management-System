@@ -273,7 +273,7 @@ const handleDrop = useCallback(
                     <button
                       onClick={async () => {
                         try {
-                          const res = await fetch(`http://localhost:5000/${doc.path}`);
+                          const res = await fetch(`${import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL?.replace("/api", "") || ""}/${doc.path}`);
                           const blob = await res.blob();
                           const url = URL.createObjectURL(blob);
                           const a = document.createElement("a");
@@ -284,7 +284,7 @@ const handleDrop = useCallback(
                           a.remove();
                           URL.revokeObjectURL(url);
                         } catch {
-                          window.open(`http://localhost:5000/${doc.path}`, "_blank");
+                          window.open(`${import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL?.replace("/api", "") || ""}/${doc.path}`, "_blank");
                         }
                       }}
                       className="p-1.5 rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-100 transition"

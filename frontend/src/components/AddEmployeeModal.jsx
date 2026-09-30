@@ -239,7 +239,7 @@ const AddEmployeeModal = ({ isOpen, onClose, onSuccess, employee = null }) => {
   // ── Photo state ────────────────────────────────────────────────────────────
   const [photoFile, setPhotoFile] = useState(null);       // File object
   const [photoPreview, setPhotoPreview] = useState(      // preview URL
-    employee?.profilePhoto ? (employee.profilePhoto.startsWith("http") ? employee.profilePhoto : `http://localhost:5000/${employee.profilePhoto}`) : null
+    employee?.profilePhoto ? (employee.profilePhoto.startsWith("http") ? employee.profilePhoto : `${import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL?.replace("/api", "") || ""}/${employee.profilePhoto}`) : null
   );
   const [photoError, setPhotoError] = useState("");
   const photoInputRef = useRef(null);
@@ -255,7 +255,7 @@ const AddEmployeeModal = ({ isOpen, onClose, onSuccess, employee = null }) => {
         employee?.profilePhoto
           ? (employee.profilePhoto.startsWith("http")
             ? employee.profilePhoto
-            : `http://localhost:5000/${employee.profilePhoto}`)
+            : `${import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL?.replace("/api", "") || ""}/${employee.profilePhoto}`)
           : null
       );
     }
@@ -365,7 +365,7 @@ const AddEmployeeModal = ({ isOpen, onClose, onSuccess, employee = null }) => {
     setApiError("");
     setPhotoFile(null);
     setPhotoPreview(
-      employee?.profilePhoto ? (employee.profilePhoto.startsWith("http") ? employee.profilePhoto : `http://localhost:5000/${employee.profilePhoto}`) : null
+      employee?.profilePhoto ? (employee.profilePhoto.startsWith("http") ? employee.profilePhoto : `${import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL?.replace("/api", "") || ""}/${employee.profilePhoto}`) : null
     );
     setPhotoError("");
     onClose();
