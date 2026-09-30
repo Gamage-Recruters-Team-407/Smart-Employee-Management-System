@@ -106,4 +106,8 @@ const leaveSchema = new mongoose.Schema(
   }
 );
 
+// Compound indexes for common query patterns (balance checks, overlap checks, date ranges)
+leaveSchema.index({ employee: 1, status: 1, startDate: 1 });
+leaveSchema.index({ employee: 1, startDate: 1, endDate: 1 });
+
 export default mongoose.model("Leave", leaveSchema);

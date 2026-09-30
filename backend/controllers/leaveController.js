@@ -4,6 +4,20 @@ import Employee from "../models/Employee.js";
 import { resolveEmployeeForAuthUser } from "../utils/employeeUserLink.js";
 
 // ─────────────────────────────────────────────
+// Constants
+// ─────────────────────────────────────────────
+
+const LEAVE_ALLOWANCE = {
+  Annual: 14,
+  Sick: 7,
+  Medical: 7,
+  Casual: 7,
+  Maternity: 84,
+  Paternity: 3,
+  Unpaid: 999,
+};
+
+// ─────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────
 
@@ -158,15 +172,7 @@ export const applyLeave = async (req, res) => {
     }
 
     // 5. Leave balance check
-    const leaveAllowance = {
-      Annual: 14,
-      Sick: 7,
-      Medical: 7,
-      Casual: 7,
-      Maternity: 84,
-      Paternity: 3,
-      Unpaid: 999,
-    };
+    const allowance = LEAVE_ALLOWANCE[leaveType] ?? 0;
 
     const currentYear = start.getFullYear();
 
@@ -184,7 +190,6 @@ export const applyLeave = async (req, res) => {
       (sum, l) => sum + l.totalDays,
       0
     );
-    const allowance = leaveAllowance[leaveType] ?? 0;
 
     if (usedDays + totalDays > allowance) {
       return res.status(400).json({
@@ -467,20 +472,15 @@ export const cancelLeave =
 export const getLeaveBalance =
   async (req, res) => {
     try {
-      const employeeId =
-        req.user._id;
+      // Resolve Employee document — leave records use Employee ObjectId, not User ObjectId
+      const employeeDoc = await resolveEmployeeForAuthUser(req.user, { createIfMissing: false });
+      if (!employeeDoc) {
+        return res.status(404).json({ message: "Employee profile not found." });
+      }
+      const employeeId = employeeDoc._id;
 
       const currentYear =
         new Date().getFullYear();
-
-      const leaveAllowance = {
-        Annual: 14,
-        Sick: 7,
-        Casual: 7,
-        Maternity: 84,
-        Paternity: 3,
-        Unpaid: 999,
-      };
 
       const approvedLeaves =
         await Leave.find({
@@ -523,7 +523,7 @@ export const getLeaveBalance =
         type,
         total,
       ] of Object.entries(
-        leaveAllowance
+        LEAVE_ALLOWANCE
       )) {
         const used =
           usedDays[type] || 0;

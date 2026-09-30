@@ -294,7 +294,7 @@ const IssueReportButton = () => {
                               <span>{new Date(issue.createdAt).toLocaleDateString()}</span>
                               {issue.attachment && (
                                 <a
-                                  href={`http://localhost:5000/${issue.attachment}`}
+                                  href={`${import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL?.replace("/api", "") || ""}/${issue.attachment}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="text-amber-600 hover:text-amber-700 flex items-center gap-1"

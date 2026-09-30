@@ -8,7 +8,7 @@ import API from "../services/api";
 
 const SocketContext = createContext(null);
 
-const HEALTH_CHECK_INTERVAL_MS = 10_000;
+const HEALTH_CHECK_INTERVAL_MS = 60_000;
 
 export const SocketProvider = ({ children }) => {
   const { user } = useAuth();
@@ -44,7 +44,7 @@ export const SocketProvider = ({ children }) => {
     if (!user) {
       stopTabKeepAlive();
       if (socketRef.current) {
-        console.log("🔌 User logged out. Disconnecting global socket...");
+        if (import.meta.env.DEV) console.log("🔌 User logged out. Disconnecting global socket...");
         if (healthCheckIdRef.current !== null) {
           clearWorkerInterval(healthCheckIdRef.current);
           healthCheckIdRef.current = null;
@@ -68,7 +68,7 @@ export const SocketProvider = ({ children }) => {
     const authenticate = (sock) => {
       const targetSock = sock || socketRef.current;
       if (targetSock && targetSock.connected && (targetEmployeeId || targetUserId)) {
-        console.log("🔑 Authenticating employee via persistent socket...", { employeeId: targetEmployeeId, userId: targetUserId });
+        if (import.meta.env.DEV) console.log("🔑 Authenticating employee via persistent socket...", { employeeId: targetEmployeeId, userId: targetUserId });
         targetSock.emit("authenticate", {
           employeeId: targetEmployeeId,
           userId: targetUserId,
@@ -79,7 +79,7 @@ export const SocketProvider = ({ children }) => {
     // If socket is not already created, create it
     if (!socketRef.current) {
       const { url, options } = getSocketConfig();
-      console.log("🔌 Initializing global Socket.IO connection...");
+      if (import.meta.env.DEV) console.log("🔌 Initializing global Socket.IO connection...");
       const socket = io(url, {
         ...options,
         reconnectionAttempts: 10,
@@ -89,6 +89,8 @@ export const SocketProvider = ({ children }) => {
       window.socket = socket;
 
       // ─── HEALTH-CHECK LOOP (Web Worker timer) ───────────────
+      // Only reconnect if disconnected; skip re-auth if already connected
+      // to avoid unnecessary DB operations on the backend
       const startHealthCheck = () => {
         if (healthCheckIdRef.current !== null) {
           clearWorkerInterval(healthCheckIdRef.current);
@@ -96,18 +98,16 @@ export const SocketProvider = ({ children }) => {
 
         healthCheckIdRef.current = setWorkerInterval(() => {
           if (!socket.connected) {
-            console.log("⚙️ [Worker] Socket disconnected. Reconnecting...");
+            if (import.meta.env.DEV) console.log("⚙️ [Worker] Socket disconnected. Reconnecting...");
             socket.connect();
-          } else {
-            console.log("⚙️ [Worker] Health-check ping — re-authenticating...");
-            authenticate(socket);
           }
+          // No re-auth on every tick — Socket.IO's built-in ping/pong handles liveness
         }, HEALTH_CHECK_INTERVAL_MS);
       };
 
       // Event handlers
       socket.on("connect", () => {
-        console.log("✅ Global socket connected. Authenticating...");
+        if (import.meta.env.DEV) console.log("✅ Global socket connected. Authenticating...");
         setWsConnected(true);
         authenticate(socket);
         if (user.role === "Admin" || user.role === "HR") {
@@ -117,7 +117,7 @@ export const SocketProvider = ({ children }) => {
       });
 
       socket.on("authenticated", (data) => {
-        console.log("🟢 Employee authenticated via socket:", data);
+        if (import.meta.env.DEV) console.log("🟢 Employee authenticated via socket:", data);
         if (data.onlineStatus) {
           setOnlineStatus(data.onlineStatus);
         }
@@ -125,7 +125,7 @@ export const SocketProvider = ({ children }) => {
       });
 
       socket.on("attendance-update", (data) => {
-        console.log("📡 Attendance update received on global socket:", data);
+        if (import.meta.env.DEV) console.log("📡 Attendance update received on global socket:", data);
         if (data.employeeId === targetEmployeeId && data.onlineStatus) {
           setOnlineStatus(data.onlineStatus);
         }
@@ -133,18 +133,18 @@ export const SocketProvider = ({ children }) => {
       });
 
       socket.on("badge-update", () => {
-        console.log("🔔 Badge update received via global socket");
+        if (import.meta.env.DEV) console.log("🔔 Badge update received via global socket");
         window.dispatchEvent(new CustomEvent("socket-badge-update"));
       });
 
       socket.on("disconnect", (reason) => {
-        console.log("🔴 Global socket disconnected:", reason);
+        if (import.meta.env.DEV) console.log("🔴 Global socket disconnected:", reason);
         setWsConnected(false);
         window.dispatchEvent(new CustomEvent("socket-disconnected", { detail: { reason } }));
       });
 
       socket.on("reconnect", () => {
-        console.log("🔄 Global socket reconnected");
+        if (import.meta.env.DEV) console.log("🔄 Global socket reconnected");
         authenticate(socket);
       });
     } else {

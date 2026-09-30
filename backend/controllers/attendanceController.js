@@ -868,12 +868,15 @@ export const getAdminSummary = async (req, res) => {
       date: targetDate
     });
 
+    // Build a Map for O(1) lookup instead of O(N) .find() per employee
+    const attendanceMap = new Map();
+    for (const att of attendanceRecords) {
+      const key = att.employee._id ? att.employee._id.toString() : att.employee.toString();
+      attendanceMap.set(key, att);
+    }
+
     const result = employees.map(emp => {
-      const record = attendanceRecords.find(att => {
-        if (!att || !att.employee) return false;
-        const attEmpId = att.employee._id ? att.employee._id.toString() : att.employee.toString();
-        return attEmpId === emp._id.toString();
-      });
+      const record = attendanceMap.get(emp._id.toString()) || null;
 
       // Compute onlineStatus purely from DB fields (checkIn / checkOut / breakType).
       // This means socket disconnects and background tab sleep never cause false Offline.

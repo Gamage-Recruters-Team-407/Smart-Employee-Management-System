@@ -11,13 +11,13 @@ const LeaveHistory = () => {
   // ─── FETCH LEAVES ──────────────────────────────────────────────────────────
   const fetchLeaves = useCallback(async () => {
     if (!isMountedRef.current) return;
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
       const token = localStorage.getItem("token") || sessionStorage.getItem("token");
-      
+
       if (!token) {
         if (isMountedRef.current) {
           setError("Please login to view your leave history");
@@ -29,7 +29,7 @@ const LeaveHistory = () => {
       const res = await axios.get("http://localhost:5000/api/leaves/my-leaves", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      
+
       if (isMountedRef.current) {
         setLeaves(res.data || []);
         setLoading(false);
@@ -52,10 +52,10 @@ const LeaveHistory = () => {
   // ─── CANCEL LEAVE ──────────────────────────────────────────────────────────
   const handleCancel = useCallback(async (id) => {
     if (!isMountedRef.current) return;
-    
+
     try {
       const token = localStorage.getItem("token") || sessionStorage.getItem("token");
-      
+
       if (!token) {
         if (isMountedRef.current) {
           setError("Please login to cancel leave requests");
@@ -66,7 +66,7 @@ const LeaveHistory = () => {
       await axios.put(`http://localhost:5000/api/leaves/cancel/${id}`, {}, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      
+
       // Refresh the list after cancellation
       if (isMountedRef.current && fetchLeavesRef.current) {
         await fetchLeavesRef.current();
@@ -82,14 +82,14 @@ const LeaveHistory = () => {
   // ─── EFFECT: INITIAL FETCH ──────────────────────────────────────────────
   useEffect(() => {
     isMountedRef.current = true;
-    
+
     // Use setTimeout to move setState out of the effect's synchronous flow
     const timerId = setTimeout(() => {
       if (isMountedRef.current && fetchLeavesRef.current) {
         fetchLeavesRef.current();
       }
     }, 0);
-    
+
     return () => {
       clearTimeout(timerId);
       isMountedRef.current = false;

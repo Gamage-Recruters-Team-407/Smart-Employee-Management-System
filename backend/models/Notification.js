@@ -34,6 +34,7 @@ const notificationSchema = new mongoose.Schema(
 );
 
 notificationSchema.index({ userId: 1, createdAt: -1 });
+notificationSchema.index({ userId: 1, isRead: 1 });
 
 // Automatically emit real-time updates whenever a notification changes
 import { notifyUserBadges } from "../services/websocketService.js";

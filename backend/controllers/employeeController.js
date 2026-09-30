@@ -11,6 +11,35 @@ import { resolveEmployeeForAuthUser } from "../utils/employeeUserLink.js";
 
 // ─── HELPERS & CONFIGURATIONS ───────────────────────────────────────────────
 
+/** Syncs an employee's DB status based on today's approved leaves.
+ *  Returns { isOnLeaveToday } so callers can include it in the response. */
+const syncLeaveStatus = async (employee) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayEnd = new Date();
+  todayEnd.setHours(23, 59, 59, 999);
+
+  const activeLeave = await Leave.findOne({
+    employee: employee._id,
+    status: "Approved",
+    leaveCategory: { $ne: "Short Leave" },
+    startDate: { $lte: todayEnd },
+    endDate: { $gte: today },
+  });
+
+  const isOnLeaveToday = !!activeLeave;
+
+  if (isOnLeaveToday && employee.status !== "On Leave") {
+    employee.status = "On Leave";
+    await employee.save();
+  } else if (!isOnLeaveToday && employee.status === "On Leave") {
+    employee.status = "Active";
+    await employee.save();
+  }
+
+  return { isOnLeaveToday };
+};
+
 const SORTABLE_FIELDS = [
   "firstName", "lastName", "email", "department", "designation",
   "salary", "joiningDate", "status", "createdAt", "employeeId",
@@ -210,48 +239,12 @@ export const getEmployees = async (req, res) => {
       Employee.countDocuments(query),
     ]);
 
-    // ─── DB Status Sync: isOnLeaveToday flag අනුව bulk update ─────────────────
-    // Aggregation pipeline ෙකෙ DB change කරන්න නෑ, ඉතින් result ලැබුණාට පස්සේ update
-    const toSetOnLeave = employees
-      .filter((e) => e.isOnLeaveToday && e.status !== "On Leave")
-      .map((e) => e._id);
-
-    const toRestoreActive = employees
-      .filter((e) => !e.isOnLeaveToday && e.status === "On Leave")
-      .map((e) => e._id);
-
-    if (toSetOnLeave.length > 0 || toRestoreActive.length > 0) {
-      const bulkOps = [];
-
-      if (toSetOnLeave.length > 0) {
-        bulkOps.push({
-          updateMany: {
-            filter: { _id: { $in: toSetOnLeave } },
-            update: { $set: { status: "On Leave" } },
-          },
-        });
-      }
-
-      if (toRestoreActive.length > 0) {
-        bulkOps.push({
-          updateMany: {
-            filter: { _id: { $in: toRestoreActive } },
-            update: { $set: { status: "Active" } },
-          },
-        });
-      }
-
-      // Fire-and-forget: response block නොකර background ෙකෙ update කරනවා
-      Employee.bulkWrite(bulkOps).catch((err) =>
-        console.error("[leave-sync] Bulk status update error:", err.message)
-      );
-
-      // In-memory patch: response ෙකෙ updated status immediately reflect කරනවා
-      employees.forEach((e) => {
-        if (e.isOnLeaveToday && e.status !== "On Leave") e.status = "On Leave";
-        else if (!e.isOnLeaveToday && e.status === "On Leave") e.status = "Active";
-      });
-    }
+    // ─── In-memory status patch: reflect leave status in response without writing to DB ──
+    // Read endpoints should not trigger writes. The frontend sees correct status immediately.
+    employees.forEach((e) => {
+      if (e.isOnLeaveToday && e.status !== "On Leave") e.status = "On Leave";
+      else if (!e.isOnLeaveToday && e.status === "On Leave") e.status = "Active";
+    });
 
     return res.status(200).json({
       success: true,
@@ -283,31 +276,7 @@ export const getEmployeeById = async (req, res) => {
       return res.status(404).json({ success: false, message: "Employee not found." });
     }
 
-    // ─── Leave Check: අද approved leave ඇද්ද? ─────────────────────────────
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayEnd = new Date();
-    todayEnd.setHours(23, 59, 59, 999);
-
-    const activeLeave = await Leave.findOne({
-      employee: employee._id,
-      status: "Approved",
-      leaveCategory: { $ne: "Short Leave" },
-      startDate: { $lte: todayEnd },
-      endDate: { $gte: today },
-    });
-
-    const isOnLeaveToday = !!activeLeave;
-
-    // DB status auto-update: leave ඇත්නම් "On Leave", නැත්නම් "Active" ලෙස restore
-    if (isOnLeaveToday && employee.status !== "On Leave") {
-      employee.status = "On Leave";
-      await employee.save();
-    } else if (!isOnLeaveToday && employee.status === "On Leave") {
-      // Leave ඉවර වුණොත් නැවත "Active" ලෙස restore කරනවා
-      employee.status = "Active";
-      await employee.save();
-    }
+    const { isOnLeaveToday } = await syncLeaveStatus(employee);
 
     return res.status(200).json({ success: true, data: employee, isOnLeaveToday });
   } catch (error) {
@@ -323,13 +292,6 @@ export const getEmployeeTasks = async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({ message: "Invalid employee ID" });
     }
-    // <<<<<<< HEAD
-    //     const employee = await Employee.findById(req.params.id);
-    //     if (!employee) {
-    //       return res.status(404).json({ message: "Employee not found" });
-    //     }
-    // =======
-
     const employee = await Employee.findById(req.params.id);
     if (!employee) return res.status(404).json({ message: "Employee not found" });
 
@@ -337,61 +299,6 @@ export const getEmployeeTasks = async (req, res) => {
       dueDate: 1,
       updatedAt: -1,
     });
-    // <<<<<<< HEAD
-    //     res.json(tasks);
-    //   } catch (error) {
-    //     res.status(500).json({ message: error.message });
-    //   }
-    // };
-    // export const createEmployee = async (req, res) => {
-    //   try {
-    //     const {
-    //       employeeId,
-    //       firstName,
-    //       lastName,
-    //       email,
-    //       phone,
-    //       department,
-    //       designation,
-    //       salary,
-    //       joiningDate,
-    //       address,
-    //       status,
-    //     } = req.body;
-
-    //     if (!firstName?.trim() || !lastName?.trim()) {
-    //       return res
-    //         .status(400)
-    //         .json({ message: "First name and last name are required" });
-    //     }
-
-    //     if (!email?.trim()) {
-    //       return res.status(400).json({ message: "Email is required" });
-    //     }
-
-    //     const employee = await Employee.create({
-    //       employeeId: employeeId?.trim() || `EMP${Date.now()}`,
-    //       firstName: firstName.trim(),
-    //       lastName: lastName.trim(),
-    //       email: email.trim().toLowerCase(),
-    //       phone,
-    //       department,
-    //       designation,
-    //       salary,
-    //       joiningDate,
-    //       address,
-    //       status: status || "Active",
-    //     });
-
-    //     res.status(201).json(employee);
-    //   } catch (error) {
-    //     if (error.code === 11000) {
-    //       return res.status(400).json({ message: "Email already exists" });
-    //     }
-    //     res.status(500).json({ message: error.message });
-    //   }
-    // };
-    // =======
 
     return res.status(200).json(tasks);
   } catch (error) {
@@ -695,15 +602,15 @@ export const importEmployees = async (req, res) => {
       return res.status(400).json({ success: false, message: "A non-empty array of employee data is required." });
     }
 
-    let created = 0;
-    const errors = [];
+    // Pre-generate all IDs and build docs in one pass
+    const docs = [];
+    const prepErrors = [];
 
     for (let i = 0; i < employees.length; i++) {
       try {
         const row = employees[i];
         const employeeId = await generateEmployeeId();
-
-        await Employee.create({
+        docs.push({
           employeeId,
           firstName: row.firstName,
           lastName: row.lastName,
@@ -716,11 +623,33 @@ export const importEmployees = async (req, res) => {
           address: row.address || "",
           status: row.status || "Active",
         });
-        created++;
       } catch (error) {
-        errors.push({ index: i, reason: error.message });
+        prepErrors.push({ index: i, reason: error.message });
       }
     }
+
+    // Bulk insert with ordered:false so one failure doesn't block the rest
+    let created = 0;
+    const insertErrors = [];
+
+    if (docs.length > 0) {
+      try {
+        const result = await Employee.insertMany(docs, { ordered: false });
+        created = result.length;
+      } catch (error) {
+        // With ordered:false, partial inserts still succeed
+        if (error.insertedDocs) {
+          created = error.insertedDocs.length;
+        }
+        if (error.writeErrors) {
+          error.writeErrors.forEach((we) => {
+            insertErrors.push({ index: we.index, reason: we.errmsg || we.message });
+          });
+        }
+      }
+    }
+
+    const errors = [...prepErrors, ...insertErrors];
 
     return res.status(200).json({
       success: true,
@@ -753,29 +682,7 @@ export const getMyProfile = async (req, res) => {
       return res.status(404).json({ message: "Employee profile not found for this account." });
     }
 
-    // ─── Leave Check: getEmployeeById ෙකෙ logic ෙකෙකෙම ─────────────────────
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayEnd = new Date();
-    todayEnd.setHours(23, 59, 59, 999);
-
-    const activeLeave = await Leave.findOne({
-      employee: employee._id,
-      status: "Approved",
-      leaveCategory: { $ne: "Short Leave" },
-      startDate: { $lte: todayEnd },
-      endDate: { $gte: today },
-    });
-
-    const isOnLeaveToday = !!activeLeave;
-
-    if (isOnLeaveToday && employee.status !== "On Leave") {
-      employee.status = "On Leave";
-      await employee.save();
-    } else if (!isOnLeaveToday && employee.status === "On Leave") {
-      employee.status = "Active";
-      await employee.save();
-    }
+    await syncLeaveStatus(employee);
 
     return res.status(200).json(employee);
   } catch (error) {

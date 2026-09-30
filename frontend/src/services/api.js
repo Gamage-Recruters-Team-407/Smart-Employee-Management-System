@@ -2,7 +2,7 @@ import axios from "axios";
 
 const API_URL = import.meta.env.VITE_API_URL || "/api";
 
-console.log("API_URL =", API_URL);
+if (import.meta.env.DEV) console.log("API_URL =", API_URL);
 
 const API = axios.create({
   baseURL: API_URL,
@@ -208,15 +208,6 @@ export const reportAPI = {
   generateLeaveReport: (params) => API.get("/reports/leave", { params, responseType: 'blob' }),
   generatePerformanceReport: (params) => API.get("/reports/performance", { params, responseType: 'blob' }),
   downloadPayslip: (id) => API.get(`/reports/payslip/${id}`, { responseType: 'blob' }),
-};
-
-// ─── BREAK MANAGEMENT ──────────────────────────────────────────────────────
-export const breakAPI = {
-  startBreak: (breakType) => API.post('/attendance/break/start', { breakType }),
-  endBreak: () => API.post('/attendance/break/end'),
-  getBreakStatus: () => API.get('/attendance/break/status'),
-  getBreakRemaining: () => API.get('/attendance/break/remaining'),
-  updateStatus: (data) => API.post('/attendance/update-status', data),
 };
 
 export default API;
