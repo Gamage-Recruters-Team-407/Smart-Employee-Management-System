@@ -201,69 +201,33 @@ const BreakTimer = () => {
       clearInterval(timerIntervalRef.current);
     }
     
-    console.log('⏱️ Starting timer interval');
+    console.log('⏱️ Starting local timer interval');
     
-    timerIntervalRef.current = setInterval(async () => {
+    timerIntervalRef.current = setInterval(() => {
       if (!isMountedRef.current) {
         clearInterval(timerIntervalRef.current);
         timerIntervalRef.current = null;
         return;
       }
       
-      // Use refs to avoid dependency issues
-      
-      try {
-        const response = await API.get('/attendance/break/remaining');
-        const data = response.data?.data || response.data || {};
+      setRemainingSeconds(prev => {
+        const newRemaining = (prev !== null && prev > 0) ? prev - 1 : 0;
         
-        console.log(`⏱️ Timer update: ${data.remainingSeconds || 0}s remaining`);
-        
-        if (!data.isOnBreak) {
-          console.log('⏰ Break ended on server');
-          setRemainingSeconds(0);
-          setIsOnBreak(false);
-          setCurrentBreak(null);
-          setIsBreakEnding(false);
-          
-          if (timerIntervalRef.current) {
-            clearInterval(timerIntervalRef.current);
-            timerIntervalRef.current = null;
-          }
-          
-          if (soundEnabledRef.current && !breakEndNotifiedRef.current) {
-            audioService.playBreakEnd();
-            audioService.stopTickTock();
-            breakEndNotifiedRef.current = true;
-          }
-          
-          setBreakAlertType('end');
-          setShowBreakAlert(true);
-          setTimeout(() => setShowBreakAlert(false), 5000);
-          
-          return;
-        }
-        
-        const newRemaining = data.remainingSeconds || 0;
-        setRemainingSeconds(newRemaining);
-        setIsBreakEnding(newRemaining <= 10);
-        
-        if (data.breakType && data.breakLabel) {
-          setCurrentBreak(prev => ({
-            ...prev,
-            type: data.breakType,
-            label: data.breakLabel,
-            remainingSeconds: newRemaining
-          }));
-        }
+        setIsBreakEnding(newRemaining <= 10 && newRemaining > 0);
         
         if (newRemaining <= 10 && newRemaining > 0 && soundEnabledRef.current && !breakEndNotifiedRef.current) {
           audioService.playSimpleBeep();
         }
         
-        if (newRemaining <= 0 && !hasAutoEndedRef.current) {
-          console.log('⏰ Break reached 0, auto ending...');
-          if (autoEndBreakRef.current) {
-            await autoEndBreakRef.current();
+        if (newRemaining <= 0) {
+          if (timerIntervalRef.current) {
+            clearInterval(timerIntervalRef.current);
+            timerIntervalRef.current = null;
+          }
+          
+          if (!hasAutoEndedRef.current && autoEndBreakRef.current) {
+            console.log('⏰ Break reached 0, auto ending...');
+            autoEndBreakRef.current();
           }
         }
         
@@ -274,9 +238,8 @@ const BreakTimer = () => {
           });
         }
         
-      } catch (err) {
-        console.error('Failed to update break time:', err);
-      }
+        return newRemaining;
+      });
     }, 1000);
   };
 
@@ -422,15 +385,15 @@ const BreakTimer = () => {
   // ─── EFFECT: POLLING INTERVAL ──────────────────────────────────────────
   useEffect(() => {
     const interval = setInterval(() => {
-      if (isMountedRef.current && fetchBreakStatusRef.current) {
+      if (isMountedRef.current && fetchBreakStatusRef.current && !isOnBreak) {
         fetchBreakStatusRef.current();
       }
-    }, 15000);
+    }, 30000);
     
     return () => {
       clearInterval(interval);
     };
-  }, []);
+  }, [isOnBreak]);
 
   // ─── EFFECT: START TIMER IF ON BREAK ────────────────────────────────
   useEffect(() => {
