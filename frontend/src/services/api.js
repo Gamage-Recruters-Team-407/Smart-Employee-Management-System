@@ -28,6 +28,28 @@ API.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+// ─── CONCURRENT GET REQUEST DEDUPLICATION ──────────────────────────────────
+// Collapses simultaneous identical GET requests (e.g. from multiple components) into a single request
+const inFlightGetRequests = new Map();
+const originalGet = API.get.bind(API);
+
+API.get = function (url, config = {}) {
+  const cacheKey = `GET:${url}:${JSON.stringify(config.params || {})}`;
+  if (inFlightGetRequests.has(cacheKey)) {
+    return inFlightGetRequests.get(cacheKey);
+  }
+
+  const promise = originalGet(url, config).finally(() => {
+    // Keep deduplication window for 1500ms to collapse near-simultaneous mount calls
+    setTimeout(() => {
+      inFlightGetRequests.delete(cacheKey);
+    }, 1500);
+  });
+
+  inFlightGetRequests.set(cacheKey, promise);
+  return promise;
+};
+
 // ─── API INTERCEPTOR ──────────────────────────────────────────────────────────
 
 API.interceptors.response.use(

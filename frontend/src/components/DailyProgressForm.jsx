@@ -1,7 +1,20 @@
 import React, { useState, useEffect, useCallback } from "react";
 import API from "../services/api";
 import { useAuth } from "../context/AuthContext";
-import { ClipboardList, Plus, Trash2, ChevronDown, ChevronUp, CheckCircle, Clock, Circle, History } from "lucide-react";
+import {
+  ClipboardList,
+  Plus,
+  Trash2,
+  ChevronDown,
+  ChevronUp,
+  CheckCircle,
+  Clock,
+  Circle,
+  History,
+  XCircle,
+  Calendar,
+  AlertCircle,
+} from "lucide-react";
 import MyDailyReportsHistory from "./MyDailyReportsHistory";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -39,6 +52,34 @@ const todayStr = () => {
   const offset = today.getTimezoneOffset();
   const localDate = new Date(today.getTime() - offset * 60 * 1000);
   return localDate.toISOString().split("T")[0];
+};
+
+const getWorkWeekDays = (refDate = new Date()) => {
+  const curr = new Date(refDate);
+  const day = curr.getDay(); // 0 is Sun, 1 is Mon, ..., 6 is Sat
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  const monday = new Date(curr.getFullYear(), curr.getMonth(), curr.getDate() + diffToMonday);
+
+  const days = [];
+  const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+  const fullNames = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+
+  for (let i = 0; i < 5; i++) {
+    const target = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i);
+    const year = target.getFullYear();
+    const month = String(target.getMonth() + 1).padStart(2, "0");
+    const date = String(target.getDate()).padStart(2, "0");
+    const dateStr = `${year}-${month}-${date}`;
+
+    days.push({
+      shortName: dayNames[i],
+      fullName: fullNames[i],
+      dateStr,
+      dayNum: target.getDate(),
+      monthName: target.toLocaleString("default", { month: "short" }),
+    });
+  }
+  return days;
 };
 
 const parseTime = (timeStr) => {
@@ -115,6 +156,8 @@ const DailyProgressForm = () => {
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors]         = useState({});
   const [successMsg, setSuccessMsg] = useState("");
+  const [weekReports, setWeekReports] = useState([]);
+  const [weekLoading, setWeekLoading] = useState(false);
 
   // ── Fetch today's existing report ──────────────────────────────────────────
   const fetchTodayReport = useCallback(async () => {
@@ -135,9 +178,31 @@ const DailyProgressForm = () => {
     }
   }, []);
 
+  // ── Fetch current work week (Mon-Fri) reports ──────────────────────────────
+  const fetchWeekReports = useCallback(async () => {
+    setWeekLoading(true);
+    try {
+      const days = getWorkWeekDays();
+      const res = await API.get("/daily-reports/my-history", {
+        params: {
+          startDate: days[0].dateStr,
+          endDate: days[4].dateStr,
+          limit: 10,
+        },
+      });
+      const data = res?.data ?? res;
+      setWeekReports(Array.isArray(data?.reports) ? data.reports : []);
+    } catch (err) {
+      console.warn("Could not fetch weekly report history:", err);
+    } finally {
+      setWeekLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchTodayReport();
-  }, [fetchTodayReport]);
+    fetchWeekReports();
+  }, [fetchTodayReport, fetchWeekReports]);
 
   // Pre-fill form when entering edit mode from an existing report
   useEffect(() => {
@@ -287,6 +352,7 @@ const DailyProgressForm = () => {
       setEditMode(false);
       setSuccessMsg("Report saved successfully!");
       setTimeout(() => setSuccessMsg(""), 4000);
+      fetchWeekReports();
     } catch (err) {
       setErrors({ submit: err?.response?.data?.message || err?.message || "Failed to save report." });
     } finally {
@@ -669,40 +735,208 @@ const DailyProgressForm = () => {
     </form>
   );
 
+  // ── Compute Monday to Friday Tracker ─────────────────────────────────────
+  const workWeekDays = getWorkWeekDays();
+  const currentTodayStr = todayStr();
+
+  const weekStatusList = workWeekDays.map((day) => {
+    const isToday = day.dateStr === currentTodayStr;
+    const isPast = day.dateStr < currentTodayStr;
+    const isFuture = day.dateStr > currentTodayStr;
+
+    const report =
+      weekReports.find((r) => r.date === day.dateStr) ||
+      (isToday && existing ? existing : null);
+    const isSubmitted = !!report;
+
+    let status = "upcoming";
+    if (isSubmitted) {
+      status = "submitted";
+    } else if (isPast) {
+      status = "missed";
+    } else if (isToday) {
+      status = "pending";
+    }
+
+    return {
+      ...day,
+      isToday,
+      isPast,
+      isFuture,
+      isSubmitted,
+      status, // "submitted" | "missed" | "pending" | "upcoming"
+      report,
+    };
+  });
+
+  const submittedCount = weekStatusList.filter((d) => d.isSubmitted).length;
+  const missedCount = weekStatusList.filter((d) => d.status === "missed").length;
+  const upcomingCount = weekStatusList.filter((d) => d.status === "upcoming").length;
+
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
-    <div className="mt-10 bg-white rounded-2xl shadow border border-gray-100">
-      {/* Card header — always visible, click to collapse */}
-      <button
-        type="button"
-        onClick={() => setCollapsed((c) => !c)}
-        className="w-full flex items-center justify-between px-6 py-4 rounded-2xl hover:bg-gray-50 transition"
-      >
-        <div className="flex items-center gap-3">
-          <ClipboardList size={20} className="text-indigo-600" />
-          <div className="text-left">
-            <p className="font-semibold text-gray-800">Daily Progress Report</p>
-            <p className="text-xs text-gray-400">
-              {existing && !editMode
-                ? `Submitted for ${existing.date} · Click to expand`
-                : "Fill this before 5 PM · One submission per day"}
-            </p>
+    <div className="mt-10 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      {/* Card header — always visible */}
+      <div className="p-5 sm:p-6 bg-white">
+        <div
+          onClick={() => setCollapsed((c) => !c)}
+          className="flex items-center justify-between gap-4 cursor-pointer group select-none"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 group-hover:bg-indigo-100 transition shrink-0">
+              <ClipboardList size={20} />
+            </div>
+            <div className="text-left">
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="font-semibold text-gray-800 text-base">Daily Progress Report</p>
+                <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100">
+                  {submittedCount}/5 Submitted this week
+                </span>
+              </div>
+              <p className="text-xs text-gray-400 mt-0.5">
+                {existing && !editMode
+                  ? `Submitted for ${existing.date} · Click to expand or edit`
+                  : "Fill this before 5 PM · One submission per workday"}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {existing && !editMode && (
+              <span className="inline-flex items-center gap-1.5 text-xs bg-green-100 text-green-700 font-medium px-2.5 py-1 rounded-full">
+                ✓ Submitted
+              </span>
+            )}
+            {!existing && !loading && (
+              <span className="inline-flex items-center gap-1.5 text-xs bg-amber-100 text-amber-700 font-medium px-2.5 py-1 rounded-full">
+                <Clock size={12} className="animate-pulse" />
+                Pending
+              </span>
+            )}
+            <div className="p-1 rounded-lg text-gray-400 group-hover:text-gray-600 group-hover:bg-gray-100 transition">
+              {collapsed ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
+            </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {existing && !editMode && (
-            <span className="text-xs bg-green-100 text-green-700 font-medium px-2.5 py-1 rounded-full">
-              ✓ Submitted
-            </span>
-          )}
-          {!existing && !loading && (
-            <span className="text-xs bg-amber-100 text-amber-700 font-medium px-2.5 py-1 rounded-full">
-              Pending
-            </span>
-          )}
-          {collapsed ? <ChevronDown size={18} className="text-gray-400" /> : <ChevronUp size={18} className="text-gray-400" />}
+
+        {/* ─── Monday to Friday Weekly Tracker Strip ─────────────────── */}
+        <div className="mt-4 pt-3.5 border-t border-gray-100">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 mb-2.5">
+            <div className="flex items-center gap-1.5">
+              <Calendar size={13} className="text-indigo-600" />
+              <span className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                Weekly Track (Mon – Fri)
+              </span>
+              <span className="text-[11px] text-gray-400">
+                · {workWeekDays[0]?.monthName} {workWeekDays[0]?.dayNum} – {workWeekDays[4]?.monthName} {workWeekDays[4]?.dayNum}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-3 text-[11px]">
+              <span className="flex items-center gap-1 font-medium text-emerald-700">
+                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                {submittedCount} Done
+              </span>
+              {missedCount > 0 && (
+                <span className="flex items-center gap-1 font-medium text-rose-600">
+                  <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+                  {missedCount} Missed
+                </span>
+              )}
+              <span className="flex items-center gap-1 font-medium text-gray-400">
+                <span className="w-2 h-2 rounded-full bg-gray-300"></span>
+                {upcomingCount} Upcoming
+              </span>
+            </div>
+          </div>
+
+          {/* 5-Day Mon to Fri Grid */}
+          <div className="grid grid-cols-5 gap-2 sm:gap-3">
+            {weekStatusList.map((day) => {
+              let cardStyle = "";
+              let icon = null;
+              let statusText = "";
+              let statusSubText = "";
+
+              if (day.status === "submitted") {
+                cardStyle = day.isToday
+                  ? "bg-emerald-50 border-emerald-300 ring-2 ring-emerald-400/30 text-emerald-900"
+                  : "bg-emerald-50/70 border-emerald-200 text-emerald-800";
+                icon = <CheckCircle size={14} className="text-emerald-600 shrink-0" />;
+                statusText = day.isToday ? "Submitted Today" : "Submitted";
+                statusSubText = day.report?.totalHours ? `${day.report.totalHours}` : "✓ Done";
+              } else if (day.status === "missed") {
+                cardStyle = "bg-rose-50/80 border-rose-200 text-rose-800";
+                icon = <XCircle size={14} className="text-rose-500 shrink-0" />;
+                statusText = "Missed";
+                statusSubText = "No report";
+              } else if (day.status === "pending") {
+                cardStyle = "bg-amber-50 border-amber-300 ring-2 ring-amber-400/40 text-amber-900";
+                icon = <Clock size={14} className="text-amber-600 shrink-0 animate-pulse" />;
+                statusText = "Due Today";
+                statusSubText = "Fill report";
+              } else {
+                // upcoming
+                cardStyle = "bg-gray-50/70 border-gray-200/80 text-gray-400";
+                icon = <Calendar size={14} className="text-gray-300 shrink-0" />;
+                statusText = "Upcoming";
+                statusSubText = "Workday";
+              }
+
+              return (
+                <div
+                  key={day.dateStr}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (day.isToday && !day.isSubmitted) {
+                      setCollapsed(false);
+                      setActiveTab("form");
+                      setEditMode(true);
+                    } else if (day.isSubmitted) {
+                      setCollapsed(false);
+                      if (day.isToday) {
+                        setActiveTab("form");
+                      } else {
+                        setActiveTab("history");
+                      }
+                    } else if (day.status === "missed") {
+                      setCollapsed(false);
+                      setActiveTab("history");
+                    }
+                  }}
+                  className={`relative flex flex-col justify-between p-2 sm:p-2.5 rounded-xl border transition-all duration-200 select-none ${cardStyle} ${
+                    day.status === "pending" || day.isSubmitted || day.status === "missed"
+                      ? "cursor-pointer hover:shadow-sm hover:-translate-y-0.5"
+                      : ""
+                  }`}
+                  title={`${day.fullName} (${day.dateStr}) - ${statusText}`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[11px] font-bold uppercase tracking-wider">
+                      {day.shortName}
+                    </span>
+                    <span className="text-[11px] font-semibold opacity-75">
+                      {day.dayNum}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 pt-1 border-t border-black/5">
+                    {icon}
+                    <div className="overflow-hidden min-w-0">
+                      <p className="text-[11px] font-semibold truncate leading-tight">
+                        {statusText}
+                      </p>
+                      <p className="text-[10px] opacity-70 truncate hidden sm:block">
+                        {statusSubText}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
-      </button>
+      </div>
 
       {/* Collapsible body */}
       {!collapsed && (

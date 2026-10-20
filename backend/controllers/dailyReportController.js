@@ -42,7 +42,7 @@ export const getMyReportsHistory = async (req, res) => {
       return res.status(404).json({ message: "Employee profile not found." });
     }
 
-    const { limit = 30, startDate, endDate, search } = req.query;
+    const { page, limit = 6, startDate, endDate, search } = req.query;
 
     const query = { employeeId: employee._id };
 
@@ -64,16 +64,27 @@ export const getMyReportsHistory = async (req, res) => {
       ];
     }
 
+    const parsedPage = Math.max(1, parseInt(page, 10) || 1);
+    const parsedLimit = Math.max(1, Math.min(parseInt(limit, 10) || 6, 100));
+    const skip = (parsedPage - 1) * parsedLimit;
+
+    const totalCount = await DailyReport.countDocuments(query);
+    const totalPages = Math.max(1, Math.ceil(totalCount / parsedLimit));
+
     const reports = await DailyReport.find(query)
       .sort({ date: -1, createdAt: -1 })
-      .limit(Math.min(Number(limit) || 30, 100));
+      .skip(skip)
+      .limit(parsedLimit);
+
+    // Compute aggregate stats across all matching records for the current filter
+    const allMatching = await DailyReport.find(query).select("totalHours tasks.status").lean();
 
     let totalHoursMinutes = 0;
     let completedTasksCount = 0;
     let inProgressTasksCount = 0;
     let pendingTasksCount = 0;
 
-    reports.forEach((r) => {
+    allMatching.forEach((r) => {
       if (r.totalHours) {
         const matchH = r.totalHours.match(/(\d+)\s*h/i);
         const matchM = r.totalHours.match(/(\d+)\s*m/i);
@@ -99,8 +110,14 @@ export const getMyReportsHistory = async (req, res) => {
 
     res.json({
       reports,
+      pagination: {
+        page: parsedPage,
+        limit: parsedLimit,
+        totalCount,
+        totalPages,
+      },
       stats: {
-        totalReports: reports.length,
+        totalReports: totalCount,
         totalHoursLogged: formattedTotalHours,
         completedTasksCount,
         inProgressTasksCount,
