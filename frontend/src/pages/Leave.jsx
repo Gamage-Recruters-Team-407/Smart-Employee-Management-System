@@ -16,7 +16,12 @@ const Leave = () => {
   const itemsPerPage = 5;
   const [manageCurrentPage, setManageCurrentPage] = useState(1);
   const manageItemsPerPage = 6;
-  const [manageFilterDate, setManageFilterDate] = useState("");
+  const getLocalDateString = () => {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  };
+  const [manageFilterDate, setManageFilterDate] = useState(getLocalDateString());
+  const [manageSearchName, setManageSearchName] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [formData, setFormData] = useState({
     leaveType: '',
@@ -218,21 +223,21 @@ const Leave = () => {
   const totalPages = Math.ceil(leaves.length / itemsPerPage);
 
   const filteredManageLeaves = allLeaves.filter(leave => {
+    const employeeName = leave.employee
+      ? `${leave.employee.firstName || ''} ${leave.employee.lastName || ''}`.trim()
+      : '';
+    if (!employeeName.toLowerCase().includes(manageSearchName.trim().toLowerCase())) return false;
     if (!manageFilterDate) return true;
-    
-    const target = new Date(manageFilterDate);
-    target.setHours(0, 0, 0, 0);
-    
+
+    const target = new Date(`${manageFilterDate}T00:00:00`);
     const start = new Date(leave.startDate);
     start.setHours(0, 0, 0, 0);
-    
-    const end = new Date(leave.endDate);
+    const end = new Date(leave.endDate || leave.startDate);
     end.setHours(0, 0, 0, 0);
-    
     return target >= start && target <= end;
   });
 
-  const indexOfLastManageLeave = manageCurrentPage * manageItemsPerPage;
+    const indexOfLastManageLeave = manageCurrentPage * manageItemsPerPage;
   const indexOfFirstManageLeave = indexOfLastManageLeave - manageItemsPerPage;
   const currentManageLeaves = filteredManageLeaves.slice(indexOfFirstManageLeave, indexOfLastManageLeave);
   const totalManagePages = Math.ceil(filteredManageLeaves.length / manageItemsPerPage);
@@ -465,7 +470,18 @@ const Leave = () => {
               <p className="text-gray-500 text-sm mt-1">Review and manage leave requests</p>
             </div>
             
-            <div className="flex items-center gap-4 w-full sm:w-auto flex-wrap">
+            <div className="flex items-center gap-3 w-full sm:w-auto flex-wrap">
+              <input
+                type="search"
+                value={manageSearchName}
+                onChange={(e) => {
+                  setManageSearchName(e.target.value);
+                  setManageCurrentPage(1);
+                }}
+                placeholder="Search employee name..."
+                aria-label="Search employee name"
+                className="w-full sm:w-56 px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-sm"
+              />
               <input
                 type="date"
                 value={manageFilterDate}
@@ -478,25 +494,23 @@ const Leave = () => {
               <button
                 type="button"
                 onClick={() => {
-                  setManageFilterDate(new Date().toISOString().split('T')[0]);
+                  setManageFilterDate(getLocalDateString());
                   setManageCurrentPage(1);
                 }}
                 className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold shadow-sm transition"
               >
                 Today
               </button>
-              {manageFilterDate && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setManageFilterDate("");
-                    setManageCurrentPage(1);
-                  }}
-                  className="px-4 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-xl text-sm font-semibold transition"
-                >
-                  Show All
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setManageFilterDate("");
+                  setManageCurrentPage(1);
+                }}
+                className="px-4 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-xl text-sm font-semibold transition"
+              >
+                View All
+              </button>
               <button
                 type="button"
                 onClick={handleRefresh}
