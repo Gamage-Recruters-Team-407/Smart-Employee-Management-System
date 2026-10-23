@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import toast from "react-hot-toast";
 import API from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import {
@@ -267,7 +268,7 @@ const DailyProgressForm = () => {
         setForm({
           ...emptyForm(),
           date: newDate,
-          teamPosition: form.teamPosition,
+          teamPosition: form.teamPosition || (user?.position || user?.teamPosition || user?.designation || ""),
         });
       }
     } finally {
@@ -290,8 +291,6 @@ const DailyProgressForm = () => {
       ...prev,
       tasks: prev.tasks.map((t, i) => (i === idx ? { ...t, [field]: value } : t)),
     }));
-
-
 
   // ── Validation ─────────────────────────────────────────────────────────────
   const validate = () => {
@@ -351,84 +350,93 @@ const DailyProgressForm = () => {
       setExisting(saved);
       setEditMode(false);
       setSuccessMsg("Report saved successfully!");
+      toast.success(`Report for ${saved.date || form.date} saved successfully!`);
       setTimeout(() => setSuccessMsg(""), 4000);
       fetchWeekReports();
     } catch (err) {
-      setErrors({ submit: err?.response?.data?.message || err?.message || "Failed to save report." });
+      const errMsg = err?.response?.data?.message || err?.message || "Failed to save report.";
+      setErrors({ submit: errMsg });
+      toast.error(errMsg);
     } finally {
       setSubmitting(false);
     }
   };
 
   // ─── Read-only summary ────────────────────────────────────────────────────
-  const renderReadOnlySummary = () => (
-    <div className="space-y-4">
-      {successMsg && (
-        <div className="bg-green-50 border border-green-200 text-green-700 rounded-xl px-4 py-3 text-sm">
-          ✓ {successMsg}
-        </div>
-      )}
+  const renderReadOnlySummary = () => {
+    const isPastReport = Boolean(existing?.date && existing.date < todayStr());
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-        <SummaryField label="Date"        value={existing.date} />
-        <SummaryField label="Name"        value={existing.fullName} />
-        <SummaryField label="Start"       value={existing.startTime} />
-        <SummaryField label="End"         value={existing.endTime} />
-        <SummaryField label="Total Hours" value={existing.totalHours || "—"} />
-        <SummaryField label="Position"    value={existing.teamPosition} />
-        <SummaryField label="Worked on tasks?" value={existing.workedOnTasks ? "Yes" : "No"} />
-      </div>
-
-      {existing.tasks?.length > 0 && (
-        <div>
-          <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Tasks</p>
-          <div className="space-y-2">
-            {existing.tasks.map((t, i) => (
-              <div key={i} className="flex items-center gap-3 bg-gray-50 rounded-lg px-3 py-2">
-                <span className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-medium ${STATUS_STYLES[t.status]}`}>
-                  {STATUS_ICONS[t.status]} {t.status}
-                </span>
-                <span className="text-sm text-gray-700">{t.description}</span>
-              </div>
-            ))}
+    return (
+      <div className="space-y-4">
+        {successMsg && (
+          <div className="bg-green-50 border border-green-200 text-green-700 rounded-xl px-4 py-3 text-sm">
+            ✓ {successMsg}
           </div>
+        )}
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+          <SummaryField label="Date"        value={existing.date} />
+          <SummaryField label="Name"        value={existing.fullName} />
+          <SummaryField label="Start"       value={existing.startTime} />
+          <SummaryField label="End"         value={existing.endTime} />
+          <SummaryField label="Total Hours" value={existing.totalHours || "—"} />
+          <SummaryField label="Position"    value={existing.teamPosition} />
+          <SummaryField label="Worked on tasks?" value={existing.workedOnTasks ? "Yes" : "No"} />
         </div>
-      )}
 
-      {existing.challengesIssues && (
-        <SummaryBlock label="Challenges / Issues" value={existing.challengesIssues} />
-      )}
-      {existing.dependenciesAssistance && (
-        <SummaryBlock label="Dependencies / Assistance" value={existing.dependenciesAssistance} />
-      )}
-      {existing.plannedTasksTomorrow && (
-        <SummaryBlock label="Planned for Tomorrow" value={existing.plannedTasksTomorrow} />
-      )}
-      {existing.additionalNotes && (
-        <SummaryBlock label="Additional Notes" value={existing.additionalNotes} />
-      )}
+        {existing.tasks?.length > 0 && (
+          <div>
+            <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Tasks</p>
+            <div className="space-y-2">
+              {existing.tasks.map((t, i) => (
+                <div key={i} className="flex items-center gap-3 bg-gray-50 rounded-lg px-3 py-2">
+                  <span className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-medium ${STATUS_STYLES[t.status]}`}>
+                    {STATUS_ICONS[t.status]} {t.status}
+                  </span>
+                  <span className="text-sm text-gray-700">{t.description}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
-      <div className="flex gap-3 mt-2">
-        <button
-          onClick={() => { setEditMode(true); setSuccessMsg(""); }}
-          className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition"
-        >
-          Edit Report
-        </button>
-        <button
-          onClick={() => {
-            setExisting(null);
-            setEditMode(true);
-            setForm(emptyForm());
-            setSuccessMsg("");
-          }}
-          className="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-semibold rounded-xl transition shadow-sm"
-        >
-          Submit for Another Day
-        </button>
+        {existing.challengesIssues && (
+          <SummaryBlock label="Challenges / Issues" value={existing.challengesIssues} />
+        )}
+        {existing.dependenciesAssistance && (
+          <SummaryBlock label="Dependencies / Assistance" value={existing.dependenciesAssistance} />
+        )}
+        {existing.plannedTasksTomorrow && (
+          <SummaryBlock label="Planned for Tomorrow" value={existing.plannedTasksTomorrow} />
+        )}
+        {existing.additionalNotes && (
+          <SummaryBlock label="Additional Notes" value={existing.additionalNotes} />
+        )}
+
+        <div className="flex items-center gap-3 mt-2 flex-wrap">
+          {!isPastReport && (
+            <button
+              onClick={() => { setEditMode(true); setSuccessMsg(""); }}
+              className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition"
+            >
+              Edit Report
+            </button>
+          )}
+          <button
+            onClick={() => {
+              setExisting(null);
+              setEditMode(true);
+              setForm(emptyForm());
+              setSuccessMsg("");
+            }}
+            className="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-semibold rounded-xl transition shadow-sm"
+          >
+            Submit for Another Day
+          </button>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   // ─── Form ─────────────────────────────────────────────────────────────────
   const renderForm = () => (
@@ -436,6 +444,25 @@ const DailyProgressForm = () => {
       {errors.submit && (
         <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
           {errors.submit}
+        </div>
+      )}
+
+      {/* Missed / Past date banner */}
+      {form.date !== todayStr() && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-900 rounded-xl px-4 py-3 text-xs flex items-center justify-between gap-3 shadow-sm">
+          <div className="flex items-center gap-2">
+            <span className="text-base">📅</span>
+            <span>
+              Submitting Daily Report for missed/past date: <strong className="font-bold underline">{form.date}</strong>
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => handleDateChange(todayStr())}
+            className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 underline shrink-0"
+          >
+            Switch to Today
+          </button>
         </div>
       )}
 
@@ -795,7 +822,9 @@ const DailyProgressForm = () => {
               </div>
               <p className="text-xs text-gray-400 mt-0.5">
                 {existing && !editMode
-                  ? `Submitted for ${existing.date} · Click to expand or edit`
+                  ? existing.date < currentTodayStr
+                    ? `Submitted for ${existing.date} · Click to view (Locked)`
+                    : `Submitted for ${existing.date} · Click to expand or edit`
                   : "Fill this before 5 PM · One submission per workday"}
               </p>
             </div>
@@ -866,10 +895,10 @@ const DailyProgressForm = () => {
                 statusText = day.isToday ? "Submitted Today" : "Submitted";
                 statusSubText = day.report?.totalHours ? `${day.report.totalHours}` : "✓ Done";
               } else if (day.status === "missed") {
-                cardStyle = "bg-rose-50/80 border-rose-200 text-rose-800";
+                cardStyle = "bg-rose-50/90 border-rose-300 text-rose-800 hover:border-rose-400 hover:ring-2 hover:ring-rose-400/40";
                 icon = <XCircle size={14} className="text-rose-500 shrink-0" />;
                 statusText = "Missed";
-                statusSubText = "No report";
+                statusSubText = "Click to submit →";
               } else if (day.status === "pending") {
                 cardStyle = "bg-amber-50 border-amber-300 ring-2 ring-amber-400/40 text-amber-900";
                 icon = <Clock size={14} className="text-amber-600 shrink-0 animate-pulse" />;
@@ -888,28 +917,27 @@ const DailyProgressForm = () => {
                   key={day.dateStr}
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (day.isToday && !day.isSubmitted) {
-                      setCollapsed(false);
-                      setActiveTab("form");
-                      setEditMode(true);
-                    } else if (day.isSubmitted) {
-                      setCollapsed(false);
-                      if (day.isToday) {
-                        setActiveTab("form");
-                      } else {
-                        setActiveTab("history");
-                      }
-                    } else if (day.status === "missed") {
-                      setCollapsed(false);
-                      setActiveTab("history");
+                    if (day.status === "upcoming") {
+                      toast.error("Cannot submit report for a future date.");
+                      return;
+                    }
+                    setCollapsed(false);
+                    setActiveTab("form");
+                    handleDateChange(day.dateStr);
+                    if (day.status === "missed") {
+                      toast(`Opened report form for missed day: ${day.fullName} (${day.dateStr})`, { icon: '📝' });
                     }
                   }}
                   className={`relative flex flex-col justify-between p-2 sm:p-2.5 rounded-xl border transition-all duration-200 select-none ${cardStyle} ${
-                    day.status === "pending" || day.isSubmitted || day.status === "missed"
-                      ? "cursor-pointer hover:shadow-sm hover:-translate-y-0.5"
-                      : ""
+                    day.status !== "upcoming"
+                      ? "cursor-pointer hover:shadow-md hover:-translate-y-0.5"
+                      : "cursor-default"
                   }`}
-                  title={`${day.fullName} (${day.dateStr}) - ${statusText}`}
+                  title={
+                    day.status === "missed"
+                      ? `Click to submit missed report for ${day.fullName} (${day.dateStr})`
+                      : `${day.fullName} (${day.dateStr}) - ${statusText}`
+                  }
                 >
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-[11px] font-bold uppercase tracking-wider">

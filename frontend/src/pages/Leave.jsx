@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import API from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { ChevronLeft, ChevronRight, RotateCw, Trash2, Calendar as CalendarIcon, Table as TableIcon, CheckCircle2, Clock, XCircle, Ban } from 'lucide-react';
@@ -22,7 +23,7 @@ const Leave = () => {
   };
   const [manageFilterDate, setManageFilterDate] = useState(getLocalDateString());
   const [manageSearchName, setManageSearchName] = useState('');
-  const [viewMode, setViewMode] = useState('table'); // 'table' | 'calendar'
+  const [viewMode, setViewMode] = useState('calendar'); // 'table' | 'calendar' (default to calendar view)
   const [calendarDate, setCalendarDate] = useState(new Date()); // Month currently being viewed in calendar
   const [selectedDayLeaves, setSelectedDayLeaves] = useState(null); // { dateString, leaves: [] }
   const [successMessage, setSuccessMessage] = useState('');
@@ -164,12 +165,122 @@ const Leave = () => {
 
   const durationInfo = calculateLeaveDurationInfo();
 
+  // Helper to parse YYYY-MM-DD safely in local time without timezone shifts
+  const parseLocalDate = (dateStr) => {
+    if (!dateStr) return null;
+    const parts = String(dateStr).split('T')[0].split('-');
+    if (parts.length !== 3) return null;
+    const y = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10) - 1;
+    const d = parseInt(parts[2], 10);
+    return new Date(y, m, d);
+  };
+
+  // Helper to test if a date string is Saturday or Sunday
+  const isWeekendString = (dateStr) => {
+    const d = parseLocalDate(dateStr);
+    if (!d || isNaN(d.getTime())) return false;
+    const day = d.getDay();
+    return day === 0 || day === 6; // 0 = Sunday, 6 = Saturday
+  };
+
+  const getDayNameString = (dateStr) => {
+    const d = parseLocalDate(dateStr);
+    if (!d || isNaN(d.getTime())) return '';
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    return dayNames[d.getDay()];
+  };
+
+  // Generate only upcoming Saturdays and Sundays (exclude past days of this month)
+  const getAvailableWeekendDates = (startDateStr) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const base = startDateStr ? parseLocalDate(startDateStr) : today;
+    const year = base && !isNaN(base.getTime()) ? base.getFullYear() : today.getFullYear();
+    const month = base && !isNaN(base.getTime()) ? base.getMonth() : today.getMonth();
+
+    const start = new Date(year, month, 1);
+    const end = new Date(year, month + 3, 0);
+
+    const weekends = [];
+    // Start strictly from today or start of month, whichever is later (no past days)
+    const curr = new Date(Math.max(today.getTime(), start.getTime()));
+
+    while (curr <= end) {
+      if (curr >= today) {
+        const day = curr.getDay();
+        if (day === 0 || day === 6) {
+          const yyyy = curr.getFullYear();
+          const mm = String(curr.getMonth() + 1).padStart(2, '0');
+          const dd = String(curr.getDate()).padStart(2, '0');
+          const dateStr = `${yyyy}-${mm}-${dd}`;
+          const dayName = day === 6 ? 'Saturday' : 'Sunday';
+          const formatted = curr.toLocaleDateString('en-US', {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+          });
+          const monthYear = curr.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+          weekends.push({ date: dateStr, dayName, formatted, monthYear });
+        }
+      }
+      curr.setDate(curr.getDate() + 1);
+    }
+    return weekends;
+  };
+
+  // Calculate ONLY valid, distinct weekend cover dates count
+  const getValidCoverDatesCount = () => {
+    const todayStr = getLocalDateString();
+    const seen = new Set();
+    let count = 0;
+    for (const item of formData.weekendCoverDates) {
+      if (item.date && item.date >= todayStr && isWeekendString(item.date) && !seen.has(item.date)) {
+        seen.add(item.date);
+        count++;
+      }
+    }
+    return count;
+  };
+
+  const validCoverDatesCount = getValidCoverDatesCount();
+
+  // Automatically synchronize weekendCoverDates slots with requiredWeekendCount
+  useEffect(() => {
+    if (durationInfo.extraDays > 0) {
+      if (formData.weekendCoverDates.length === 0) {
+        setFormData(prev => ({
+          ...prev,
+          weekendCoverDates: [{ date: '', notes: '', useCalendar: false }]
+        }));
+      } else if (formData.weekendCoverDates.length > durationInfo.requiredWeekendCount) {
+        // Trim slots so user cannot have more slots than the extra days count
+        setFormData(prev => ({
+          ...prev,
+          weekendCoverDates: prev.weekendCoverDates.slice(0, durationInfo.requiredWeekendCount)
+        }));
+      }
+    } else if (durationInfo.extraDays === 0 && formData.weekendCoverDates.length > 0) {
+      setFormData(prev => ({
+        ...prev,
+        weekendCoverDates: []
+      }));
+    }
+  }, [formData.startDate, formData.endDate, formData.leaveCategory, durationInfo.extraDays, durationInfo.requiredWeekendCount]);
+
   const handleAddCoverDate = () => {
+    // Restrict adding more weekend dates than the required extra days count
+    if (formData.weekendCoverDates.length >= durationInfo.requiredWeekendCount) {
+      toast.error(`You can only add up to ${durationInfo.requiredWeekendCount} weekend cover date(s) for your ${durationInfo.extraDays} extra day(s).`);
+      return;
+    }
     setFormData(prev => ({
       ...prev,
       weekendCoverDates: [
         ...prev.weekendCoverDates,
-        { date: '', notes: '' }
+        { date: '', notes: '', useCalendar: false }
       ]
     }));
   };
@@ -182,6 +293,52 @@ const Leave = () => {
   };
 
   const handleCoverDateChange = (index, field, value) => {
+    if (field === 'date') {
+      if (value) {
+        const todayStr = getLocalDateString();
+        if (value < todayStr) {
+          toast.error(`Invalid Selection: ${value} is in the past.\n\nCover dates cannot be in the past.`, {
+            duration: 4500,
+            icon: '⚠️',
+          });
+          setFormData(prev => {
+            const updated = [...prev.weekendCoverDates];
+            updated[index] = { ...updated[index], date: '' };
+            return { ...prev, weekendCoverDates: updated };
+          });
+          return;
+        }
+
+        if (!isWeekendString(value)) {
+          const dayName = getDayNameString(value);
+          toast.error(`Invalid Selection: ${dayName} (${value}) is a weekday.\n\nCover dates can ONLY be selected on a Saturday or Sunday.`, {
+            duration: 5000,
+            icon: '⚠️',
+          });
+          setFormData(prev => {
+            const updated = [...prev.weekendCoverDates];
+            updated[index] = { ...updated[index], date: '' };
+            return { ...prev, weekendCoverDates: updated };
+          });
+          return;
+        }
+
+        // Check if duplicate of another slot
+        const duplicateIdx = formData.weekendCoverDates.findIndex((c, i) => i !== index && c.date === value);
+        if (duplicateIdx !== -1) {
+          toast.error(`The date ${value} is already chosen for Cover Date #${duplicateIdx + 1}.\n\nPlease choose a different Saturday or Sunday.`, {
+            duration: 4500,
+          });
+          setFormData(prev => {
+            const updated = [...prev.weekendCoverDates];
+            updated[index] = { ...updated[index], date: '' };
+            return { ...prev, weekendCoverDates: updated };
+          });
+          return;
+        }
+      }
+    }
+
     setFormData(prev => {
       const updated = [...prev.weekendCoverDates];
       updated[index] = { ...updated[index], [field]: value };
@@ -209,8 +366,8 @@ const Leave = () => {
 
     // Monthly 1-day allowance check & Weekend cover validation
     if (durationInfo.extraDays > 0) {
-      if (formData.weekendCoverDates.length < durationInfo.requiredWeekendCount) {
-        setError(`You have ${durationInfo.extraDays} extra day(s) beyond your 1 day/month allowance. You must provide at least ${durationInfo.requiredWeekendCount} weekend cover date(s) (Saturday or Sunday).`);
+      if (validCoverDatesCount < durationInfo.requiredWeekendCount) {
+        setError(`You have ${durationInfo.extraDays} extra day(s) beyond your 1 day/month allowance. You must provide ${durationInfo.requiredWeekendCount} valid weekend cover date(s) (Saturday or Sunday). Currently valid: ${validCoverDatesCount}/${durationInfo.requiredWeekendCount}.`);
         setIsSubmitting(false);
         return;
       }
@@ -220,14 +377,13 @@ const Leave = () => {
       for (let i = 0; i < formData.weekendCoverDates.length; i++) {
         const item = formData.weekendCoverDates[i];
         if (!item.date) {
-          setError(`Please select a date for weekend cover entry #${i + 1}.`);
+          setError(`Please select a Saturday or Sunday for weekend cover entry #${i + 1}.`);
           setIsSubmitting(false);
           return;
         }
-        const d = new Date(item.date);
-        const day = d.getDay(); // 0 is Sunday, 6 is Saturday
-        if (day !== 0 && day !== 6) {
-          setError(`Cover date #${i + 1} (${item.date}) is not a weekend. Extra leave days must be covered strictly on a Saturday or Sunday.`);
+        if (!isWeekendString(item.date)) {
+          const dayName = getDayNameString(item.date);
+          setError(`Cover date #${i + 1} (${item.date}) is a ${dayName}. Extra leave days must be covered strictly on a Saturday or Sunday.`);
           setIsSubmitting(false);
           return;
         }
@@ -266,6 +422,7 @@ const Leave = () => {
       });
 
       setSuccessMessage('Leave application submitted successfully!');
+      toast.success('Leave application submitted successfully!');
       fetchLeaves();
       closeModal();
     } catch (err) {
@@ -300,12 +457,13 @@ const Leave = () => {
       } else {
         await API.put(`/leaves/status/${confirmAction.id}`, { status: confirmAction.status });
       }
+      toast.success(`Leave request ${confirmAction.status.toLowerCase()} successfully!`);
       await fetchAllLeaves();
       await fetchLeaves();
       closeConfirm();
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.message || 'Failed to perform action.');
+      toast.error(err.response?.data?.message || 'Failed to perform action.');
     } finally {
       setActionLoading(false);
     }
@@ -344,11 +502,16 @@ const Leave = () => {
   const currentLeaves = leaves.slice(indexOfFirstLeave, indexOfLastLeave);
   const totalPages = Math.ceil(leaves.length / itemsPerPage);
 
-  const filteredManageLeaves = allLeaves.filter(leave => {
+  // Filtered by employee search name (for calendar view so the full month is visible)
+  const calendarManageLeaves = allLeaves.filter(leave => {
     const employeeName = leave.employee
       ? `${leave.employee.firstName || ''} ${leave.employee.lastName || ''}`.trim()
       : '';
-    if (!employeeName.toLowerCase().includes(manageSearchName.trim().toLowerCase())) return false;
+    return employeeName.toLowerCase().includes(manageSearchName.trim().toLowerCase());
+  });
+
+  // Filtered by both employee search name and date (for table view)
+  const filteredManageLeaves = calendarManageLeaves.filter(leave => {
     if (!manageFilterDate) return true;
 
     const target = new Date(`${manageFilterDate}T00:00:00`);
@@ -356,10 +519,18 @@ const Leave = () => {
     start.setHours(0, 0, 0, 0);
     const end = new Date(leave.endDate || leave.startDate);
     end.setHours(0, 0, 0, 0);
-    return target >= start && target <= end;
+    const fallsInLeave = target >= start && target <= end;
+
+    const isCoverDate = leave.weekendCoverDates?.some(cov => {
+      const cd = new Date(cov.date);
+      cd.setHours(0, 0, 0, 0);
+      return cd.getTime() === target.getTime();
+    });
+
+    return fallsInLeave || isCoverDate;
   });
 
-    const indexOfLastManageLeave = manageCurrentPage * manageItemsPerPage;
+  const indexOfLastManageLeave = manageCurrentPage * manageItemsPerPage;
   const indexOfFirstManageLeave = indexOfLastManageLeave - manageItemsPerPage;
   const currentManageLeaves = filteredManageLeaves.slice(indexOfFirstManageLeave, indexOfLastManageLeave);
   const totalManagePages = Math.ceil(filteredManageLeaves.length / manageItemsPerPage);
@@ -466,7 +637,12 @@ const Leave = () => {
             My Leaves
           </button>
           <button
-            onClick={() => setActiveTab('manage')}
+            onClick={() => {
+              setActiveTab('manage');
+              setViewMode('calendar');
+              setManageFilterDate(getLocalDateString());
+              setManageCurrentPage(1);
+            }}
             className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition ${
               activeTab === 'manage' ? 'bg-indigo-600 text-white' : 'text-gray-600 hover:bg-gray-50'
             }`}
@@ -914,16 +1090,23 @@ const Leave = () => {
                 type="date"
                 value={manageFilterDate}
                 onChange={(e) => {
-                  setManageFilterDate(e.target.value);
+                  const val = e.target.value;
+                  setManageFilterDate(val);
                   setManageCurrentPage(1);
+                  if (val) {
+                    const [y, m, d] = val.split('-').map(Number);
+                    setCalendarDate(new Date(y, m - 1, d));
+                  }
                 }}
                 className="px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-sm"
               />
               <button
                 type="button"
                 onClick={() => {
-                  setManageFilterDate(getLocalDateString());
+                  const todayStr = getLocalDateString();
+                  setManageFilterDate(todayStr);
                   setManageCurrentPage(1);
+                  setCalendarDate(new Date());
                 }}
                 className={`px-4 py-2 rounded-xl text-sm font-semibold transition ${
                   manageFilterDate === getLocalDateString()
@@ -1061,7 +1244,11 @@ const Leave = () => {
                       const todayStr = getLocalDateString();
                       const dateYMD = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
                       const isToday = dateYMD === todayStr;
-                      const dayLeaves = getLeavesForDate(date, filteredManageLeaves);
+                      const isFilterSelected = Boolean(manageFilterDate && dateYMD === manageFilterDate);
+                      // If a date filter is set (default today), only show leaves for that date; if View All is clicked, show all
+                      const dayLeaves = (!manageFilterDate || dateYMD === manageFilterDate)
+                        ? getLeavesForDate(date, calendarManageLeaves)
+                        : [];
                       const isWeekend = date.getDay() === 0 || date.getDay() === 6;
 
                       return (
@@ -1088,7 +1275,7 @@ const Leave = () => {
                             <span
                               className={`text-xs font-bold inline-flex items-center justify-center w-6 h-6 rounded-full ${
                                 isToday
-                                  ? 'bg-indigo-600 text-white'
+                                  ? 'bg-indigo-600 text-white shadow-sm'
                                   : isCurrentMonth
                                   ? 'text-gray-700'
                                   : 'text-gray-400'
@@ -1530,13 +1717,21 @@ const Leave = () => {
       {/* ── APPLY NEW LEAVE MODAL ─────────────────────────────────────────── */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-auto">
-            <div className="p-8">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-semibold">Apply New Leave</h2>
-                <button onClick={closeModal} className="text-gray-500 hover:text-gray-700 text-3xl leading-none">×</button>
-              </div>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] flex flex-col overflow-hidden">
+            {/* Modal Header (Sticky) */}
+            <div className="sticky top-0 z-20 bg-white px-8 py-5 border-b border-gray-100 flex justify-between items-center shrink-0">
+              <h2 className="text-2xl font-semibold text-gray-900">Apply New Leave</h2>
+              <button 
+                type="button"
+                onClick={closeModal} 
+                className="text-gray-400 hover:text-gray-700 text-3xl leading-none transition"
+              >
+                ×
+              </button>
+            </div>
 
+            {/* Scrollable Body */}
+            <div className="p-8 pt-6 overflow-y-auto flex-1">
               {/* Dynamic Categories Tabs */}
               <div className="flex gap-2 mb-6 bg-gray-100 rounded-xl p-1.5 w-full">
                 {['Full Day', 'Half Day', 'Short Leave'].map((cat) => (
@@ -1704,22 +1899,44 @@ const Leave = () => {
 
                     {/* Extra Days Alert & Weekend Cover Picker */}
                     {durationInfo.extraDays > 0 ? (
-                      <div className="mt-3 p-3.5 bg-amber-50 border border-amber-200 rounded-xl space-y-3">
-                        <div className="flex items-start gap-2 text-amber-900 text-xs">
+                      <div className="mt-3 p-4 bg-amber-50/90 border border-amber-200 rounded-xl space-y-3">
+                        <div className="flex items-start gap-2.5 text-amber-900 text-xs">
                           <span className="text-base leading-none">⚠️</span>
                           <div>
-                            <span className="font-semibold">Weekend Compensation Required:</span> Each member gets 1 leave day per month. You are requesting <strong>{durationInfo.extraDays} extra day(s)</strong>, which must be covered on a <strong>Saturday or Sunday</strong>.
+                            <span className="font-semibold text-amber-950">Weekend Compensation Required:</span> Each member gets 1 leave day per month. You are requesting <strong>{durationInfo.extraDays} extra day(s)</strong>, which must be covered on a <strong>Saturday or Sunday</strong>.
                           </div>
                         </div>
 
                         <div className="flex items-center justify-between pt-1">
-                          <span className="text-xs font-semibold text-amber-950">
-                            Weekend Cover Dates ({formData.weekendCoverDates.length} of {durationInfo.requiredWeekendCount} required)
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-amber-950">
+                              Weekend Cover Dates ({validCoverDatesCount} of {durationInfo.requiredWeekendCount} required)
+                            </span>
+                            {validCoverDatesCount >= durationInfo.requiredWeekendCount ? (
+                              <span className="text-[10px] font-bold text-green-700 bg-green-100 border border-green-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                ✓ Complete
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-medium text-amber-800 bg-amber-100 border border-amber-200 px-2 py-0.5 rounded-full">
+                                {durationInfo.requiredWeekendCount - validCoverDatesCount} more needed
+                              </span>
+                            )}
+                          </div>
+
                           <button
                             type="button"
                             onClick={handleAddCoverDate}
-                            className="text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded-lg transition"
+                            disabled={formData.weekendCoverDates.length >= durationInfo.requiredWeekendCount}
+                            className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition ${
+                              formData.weekendCoverDates.length >= durationInfo.requiredWeekendCount
+                                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                : 'bg-amber-600 hover:bg-amber-700 text-white shadow-sm'
+                            }`}
+                            title={
+                              formData.weekendCoverDates.length >= durationInfo.requiredWeekendCount
+                                ? `Maximum ${durationInfo.requiredWeekendCount} cover date(s) allowed for ${durationInfo.extraDays} extra day(s)`
+                                : 'Add another weekend cover date'
+                            }
                           >
                             + Add Weekend Date
                           </button>
@@ -1730,38 +1947,94 @@ const Leave = () => {
                             No weekend dates added yet. Click "+ Add Weekend Date" to select a Saturday or Sunday to cover your extra {durationInfo.extraDays} day(s).
                           </div>
                         ) : (
-                          <div className="space-y-2">
+                          <div className="space-y-2.5">
                             {formData.weekendCoverDates.map((item, index) => {
-                              const d = item.date ? new Date(item.date) : null;
+                              const d = parseLocalDate(item.date);
                               const dayIndex = d && !isNaN(d.getTime()) ? d.getDay() : null;
                               const isSaturday = dayIndex === 6;
                               const isSunday = dayIndex === 0;
                               const isValidWeekend = isSaturday || isSunday;
 
+                              const availableWeekends = getAvailableWeekendDates(formData.startDate);
+                              const hasInList = availableWeekends.some(w => w.date === item.date);
+
                               return (
                                 <div key={index} className="bg-white p-3 rounded-xl border border-amber-200 flex flex-col sm:flex-row items-start sm:items-center gap-3">
                                   <div className="w-full sm:w-1/2">
                                     <div className="flex items-center justify-between mb-1">
-                                      <span className="text-xs font-medium text-gray-600">Cover Date #{index + 1}</span>
-                                      {item.date && (
-                                        isValidWeekend ? (
-                                          <span className="text-[10px] font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
-                                            ✓ {isSaturday ? 'Saturday' : 'Sunday'}
-                                          </span>
-                                        ) : (
-                                          <span className="text-[10px] font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">
-                                            ⚠️ Must be Sat/Sun
-                                          </span>
-                                        )
-                                      )}
+                                      <span className="text-xs font-medium text-gray-700">Cover Date #{index + 1}</span>
+                                      <div className="flex items-center gap-1.5">
+                                        {item.date && (
+                                          isValidWeekend ? (
+                                            <span className="text-[10px] font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
+                                              ✓ {isSaturday ? 'Saturday' : 'Sunday'}
+                                            </span>
+                                          ) : (
+                                            <span className="text-[10px] font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">
+                                              ⚠️ Must be Sat/Sun
+                                            </span>
+                                          )
+                                        )}
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setFormData(prev => {
+                                              const updated = [...prev.weekendCoverDates];
+                                              updated[index] = { ...updated[index], useCalendar: !updated[index].useCalendar };
+                                              return { ...prev, weekendCoverDates: updated };
+                                            });
+                                          }}
+                                          className="text-[10px] text-indigo-600 hover:text-indigo-800 underline font-medium"
+                                          title="Toggle between list and calendar picker"
+                                        >
+                                          {item.useCalendar ? '📋 Sat/Sun List' : '📅 Calendar'}
+                                        </button>
+                                      </div>
                                     </div>
-                                    <input
-                                      type="date"
-                                      value={item.date}
-                                      onChange={(e) => handleCoverDateChange(index, 'date', e.target.value)}
-                                      required
-                                      className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500"
-                                    />
+
+                                    {item.useCalendar ? (
+                                      <input
+                                        type="date"
+                                        value={item.date}
+                                        min={getLocalDateString()}
+                                        onChange={(e) => handleCoverDateChange(index, 'date', e.target.value)}
+                                        required
+                                        className={`w-full border rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500 ${
+                                          item.date && isValidWeekend ? 'border-green-400 bg-green-50/20' : 'border-gray-300'
+                                        }`}
+                                      />
+                                    ) : (
+                                      <select
+                                        value={item.date}
+                                        onChange={(e) => handleCoverDateChange(index, 'date', e.target.value)}
+                                        required
+                                        className={`w-full border rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500 ${
+                                          item.date && isValidWeekend ? 'border-green-400 bg-green-50/20 text-gray-900 font-medium' : 'border-gray-300 text-gray-700'
+                                        }`}
+                                      >
+                                        <option value="">-- Choose Saturday or Sunday --</option>
+                                        {item.date && !hasInList && isValidWeekend && (
+                                          <option value={item.date}>
+                                            {isSaturday ? 'Sat' : 'Sun'}, {item.date}
+                                          </option>
+                                        )}
+                                        {Object.entries(
+                                          availableWeekends.reduce((groups, w) => {
+                                            groups[w.monthYear] = groups[w.monthYear] || [];
+                                            groups[w.monthYear].push(w);
+                                            return groups;
+                                          }, {})
+                                        ).map(([monthYear, dates]) => (
+                                          <optgroup key={monthYear} label={monthYear}>
+                                            {dates.map((w) => (
+                                              <option key={w.date} value={w.date}>
+                                                {w.formatted}
+                                              </option>
+                                            ))}
+                                          </optgroup>
+                                        ))}
+                                      </select>
+                                    )}
                                   </div>
 
                                   <div className="w-full sm:w-1/2">
@@ -1810,7 +2083,16 @@ const Leave = () => {
                 </div>
                 <div className="flex gap-4 pt-4">
                   <button type="button" onClick={closeModal} className="flex-1 py-3 border border-gray-300 rounded-xl font-medium hover:bg-gray-50 transition">Cancel</button>
-                  <button type="submit" disabled={isSubmitting} className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-semibold py-3 rounded-xl transition">
+                  <button
+                    type="submit"
+                    disabled={isSubmitting || (durationInfo.extraDays > 0 && validCoverDatesCount < durationInfo.requiredWeekendCount)}
+                    className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition shadow-sm"
+                    title={
+                      durationInfo.extraDays > 0 && validCoverDatesCount < durationInfo.requiredWeekendCount
+                        ? `Please select ${durationInfo.requiredWeekendCount - validCoverDatesCount} more valid weekend cover date(s) to submit`
+                        : 'Submit Application'
+                    }
+                  >
                     {isSubmitting ? 'Submitting...' : 'Submit Application'}
                   </button>
                 </div>

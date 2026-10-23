@@ -253,14 +253,22 @@ export const applyLeave = async (req, res) => {
             message: "Each weekend cover entry must include a valid date.",
           });
         }
-        const d = new Date(item.date);
+        const rawDateStr = String(item.date).split("T")[0];
+        const dateParts = rawDateStr.split("-").map(Number);
+        if (dateParts.length !== 3 || dateParts.some(isNaN)) {
+          return res.status(400).json({
+            message: `Invalid weekend cover date: ${item.date}`,
+          });
+        }
+        const [y, m, dayNum] = dateParts;
+        const d = new Date(Date.UTC(y, m - 1, dayNum, 12, 0, 0));
         if (isNaN(d.getTime())) {
           return res.status(400).json({
             message: `Invalid weekend cover date: ${item.date}`,
           });
         }
 
-        const dateStr = d.toISOString().split("T")[0];
+        const dateStr = rawDateStr;
         if (dateStringsSeen.has(dateStr)) {
           return res.status(400).json({
             message: `Duplicate weekend cover date detected: ${dateStr}. Please select distinct dates.`,
@@ -268,10 +276,18 @@ export const applyLeave = async (req, res) => {
         }
         dateStringsSeen.add(dateStr);
 
-        const dayOfWeekIndex = d.getDay(); // 0 is Sunday, 6 is Saturday
+        const dayOfWeekIndex = d.getUTCDay(); // 0 is Sunday, 6 is Saturday
         if (dayOfWeekIndex !== 0 && dayOfWeekIndex !== 6) {
           return res.status(400).json({
             message: `Selected cover date (${dateStr}) is not a Saturday or Sunday. All extra leave dates must be covered on Saturday or Sunday.`,
+          });
+        }
+
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        if (d < todayStart) {
+          return res.status(400).json({
+            message: `Selected cover date (${dateStr}) cannot be in the past.`,
           });
         }
 
