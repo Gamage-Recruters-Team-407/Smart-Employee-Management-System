@@ -283,12 +283,12 @@ const Dashboard = () => {
 
   // ─── CHECK IF LOGOUT REQUIRED ──────────────────────────────────────────────
   const shouldLogout = () => {
-    const now = new Date();
-    const hours = now.getHours();
-    const minutes = now.getMinutes();
-    const timeInMinutes = hours * 60 + minutes;
-    const logoutTime = 17 * 60 + 30;
-    return timeInMinutes > logoutTime;
+    // const now = new Date();
+    // const hours = now.getHours();
+    // const minutes = now.getMinutes();
+    // const timeInMinutes = hours * 60 + minutes;
+    // const logoutTime = 17 * 60 + 30;
+    // return timeInMinutes > logoutTime;
   };
 
   // ─── AUTO LOGOUT HANDLER ──────────────────────────────────────────────────

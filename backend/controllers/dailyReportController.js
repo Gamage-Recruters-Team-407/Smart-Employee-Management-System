@@ -1,4 +1,6 @@
+import mongoose from "mongoose";
 import DailyReport from "../models/DailyReport.js";
+import Employee from "../models/Employee.js";
 import { resolveEmployeeForAuthUser } from "../utils/employeeUserLink.js";
 
 // GET /api/daily-reports/my?date=YYYY-MM-DD
@@ -200,15 +202,38 @@ export const upsertMyReport = async (req, res) => {
   }
 };
 
-// GET /api/daily-reports/all?date=YYYY-MM-DD  (Admin / HR only)
-// Returns all employee reports for a given date
+// GET /api/daily-reports/all?date=YYYY-MM-DD (or ?startDate=...&endDate=... or ?all=true)  (Admin / HR only)
+// Returns employee reports for a given date, range, or all
 export const getAllReports = async (req, res) => {
   try {
-    const date = req.query.date || new Date().toISOString().split("T")[0];
+    const { date, startDate, endDate, employeeId, all } = req.query;
 
-    const reports = await DailyReport.find({ date })
-      .populate("employeeId", "firstName lastName employeeId department")
-      .sort({ createdAt: -1 });
+    const query = {};
+
+    if (employeeId) {
+      if (mongoose.Types.ObjectId.isValid(employeeId)) {
+        query.employeeId = employeeId;
+      } else {
+        const emp = await Employee.findOne({ employeeId }).select("_id");
+        if (emp) query.employeeId = emp._id;
+      }
+    }
+
+    if (all === "true" || all === true) {
+      // No date filter - returns all reports
+    } else if (startDate || endDate) {
+      query.date = {};
+      if (startDate) query.date.$gte = startDate;
+      if (endDate) query.date.$lte = endDate;
+    } else if (date) {
+      query.date = date;
+    } else {
+      query.date = new Date().toISOString().split("T")[0];
+    }
+
+    const reports = await DailyReport.find(query)
+      .populate("employeeId", "firstName lastName employeeId department email designation role status")
+      .sort({ date: -1, createdAt: -1 });
 
     res.json(reports);
   } catch (error) {
