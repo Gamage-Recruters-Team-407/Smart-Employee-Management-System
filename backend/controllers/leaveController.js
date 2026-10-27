@@ -200,6 +200,105 @@ export const applyLeave = async (req, res) => {
       });
     }
 
+    // 6. Monthly 1-day allowance check & Weekend (Saturday/Sunday) Cover Validation
+    const leaveYear = start.getFullYear();
+    const leaveMonth = start.getMonth(); // 0-indexed
+    const monthStart = new Date(leaveYear, leaveMonth, 1, 0, 0, 0, 0);
+    const monthEnd = new Date(leaveYear, leaveMonth + 1, 0, 23, 59, 59, 999);
+
+    const monthExistingLeaves = await Leave.find({
+      employee: employeeDoc._id,
+      status: { $in: ["Pending", "Approved"] },
+      startDate: { $gte: monthStart, $lte: monthEnd },
+    });
+
+    const monthDaysUsed = monthExistingLeaves.reduce(
+      (sum, l) => sum + (l.totalDays || 0),
+      0
+    );
+
+    const MONTHLY_ALLOWED = 1.0;
+    const monthQuotaRemaining = Math.max(0, MONTHLY_ALLOWED - monthDaysUsed);
+    const monthlyQuotaUsed = Math.min(totalDays, monthQuotaRemaining);
+    const extraDays = Math.max(0, totalDays - monthlyQuotaUsed);
+
+    // If extra days exist beyond 1 day per month, validate weekend cover dates
+    let formattedCoverDates = [];
+    if (extraDays > 0) {
+      let parsedCoverDates = [];
+      if (req.body.weekendCoverDates) {
+        try {
+          parsedCoverDates =
+            typeof req.body.weekendCoverDates === "string"
+              ? JSON.parse(req.body.weekendCoverDates)
+              : req.body.weekendCoverDates;
+        } catch (err) {
+          return res.status(400).json({
+            message: "Invalid format for weekend cover dates.",
+          });
+        }
+      }
+
+      const requiredWeekendCount = Math.ceil(extraDays);
+      if (!Array.isArray(parsedCoverDates) || parsedCoverDates.length < requiredWeekendCount) {
+        return res.status(400).json({
+          message: `Members are entitled to 1 leave day per month (${monthDaysUsed} day(s) already used this month). You have ${extraDays} extra day(s) which must be covered on a Saturday or Sunday. Please provide at least ${requiredWeekendCount} weekend cover date(s).`,
+        });
+      }
+
+      const dateStringsSeen = new Set();
+      for (const item of parsedCoverDates) {
+        if (!item.date) {
+          return res.status(400).json({
+            message: "Each weekend cover entry must include a valid date.",
+          });
+        }
+        const rawDateStr = String(item.date).split("T")[0];
+        const dateParts = rawDateStr.split("-").map(Number);
+        if (dateParts.length !== 3 || dateParts.some(isNaN)) {
+          return res.status(400).json({
+            message: `Invalid weekend cover date: ${item.date}`,
+          });
+        }
+        const [y, m, dayNum] = dateParts;
+        const d = new Date(Date.UTC(y, m - 1, dayNum, 12, 0, 0));
+        if (isNaN(d.getTime())) {
+          return res.status(400).json({
+            message: `Invalid weekend cover date: ${item.date}`,
+          });
+        }
+
+        const dateStr = rawDateStr;
+        if (dateStringsSeen.has(dateStr)) {
+          return res.status(400).json({
+            message: `Duplicate weekend cover date detected: ${dateStr}. Please select distinct dates.`,
+          });
+        }
+        dateStringsSeen.add(dateStr);
+
+        const dayOfWeekIndex = d.getUTCDay(); // 0 is Sunday, 6 is Saturday
+        if (dayOfWeekIndex !== 0 && dayOfWeekIndex !== 6) {
+          return res.status(400).json({
+            message: `Selected cover date (${dateStr}) is not a Saturday or Sunday. All extra leave dates must be covered on Saturday or Sunday.`,
+          });
+        }
+
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        if (d < todayStart) {
+          return res.status(400).json({
+            message: `Selected cover date (${dateStr}) cannot be in the past.`,
+          });
+        }
+
+        formattedCoverDates.push({
+          date: d,
+          dayOfWeek: dayOfWeekIndex === 6 ? "Saturday" : "Sunday",
+          notes: item.notes || "",
+        });
+      }
+    }
+
     let medicalDocument = null;
     if (req.file) {
       medicalDocument = req.file.path;
@@ -211,6 +310,9 @@ export const applyLeave = async (req, res) => {
       startDate,
       endDate: actualEndDate,
       totalDays,
+      monthlyQuotaUsed,
+      extraDays,
+      weekendCoverDates: formattedCoverDates,
       isHalfDay,
       leaveCategory,
       halfDaySession,
@@ -608,5 +710,47 @@ export const deleteLeave = async (req, res) => {
       message: "Server error",
       error: error.message,
     });
+  }
+};
+
+// ─────────────────────────────────────────────
+// Monthly Leave Quota Usage
+// ─────────────────────────────────────────────
+
+export const getMonthlyLeaveUsage = async (req, res) => {
+  try {
+    const employeeDoc = await resolveEmployeeForAuthUser(req.user, { createIfMissing: true });
+    if (!employeeDoc) {
+      return res.status(404).json({ message: "Employee profile not found" });
+    }
+
+    const targetDateStr = req.query.date || new Date().toISOString().split("T")[0];
+    const target = new Date(targetDateStr);
+    const year = target.getFullYear();
+    const month = target.getMonth();
+
+    const monthStart = new Date(year, month, 1, 0, 0, 0, 0);
+    const monthEnd = new Date(year, month + 1, 0, 23, 59, 59, 999);
+
+    const monthLeaves = await Leave.find({
+      employee: employeeDoc._id,
+      status: { $in: ["Pending", "Approved"] },
+      startDate: { $gte: monthStart, $lte: monthEnd },
+    });
+
+    const usedDays = monthLeaves.reduce((sum, l) => sum + (l.totalDays || 0), 0);
+    const allowance = 1.0;
+    const remaining = Math.max(0, allowance - usedDays);
+
+    res.status(200).json({
+      year,
+      month: month + 1,
+      allowance,
+      usedDays,
+      remaining,
+      leaves: monthLeaves,
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 };

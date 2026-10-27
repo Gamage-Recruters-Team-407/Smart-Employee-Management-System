@@ -36,7 +36,7 @@ const DashboardHome = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // ─── EFFECT: FETCH LEAVE STATUS & REFRESH BREAK STATUS ON MOUNT ──────────────
+  // ─── EFFECT: FETCH LEAVE STATUS ON MOUNT ──────────────────────────────────
   useEffect(() => {
     if (user?.role === 'Employee') {
       // Leave check: අද approved leave ඇද්ද?
@@ -53,11 +53,9 @@ const DashboardHome = () => {
             new Date(l.endDate) >= today
         );
         setIsOnLeaveToday(onLeave);
-      }).catch(() => {});
-
-      fetchBreakStatus();
+      }).catch(() => { });
     }
-  }, [user, fetchBreakStatus]);
+  }, [user?._id, user?.role]);
 
   // ─── CHECK WORKING HOURS ──────────────────────────────────────────────────
   const getWorkingHoursStatus = () => {
@@ -192,11 +190,10 @@ const DashboardHome = () => {
           </div>
 
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-50 flex items-center gap-4 hover:shadow-md transition-shadow">
-            <div className={`p-3 rounded-xl ${
-              onlineStatus === 'Online' ? 'bg-emerald-50 text-emerald-600'
-            : onlineStatus === 'On Leave' ? 'bg-amber-50 text-amber-600'
-            : 'bg-orange-50 text-orange-600'
-          }`}>
+            <div className={`p-3 rounded-xl ${onlineStatus === 'Online' ? 'bg-emerald-50 text-emerald-600'
+                : onlineStatus === 'On Leave' ? 'bg-amber-50 text-amber-600'
+                  : 'bg-orange-50 text-orange-600'
+              }`}>
               <Clock size={24} />
             </div>
             <div>

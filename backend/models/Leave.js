@@ -37,6 +37,33 @@ const leaveSchema = new mongoose.Schema(
       required: true,
     },
 
+    monthlyQuotaUsed: {
+      type: Number,
+      default: 0,
+    },
+
+    extraDays: {
+      type: Number,
+      default: 0,
+    },
+
+    weekendCoverDates: [
+      {
+        date: {
+          type: Date,
+          required: true,
+        },
+        dayOfWeek: {
+          type: String,
+          enum: ["Saturday", "Sunday"],
+        },
+        notes: {
+          type: String,
+          default: "",
+        },
+      },
+    ],
+
     isHalfDay: {
       type: Boolean,
       default: false,

@@ -4,9 +4,9 @@ import API from "../services/api";
 import { io } from "socket.io-client";
 import { getSocketConfig } from "../utils/socketConfig";
 import { format } from "date-fns";
-import { 
-  AlertCircle, 
-  RefreshCw, 
+import {
+  AlertCircle,
+  RefreshCw,
   Download,
   Wifi,
   WifiOff,
@@ -22,7 +22,7 @@ import {
 
 const Attendance = () => {
   const { user } = useAuth();
-  
+
   // ─── Shared & Admin States ──────────────────────────────────────────────────
   const [employees, setEmployees] = useState([]);
   const [attendanceData, setAttendanceData] = useState([]);
@@ -54,15 +54,15 @@ const Attendance = () => {
     const fetchAdminData = async () => {
       setAdminLoading(true);
       setError(null);
-      
+
       try {
         console.log('📡 Fetching admin data for date:', selectedDate);
-        
+
         // Fetch employees
         const empRes = await API.get("/employees?limit=1000");
         const employeesData = empRes.data?.data || empRes.data || [];
         setEmployees(employeesData);
-        
+
         // Fetch attendance for the selected date
         try {
           const attRes = await API.get(`/attendance/admin/summary?date=${selectedDate}`);
@@ -72,7 +72,7 @@ const Attendance = () => {
           console.warn('⚠️ Could not fetch attendance data:', attErr.message);
           setAttendanceData([]);
         }
-        
+
         if (employeesData.length === 0) {
           setError('No employees found in the system.');
         }
@@ -341,7 +341,7 @@ const Attendance = () => {
                       const breakType = record?.breakType || null;
                       const statusBadge = getOnlineStatusBadge(onlineStatus, breakType, adminLoading);
                       const breakLabel = getBreakLabel(breakType, onlineStatus);
-                      
+
                       return (
                         <tr key={emp._id} className="hover:bg-gray-50/50 transition-colors">
                           <td className="px-6 py-4 font-mono text-sm text-gray-700">{emp.employeeId}</td>
@@ -414,7 +414,7 @@ const Attendance = () => {
                   >
                     <ChevronLeft size={16} />
                   </button>
-                  
+
                   <span className="px-3 py-1 font-medium text-gray-700">
                     Page {currentPage} of {totalPages || 1}
                   </span>
