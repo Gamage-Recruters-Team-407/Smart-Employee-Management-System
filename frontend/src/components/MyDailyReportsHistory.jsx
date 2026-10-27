@@ -14,6 +14,10 @@ import {
   Briefcase,
   Edit3,
   Filter,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
 } from "lucide-react";
 
 const MyDailyReportsHistory = () => {
@@ -32,6 +36,15 @@ const MyDailyReportsHistory = () => {
   const [endDate, setEndDate] = useState("");
   const [quickRange, setQuickRange] = useState("all");
 
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(6);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 6,
+    totalCount: 0,
+    totalPages: 1,
+  });
+
   const [selectedReport, setSelectedReport] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -39,7 +52,10 @@ const MyDailyReportsHistory = () => {
     setLoading(true);
     setErrorMsg("");
     try {
-      const params = {};
+      const params = {
+        page,
+        limit,
+      };
       if (startDate) params.startDate = startDate;
       if (endDate) params.endDate = endDate;
       if (searchQuery.trim()) params.search = searchQuery.trim();
@@ -48,6 +64,17 @@ const MyDailyReportsHistory = () => {
       const data = res?.data ?? res;
 
       setReports(Array.isArray(data.reports) ? data.reports : []);
+      if (data.pagination) {
+        setPagination(data.pagination);
+      } else {
+        const total = Array.isArray(data.reports) ? data.reports.length : 0;
+        setPagination({
+          page,
+          limit,
+          totalCount: total,
+          totalPages: Math.max(1, Math.ceil(total / limit)),
+        });
+      }
       if (data.stats) {
         setStats(data.stats);
       }
@@ -59,14 +86,20 @@ const MyDailyReportsHistory = () => {
     } finally {
       setLoading(false);
     }
-  }, [startDate, endDate, searchQuery]);
+  }, [startDate, endDate, searchQuery, page, limit]);
 
   useEffect(() => {
     fetchHistory();
   }, [fetchHistory]);
 
+  const handleSearchChange = (e) => {
+    setSearchQuery(e.target.value);
+    setPage(1);
+  };
+
   const handleQuickRange = (range) => {
     setQuickRange(range);
+    setPage(1);
     const today = new Date();
     if (range === "7days") {
       const past7 = new Date();
@@ -159,7 +192,7 @@ const MyDailyReportsHistory = () => {
             type="text"
             placeholder="Search tasks, challenges, notes..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={handleSearchChange}
             className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white text-sm transition"
           />
         </div>
@@ -201,6 +234,7 @@ const MyDailyReportsHistory = () => {
               onChange={(e) => {
                 setStartDate(e.target.value);
                 setQuickRange("custom");
+                setPage(1);
               }}
               className="bg-transparent focus:outline-none text-xs"
             />
@@ -211,6 +245,7 @@ const MyDailyReportsHistory = () => {
               onChange={(e) => {
                 setEndDate(e.target.value);
                 setQuickRange("custom");
+                setPage(1);
               }}
               className="bg-transparent focus:outline-none text-xs"
             />
@@ -247,84 +282,200 @@ const MyDailyReportsHistory = () => {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {reports.map((report) => (
-            <div
-              key={report._id}
-              className="bg-white border border-gray-100 rounded-2xl shadow-sm hover:shadow-md transition p-5 flex flex-col justify-between"
-            >
-              <div>
-                {/* Card Top: Date + Hours */}
-                <div className="flex justify-between items-start gap-2 mb-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <Calendar size={16} className="text-indigo-600" />
-                      <span className="font-bold text-gray-800 text-base">
-                        {report.date}
-                      </span>
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {reports.map((report) => (
+              <div
+                key={report._id}
+                className="bg-white border border-gray-100 rounded-2xl shadow-sm hover:shadow-md transition p-5 flex flex-col justify-between"
+              >
+                <div>
+                  {/* Card Top: Date + Hours */}
+                  <div className="flex justify-between items-start gap-2 mb-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Calendar size={16} className="text-indigo-600" />
+                        <span className="font-bold text-gray-800 text-base">
+                          {report.date}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        Position: <span className="font-medium text-gray-600">{report.teamPosition}</span>
+                      </p>
                     </div>
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      Position: <span className="font-medium text-gray-600">{report.teamPosition}</span>
-                    </p>
+
+                    <span className="px-2.5 py-1 bg-indigo-50 border border-indigo-100 text-indigo-700 text-xs font-semibold rounded-lg shrink-0">
+                      {report.totalHours ? `${report.totalHours} logged` : "Submitted"}
+                    </span>
                   </div>
 
-                  <span className="px-2.5 py-1 bg-indigo-50 border border-indigo-100 text-indigo-700 text-xs font-semibold rounded-lg shrink-0">
-                    {report.totalHours ? `${report.totalHours} logged` : "Submitted"}
-                  </span>
-                </div>
+                  {/* Timing Badge */}
+                  <div className="flex items-center gap-2 bg-gray-50 rounded-xl p-2.5 mb-3 text-xs text-gray-600">
+                    <Clock size={14} className="text-indigo-500 shrink-0" />
+                    <span>
+                      Logged Timing: <strong className="text-gray-800">{report.startTime} - {report.endTime}</strong>
+                    </span>
+                  </div>
 
-                {/* Timing Badge */}
-                <div className="flex items-center gap-2 bg-gray-50 rounded-xl p-2.5 mb-3 text-xs text-gray-600">
-                  <Clock size={14} className="text-indigo-500 shrink-0" />
-                  <span>
-                    Logged Timing: <strong className="text-gray-800">{report.startTime} - {report.endTime}</strong>
-                  </span>
-                </div>
-
-                {/* Tasks Summary */}
-                <div className="space-y-1.5">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
-                    Tasks ({report.tasks?.length || 0})
-                  </p>
-                  {report.tasks && report.tasks.length > 0 ? (
-                    <div className="space-y-1 max-h-28 overflow-y-auto pr-1">
-                      {report.tasks.map((task, idx) => (
-                        <div
-                          key={idx}
-                          className="flex justify-between items-center gap-2 text-xs py-1 border-b border-gray-50 last:border-0"
-                        >
-                          <span className="text-gray-700 truncate">{task.description}</span>
-                          <span
-                            className={`px-2 py-0.5 rounded text-[11px] font-semibold border shrink-0 ${
-                              task.status === "Completed"
-                                ? "bg-green-50 text-green-700 border-green-200"
-                                : task.status === "In Progress"
-                                ? "bg-amber-50 text-amber-700 border-amber-200"
-                                : "bg-gray-50 text-gray-600 border-gray-200"
-                            }`}
+                  {/* Tasks Summary */}
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+                      Tasks ({report.tasks?.length || 0})
+                    </p>
+                    {report.tasks && report.tasks.length > 0 ? (
+                      <div className="space-y-1 max-h-28 overflow-y-auto pr-1">
+                        {report.tasks.map((task, idx) => (
+                          <div
+                            key={idx}
+                            className="flex justify-between items-center gap-2 text-xs py-1 border-b border-gray-50 last:border-0"
                           >
-                            {task.status}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-gray-400 italic">No task items detailed.</p>
-                  )}
+                            <span className="text-gray-700 truncate">{task.description}</span>
+                            <span
+                              className={`px-2 py-0.5 rounded text-[11px] font-semibold border shrink-0 ${
+                                task.status === "Completed"
+                                  ? "bg-green-50 text-green-700 border-green-200"
+                                  : task.status === "In Progress"
+                                  ? "bg-amber-50 text-amber-700 border-amber-200"
+                                  : "bg-gray-50 text-gray-600 border-gray-200"
+                              }`}
+                            >
+                              {task.status}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-400 italic">No task items detailed.</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Action Button */}
+                <div className="flex items-center gap-2 pt-4 border-t border-gray-50 mt-4">
+                  <button
+                    onClick={() => openModal(report)}
+                    className="w-full flex items-center justify-center gap-1.5 py-2 border border-indigo-100 hover:bg-indigo-50 text-indigo-600 text-xs font-semibold rounded-xl transition"
+                  >
+                    <FileText size={14} /> Full Details
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Pagination Controls */}
+          {pagination.totalCount > 0 && (
+            <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
+                <span>
+                  Showing{" "}
+                  <strong className="text-gray-800 font-semibold">
+                    {pagination.totalCount === 0
+                      ? 0
+                      : (pagination.page - 1) * pagination.limit + 1}
+                    –{Math.min(pagination.page * pagination.limit, pagination.totalCount)}
+                  </strong>{" "}
+                  of <strong className="text-gray-800 font-semibold">{pagination.totalCount}</strong> reports
+                </span>
+                <span className="text-gray-300">|</span>
+                <div className="flex items-center gap-1.5">
+                  <span>Per page:</span>
+                  <select
+                    value={limit}
+                    onChange={(e) => {
+                      setLimit(Number(e.target.value));
+                      setPage(1);
+                    }}
+                    className="bg-gray-50 border border-gray-200 text-gray-700 text-xs rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer font-medium"
+                  >
+                    <option value={4}>4</option>
+                    <option value={6}>6</option>
+                    <option value={10}>10</option>
+                    <option value={20}>20</option>
+                  </select>
                 </div>
               </div>
 
-              {/* Action Button */}
-              <div className="flex items-center gap-2 pt-4 border-t border-gray-50 mt-4">
-                <button
-                  onClick={() => openModal(report)}
-                  className="w-full flex items-center justify-center gap-1.5 py-2 border border-indigo-100 hover:bg-indigo-50 text-indigo-600 text-xs font-semibold rounded-xl transition"
-                >
-                  <FileText size={14} /> Full Details
-                </button>
-              </div>
+              {pagination.totalPages > 1 && (
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setPage(1)}
+                    disabled={page <= 1}
+                    title="First Page"
+                    className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                  >
+                    <ChevronsLeft size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                    disabled={page <= 1}
+                    title="Previous Page"
+                    className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+
+                  <div className="flex items-center gap-1 px-1">
+                    {(() => {
+                      const pages = [];
+                      const maxVisible = 5;
+                      const total = pagination.totalPages;
+                      let start = Math.max(1, page - 2);
+                      let end = Math.min(total, page + 2);
+
+                      if (page <= 3) {
+                        start = 1;
+                        end = Math.min(total, maxVisible);
+                      } else if (page >= total - 2) {
+                        start = Math.max(1, total - maxVisible + 1);
+                        end = total;
+                      }
+
+                      for (let i = start; i <= end; i++) {
+                        pages.push(i);
+                      }
+
+                      return pages.map((p) => (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => setPage(p)}
+                          className={`w-8 h-8 rounded-xl text-xs font-semibold transition ${
+                            p === page
+                              ? "bg-indigo-600 text-white shadow-sm"
+                              : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                          }`}
+                        >
+                          {p}
+                        </button>
+                      ));
+                    })()}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setPage((prev) => Math.min(pagination.totalPages, prev + 1))}
+                    disabled={page >= pagination.totalPages}
+                    title="Next Page"
+                    className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPage(pagination.totalPages)}
+                    disabled={page >= pagination.totalPages}
+                    title="Last Page"
+                    className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                  >
+                    <ChevronsRight size={16} />
+                  </button>
+                </div>
+              )}
             </div>
-          ))}
+          )}
         </div>
       )}
 

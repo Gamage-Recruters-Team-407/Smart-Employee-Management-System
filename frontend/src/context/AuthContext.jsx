@@ -36,7 +36,7 @@ const getInitialAuthData = () => {
 
 export const AuthProvider = ({ children }) => {
   const [initialData] = useState(() => getInitialAuthData());
-  
+
   const [token, setToken] = useState(initialData.token);
   const [user, setUser] = useState(initialData.user);
   const [loading, setLoading] = useState(false);
@@ -84,10 +84,18 @@ export const AuthProvider = ({ children }) => {
           return prev;
         }
         const name = [emp.firstName, emp.lastName].filter(Boolean).join(" ").trim();
-        const next = { 
-          ...prev, 
-          name: name || prev.name,
-          employeeId: emp.employeeId || prev.employeeId
+        const nextName = name || prev.name;
+        const nextEmpId = emp.employeeId || prev.employeeId;
+
+        // If no data actually changed, do not create a new object reference
+        if (prev.name === nextName && prev.employeeId === nextEmpId) {
+          return prev;
+        }
+
+        const next = {
+          ...prev,
+          name: nextName,
+          employeeId: nextEmpId
         };
         patchStoredUser({ name: next.name, employeeId: next.employeeId });
         return next;
@@ -116,7 +124,7 @@ export const AuthProvider = ({ children }) => {
   // ─── FETCH BREAK STATUS ──────────────────────────────────────────────────
   const fetchBreakStatus = useCallback(async () => {
     if (!token || !user) return;
-    
+
     try {
       const response = await API.get('/attendance/break/status');
       const data = response.data?.data || response.data || {};
@@ -166,7 +174,7 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password, rememberMe = false) => {
     setError(null);
     setLoading(true);
-    
+
     try {
       const data = await authService.login(email, password);
       const authUser = data?.user || data;
@@ -192,9 +200,6 @@ export const AuthProvider = ({ children }) => {
 
       setUser(userObj);
       setEmployeeData(employee);
-
-      // Fetch break status after login
-      setTimeout(() => fetchBreakStatus(), 500);
 
       if (userObj) {
         setTimeout(async () => {
@@ -230,11 +235,11 @@ export const AuthProvider = ({ children }) => {
   const register = async (name, email, password) => {
     setError(null);
     setLoading(true);
-    
+
     try {
       const data = await authService.register({ name, email, password });
       const authUser = data?.user || data;
-      
+
       // Store the token immediately so subsequent API calls have the Authorization header
       localStorage.setItem("token", data.token);
       setToken(data.token);
@@ -255,8 +260,6 @@ export const AuthProvider = ({ children }) => {
 
       setUser(userObj);
       setEmployeeData(employee);
-      
-      setTimeout(() => fetchBreakStatus(), 500);
 
       if (userObj) {
         setTimeout(async () => {
@@ -291,7 +294,7 @@ export const AuthProvider = ({ children }) => {
   // ─── LOGOUT ────────────────────────────────────────────────────────────────
   const logout = useCallback(async () => {
     setLoading(true);
-    
+
     try {
       if (user) {
         try {
@@ -330,7 +333,6 @@ export const AuthProvider = ({ children }) => {
     storage.setItem("user", JSON.stringify(userObj));
     setToken(data.token);
     setUser(userObj);
-    setTimeout(() => fetchBreakStatus(), 500);
     return userObj;
   };
 
@@ -338,11 +340,11 @@ export const AuthProvider = ({ children }) => {
   const loginWithGoogle = async (credential, rememberMe = true) => {
     setError(null);
     setLoading(true);
-    
+
     try {
       const data = await authService.googleLogin(credential);
       const userObj = persistSession(data, rememberMe);
-      
+
       // Fetch or create employee
       const employee = await fetchOrCreateEmployee(userObj);
       setEmployeeData(employee);

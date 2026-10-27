@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, useState, useCallback } from "react";
+import { createContext, useContext, useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { io } from "socket.io-client";
 import { useAuth } from "./AuthContext";
 import { getSocketConfig } from "../utils/socketConfig";
@@ -23,7 +23,6 @@ export const SocketProvider = ({ children }) => {
   // Helper to fetch current break status from API
   const fetchBreakStatus = useCallback(async () => {
     if (!user || user.role !== "Employee") return;
-    setStatusLoading(true);
     try {
       const response = await API.get("/attendance/break/status");
       const data = response.data?.data || response.data || {};
@@ -33,10 +32,8 @@ export const SocketProvider = ({ children }) => {
       }
     } catch (err) {
       console.error("Failed to fetch break status:", err);
-    } finally {
-      setStatusLoading(false);
     }
-  }, [user]);
+  }, [user?.role]);
 
   // Connect socket and keep it alive continuously while user is logged in
   useEffect(() => {
@@ -175,7 +172,7 @@ export const SocketProvider = ({ children }) => {
     window.addEventListener("online", handleOnline);
 
     // Initial break status fetch for employees
-    if (user.role === "Employee") {
+    if (user?.role === "Employee") {
       fetchBreakStatus();
     }
 
@@ -185,21 +182,21 @@ export const SocketProvider = ({ children }) => {
       // NOTE: We deliberately DO NOT disconnect socketRef.current here!
       // The socket remains active across route changes while user is logged in.
     };
-  }, [user, fetchBreakStatus]);
+  }, [user?._id, user?.role, fetchBreakStatus]);
+
+  const contextValue = useMemo(() => ({
+    socket: socketRef.current,
+    wsConnected,
+    onlineStatus,
+    setOnlineStatus,
+    breakStatus,
+    setBreakStatus,
+    fetchBreakStatus,
+    statusLoading,
+  }), [wsConnected, onlineStatus, breakStatus, fetchBreakStatus, statusLoading]);
 
   return (
-    <SocketContext.Provider
-      value={{
-        socket: socketRef.current,
-        wsConnected,
-        onlineStatus,
-        setOnlineStatus,
-        breakStatus,
-        setBreakStatus,
-        fetchBreakStatus,
-        statusLoading,
-      }}
-    >
+    <SocketContext.Provider value={contextValue}>
       {children}
     </SocketContext.Provider>
   );

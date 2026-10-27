@@ -12,6 +12,7 @@ import {
   updateLeaveStatus,
   cancelLeave,
   getLeaveBalance,
+  getMonthlyLeaveUsage,
   revertLeaveStatus,
   deleteLeave,
 } from "../controllers/leaveController.js";
@@ -48,6 +49,7 @@ const upload = multer({
 router.post("/apply", protect, upload.single("medicalDocument"), applyLeave);
 router.get("/my-leaves", protect, getMyLeaves);
 router.get("/balance", protect, getLeaveBalance);
+router.get("/monthly-usage", protect, getMonthlyLeaveUsage);
 router.put("/cancel/:id", protect, cancelLeave);
 router.get("/all", protect, authorize("HR", "Admin", "Manager"), getAllLeaves);
 router.put("/status/:id", protect, authorize("HR", "Admin", "Manager"), updateLeaveStatus);

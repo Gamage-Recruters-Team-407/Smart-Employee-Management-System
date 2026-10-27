@@ -298,8 +298,8 @@ const AdminAttendanceTable = () => {
               <button
                 onClick={() => setFilter("all")}
                 className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${filter === "all"
-                    ? "bg-indigo-600 text-white"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  ? "bg-indigo-600 text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                   }`}
               >
                 All ({stats.total})
@@ -307,8 +307,8 @@ const AdminAttendanceTable = () => {
               <button
                 onClick={() => setFilter("online")}
                 className={`px-3 py-1 rounded-full text-xs font-medium transition-colors flex items-center gap-1 ${filter === "online"
-                    ? "bg-emerald-600 text-white"
-                    : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                  ? "bg-emerald-600 text-white"
+                  : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
                   }`}
               >
                 <Wifi size={12} /> Online ({stats.online})
@@ -316,8 +316,8 @@ const AdminAttendanceTable = () => {
               <button
                 onClick={() => setFilter("breakfast")}
                 className={`px-3 py-1 rounded-full text-xs font-medium transition-colors flex items-center gap-1 ${filter === "breakfast"
-                    ? "bg-amber-600 text-white"
-                    : "bg-amber-50 text-amber-700 hover:bg-amber-100"
+                  ? "bg-amber-600 text-white"
+                  : "bg-amber-50 text-amber-700 hover:bg-amber-100"
                   }`}
               >
                 <Coffee size={12} /> Breakfast ({stats.breakfast})
@@ -325,8 +325,8 @@ const AdminAttendanceTable = () => {
               <button
                 onClick={() => setFilter("lunch")}
                 className={`px-3 py-1 rounded-full text-xs font-medium transition-colors flex items-center gap-1 ${filter === "lunch"
-                    ? "bg-orange-600 text-white"
-                    : "bg-orange-50 text-orange-700 hover:bg-orange-100"
+                  ? "bg-orange-600 text-white"
+                  : "bg-orange-50 text-orange-700 hover:bg-orange-100"
                   }`}
               >
                 <Utensils size={12} /> Lunch ({stats.lunch})
@@ -334,8 +334,8 @@ const AdminAttendanceTable = () => {
               <button
                 onClick={() => setFilter("tea")}
                 className={`px-3 py-1 rounded-full text-xs font-medium transition-colors flex items-center gap-1 ${filter === "tea"
-                    ? "bg-blue-600 text-white"
-                    : "bg-blue-50 text-blue-700 hover:bg-blue-100"
+                  ? "bg-blue-600 text-white"
+                  : "bg-blue-50 text-blue-700 hover:bg-blue-100"
                   }`}
               >
                 <Moon size={12} /> Tea ({stats.tea})
@@ -343,8 +343,8 @@ const AdminAttendanceTable = () => {
               <button
                 onClick={() => setFilter("offline")}
                 className={`px-3 py-1 rounded-full text-xs font-medium transition-colors flex items-center gap-1 ${filter === "offline"
-                    ? "bg-gray-600 text-white"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  ? "bg-gray-600 text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                   }`}
               >
                 <WifiOff size={12} /> Offline ({stats.offline})

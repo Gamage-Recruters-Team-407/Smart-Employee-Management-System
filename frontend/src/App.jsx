@@ -1,5 +1,6 @@
 import { lazy, Suspense } from "react";
 import { Route, Routes, Navigate, useLocation } from "react-router-dom";
+import { Toaster } from "react-hot-toast";
 import { useAuth } from "./context/AuthContext";
 import { BadgeProvider } from "./context/BadgeContext";
 
@@ -56,6 +57,33 @@ const ProtectedRoute = ({ children }) => {
 function App() {
   return (
     <BadgeProvider>
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: "#1e293b",
+            color: "#fff",
+            borderRadius: "12px",
+            fontSize: "14px",
+            padding: "12px 16px",
+            boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.2)",
+          },
+          success: {
+            iconTheme: {
+              primary: "#10b981",
+              secondary: "#fff",
+            },
+          },
+          error: {
+            iconTheme: {
+              primary: "#ef4444",
+              secondary: "#fff",
+            },
+            duration: 5000,
+          },
+        }}
+      />
       <Suspense fallback={<PageLoading />}>
         <Routes>
           {/* 🔓 Public Routes */}

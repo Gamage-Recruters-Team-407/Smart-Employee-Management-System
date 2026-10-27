@@ -78,6 +78,8 @@ const BreakNotification = () => {
 
   const soundEnabledRef = useRef(true);
   const breakCountdownRef = useRef(null);
+  const handleEndBreakRef = useRef(null);
+  const selectedBreakRef = useRef(null);
 
   useEffect(() => {
     soundEnabledRef.current = soundEnabled;
@@ -86,6 +88,10 @@ const BreakNotification = () => {
   useEffect(() => {
     breakCountdownRef.current = breakCountdown;
   }, [breakCountdown]);
+
+  useEffect(() => {
+    selectedBreakRef.current = selectedBreak;
+  }, [selectedBreak]);
 
   useEffect(() => {
     if (isBreakActive) {
@@ -220,75 +226,34 @@ const BreakNotification = () => {
       clearInterval(countdownTimerRef.current);
     }
 
-    let tickCount = 0;
-
-    countdownTimerRef.current = setInterval(async () => {
+    countdownTimerRef.current = setInterval(() => {
       if (!isMountedRef.current) {
         clearInterval(countdownTimerRef.current);
         countdownTimerRef.current = null;
         return;
       }
 
-
-
-      // Decrement locally first
+      // Decrement locally
       setBreakCountdown((prev) => {
         if (prev === null) return null;
         const next = prev - 1;
-        return next <= 0 ? 0 : next;
-      });
 
-      tickCount++;
-
-      // Sync with server every 10 seconds, or on timer end
-      if (tickCount % 10 === 0 || breakCountdownRef.current <= 0) {
-        try {
-          const response = await API.get('/attendance/break/remaining');
-          const data = response.data?.data || response.data || {};
-
-          if (!data.isOnBreak) {
+        if (next <= 0) {
+          if (countdownTimerRef.current) {
             clearInterval(countdownTimerRef.current);
             countdownTimerRef.current = null;
-            setBreakCountdown(0);
-            setIsBreakActive(false);
-            setSelectedBreak(null);
-            setActiveBreak(null);
-
-            if (soundEnabledRef.current) {
-              audioService.stopTickTock();
-              audioService.playBreakEnd();
-            }
-            tickTockStartedRef.current = false;
-            breakEndScheduledRef.current = false;
-
-            showNotificationMessage('🟢 Break ended!', 'info');
-            return;
           }
-
-          setBreakCountdown(data.remainingSeconds || 0);
-
-          if (data.remainingSeconds <= 0) {
-            clearInterval(countdownTimerRef.current);
-            countdownTimerRef.current = null;
-            setIsBreakActive(false);
-            setSelectedBreak(null);
-            setActiveBreak(null);
-
-            if (soundEnabledRef.current) {
-              audioService.stopTickTock();
-              audioService.playBreakEnd();
-            }
-            tickTockStartedRef.current = false;
-            breakEndScheduledRef.current = false;
-
-            showNotificationMessage('🟢 Break ended!', 'info');
+          if (handleEndBreakRef.current) {
+            console.log('⏰ Break countdown reached 0, auto ending...');
+            handleEndBreakRef.current(selectedBreakRef.current);
           }
-        } catch (err) {
-          console.error('Failed to sync remaining break time:', err);
+          return 0;
         }
-      }
+
+        return next;
+      });
     }, 1000);
-  }, [showNotificationMessage]);
+  }, []);
 
   // ─── HANDLE START BREAK ──────────────────────────────────────────────────
   const handleStartBreak = useCallback(async (breakItem) => {
@@ -381,6 +346,10 @@ const BreakNotification = () => {
       showNotificationMessage('⚠️ Failed to end break', 'error');
     }
   }, [updateUserStatus, soundEnabled, showNotificationMessage, fetchBreakStatus, employee]);
+
+  useEffect(() => {
+    handleEndBreakRef.current = handleEndBreak;
+  }, [handleEndBreak]);
 
   // ─── HANDLE BREAK SELECTION ──────────────────────────────────────────────
   const handleBreakSelect = useCallback(async (breakItem) => {
@@ -479,7 +448,7 @@ const BreakNotification = () => {
   // ─── EFFECT: POLLING INTERVAL ──────────────────────────────────────────
   useEffect(() => {
     const interval = setInterval(() => {
-      if (isMountedRef.current && fetchBreakStatusRef.current) {
+      if (isMountedRef.current && fetchBreakStatusRef.current && !isBreakActive) {
         fetchBreakStatusRef.current();
       }
     }, 30000);
@@ -487,7 +456,7 @@ const BreakNotification = () => {
     return () => {
       clearInterval(interval);
     };
-  }, []);
+  }, [isBreakActive]);
 
   // ─── EFFECT: START COUNTDOWN WHEN BREAK BECOMES ACTIVE ──────────────
   useEffect(() => {

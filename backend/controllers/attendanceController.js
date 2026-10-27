@@ -261,7 +261,7 @@ export const checkIn = async (req, res) => {
 
     const now = new Date();
     const minutes = getMinutesSinceMidnight(now);
-    const onTime = minutes >= 510 && minutes <= 570;
+    const onTime = minutes <= 570; // 9:30 AM cutoff; check-ins before 8:30 AM are considered on-time (Present)
 
     attendance.checkInTime = checkInTime || getCurrentTimeString();
     attendance.status = onTime ? 'Present' : 'Late';
