@@ -46,7 +46,7 @@ const LeaveForm = ({ onClose, onSuccess }) => {
 
     let requestedDays = 0;
     if (isHalfDay) {
-      requestedDays = 0.5;
+      requestedDays = 0; // Half day is not counted in monthly allowance policy
     } else {
       if (!endDate) {
         requestedDays = 1;
@@ -61,8 +61,8 @@ const LeaveForm = ({ onClose, onSuccess }) => {
 
     const MONTHLY_LIMIT = 1.0;
     const remainingQuota = Math.max(0, MONTHLY_LIMIT - monthUsage.usedDays);
-    const coveredByQuota = Math.min(requestedDays, remainingQuota);
-    const extraDays = Math.max(0, requestedDays - coveredByQuota);
+    const coveredByQuota = !isHalfDay ? Math.min(requestedDays, remainingQuota) : 0;
+    const extraDays = !isHalfDay ? Math.max(0, requestedDays - coveredByQuota) : 0;
     const requiredWeekendCount = Math.ceil(extraDays);
 
     return { requestedDays, extraDays, requiredWeekendCount };
@@ -376,7 +376,7 @@ const LeaveForm = ({ onClose, onSuccess }) => {
           </div>
 
           {/* Monthly 1-day allowance indicator & weekend cover */}
-          {formData.startDate && (
+          {!formData.isHalfDay && formData.startDate && (
             <div className="mb-3 p-3 bg-amber-50 rounded-lg border border-amber-200 text-xs">
               <div className="font-semibold text-amber-900 mb-1">
                 Policy: 1 Leave Day / Month Allowed

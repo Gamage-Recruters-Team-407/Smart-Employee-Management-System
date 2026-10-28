@@ -201,30 +201,37 @@ export const applyLeave = async (req, res) => {
     }
 
     // 6. Monthly 1-day allowance check & Weekend (Saturday/Sunday) Cover Validation
-    const leaveYear = start.getFullYear();
-    const leaveMonth = start.getMonth(); // 0-indexed
-    const monthStart = new Date(leaveYear, leaveMonth, 1, 0, 0, 0, 0);
-    const monthEnd = new Date(leaveYear, leaveMonth + 1, 0, 23, 59, 59, 999);
-
-    const monthExistingLeaves = await Leave.find({
-      employee: employeeDoc._id,
-      status: { $in: ["Pending", "Approved"] },
-      startDate: { $gte: monthStart, $lte: monthEnd },
-    });
-
-    const monthDaysUsed = monthExistingLeaves.reduce(
-      (sum, l) => sum + (l.totalDays || 0),
-      0
-    );
-
-    const MONTHLY_ALLOWED = 1.0;
-    const monthQuotaRemaining = Math.max(0, MONTHLY_ALLOWED - monthDaysUsed);
-    const monthlyQuotaUsed = Math.min(totalDays, monthQuotaRemaining);
-    const extraDays = Math.max(0, totalDays - monthlyQuotaUsed);
-
-    // If extra days exist beyond 1 day per month, validate weekend cover dates
+    // Applies ONLY to Full Day leaves; Half Day and Short Leave do not count towards monthly policy
     let formattedCoverDates = [];
-    if (extraDays > 0) {
+    let monthlyQuotaUsed = 0;
+    let extraDays = 0;
+
+    if (leaveCategory === "Full Day") {
+      const leaveYear = start.getFullYear();
+      const leaveMonth = start.getMonth(); // 0-indexed
+      const monthStart = new Date(leaveYear, leaveMonth, 1, 0, 0, 0, 0);
+      const monthEnd = new Date(leaveYear, leaveMonth + 1, 0, 23, 59, 59, 999);
+
+      const monthExistingLeaves = await Leave.find({
+        employee: employeeDoc._id,
+        status: { $in: ["Pending", "Approved"] },
+        startDate: { $gte: monthStart, $lte: monthEnd },
+        leaveCategory: "Full Day",
+        isHalfDay: { $ne: true },
+      });
+
+      const monthDaysUsed = monthExistingLeaves.reduce(
+        (sum, l) => sum + (l.totalDays || 0),
+        0
+      );
+
+      const MONTHLY_ALLOWED = 1.0;
+      const monthQuotaRemaining = Math.max(0, MONTHLY_ALLOWED - monthDaysUsed);
+      monthlyQuotaUsed = Math.min(totalDays, monthQuotaRemaining);
+      extraDays = Math.max(0, totalDays - monthlyQuotaUsed);
+
+      // If extra days exist beyond 1 day per month, validate weekend cover dates
+      if (extraDays > 0) {
       let parsedCoverDates = [];
       if (req.body.weekendCoverDates) {
         try {
@@ -298,6 +305,7 @@ export const applyLeave = async (req, res) => {
         });
       }
     }
+  }
 
     let medicalDocument = null;
     if (req.file) {

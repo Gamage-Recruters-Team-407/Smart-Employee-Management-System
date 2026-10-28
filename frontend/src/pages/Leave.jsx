@@ -115,10 +115,8 @@ const Leave = () => {
     if (!startDate) return { requestedDays: 0, usedThisMonth: 0, remainingQuota: 1.0, extraDays: 0, requiredWeekendCount: 0 };
 
     let requestedDays = 0;
-    if (leaveCategory === 'Half Day') {
-      requestedDays = 0.5;
-    } else if (leaveCategory === 'Short Leave') {
-      requestedDays = 0;
+    if (leaveCategory === 'Half Day' || leaveCategory === 'Short Leave') {
+      requestedDays = 0; // Half Day and Short Leave do not count towards monthly 1-day allowance policy
     } else {
       if (!endDate) {
         requestedDays = 1;
@@ -135,10 +133,11 @@ const Leave = () => {
     const targetYear = start.getFullYear();
     const targetMonth = start.getMonth();
 
-    // Calculate leaves already taken/pending this month
+    // Calculate full-day leaves already taken/pending this month (Half Day and Short Leave are excluded)
     const usedThisMonth = leaves
       .filter(l => {
         if (!['Pending', 'Approved'].includes(l.status)) return false;
+        if (l.leaveCategory === 'Half Day' || l.isHalfDay || l.leaveCategory === 'Short Leave') return false;
         const lDate = new Date(l.startDate);
         return lDate.getFullYear() === targetYear && lDate.getMonth() === targetMonth;
       })
@@ -146,8 +145,8 @@ const Leave = () => {
 
     const MONTHLY_LIMIT = 1.0;
     const remainingQuota = Math.max(0, MONTHLY_LIMIT - usedThisMonth);
-    const coveredByQuota = Math.min(requestedDays, remainingQuota);
-    const extraDays = Math.max(0, requestedDays - coveredByQuota);
+    const coveredByQuota = leaveCategory === 'Full Day' ? Math.min(requestedDays, remainingQuota) : 0;
+    const extraDays = leaveCategory === 'Full Day' ? Math.max(0, requestedDays - coveredByQuota) : 0;
     const requiredWeekendCount = Math.ceil(extraDays);
 
     const monthName = start.toLocaleString('default', { month: 'long', year: 'numeric' });
@@ -1861,8 +1860,8 @@ const Leave = () => {
                   )}
                 </div>
 
-                {/* ── Monthly Quota & Extra Dates Info ── */}
-                {formData.startDate && (
+                {/* ── Monthly Quota & Extra Dates Info (Full Day Only) ── */}
+                {formData.startDate && formData.leaveCategory === 'Full Day' && (
                   <div className="rounded-xl border border-indigo-100 bg-indigo-50/70 p-4 space-y-3">
                     <div className="flex items-center justify-between flex-wrap gap-2">
                       <div className="flex items-center gap-2">
@@ -2069,6 +2068,26 @@ const Leave = () => {
                         <span>This leave is within your 1 day/month allowance. No weekend cover dates required.</span>
                       </div>
                     )}
+                  </div>
+                )}
+
+                {/* ── Half Day Policy Info ── */}
+                {formData.startDate && formData.leaveCategory === 'Half Day' && (
+                  <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-3.5 text-xs text-indigo-900 flex items-center gap-2.5">
+                    <span className="text-base">ℹ️</span>
+                    <span>
+                      <strong>Half Day Policy:</strong> Half day leaves do not count towards the 1 day/month allowance policy and do not require weekend cover dates.
+                    </span>
+                  </div>
+                )}
+
+                {/* ── Short Leave Policy Info ── */}
+                {formData.startDate && formData.leaveCategory === 'Short Leave' && (
+                  <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-3.5 text-xs text-indigo-900 flex items-center gap-2.5">
+                    <span className="text-base">ℹ️</span>
+                    <span>
+                      <strong>Short Leave Policy:</strong> Short leaves are tracked in hours and do not count towards the 1 day/month allowance policy.
+                    </span>
                   </div>
                 )}
 
